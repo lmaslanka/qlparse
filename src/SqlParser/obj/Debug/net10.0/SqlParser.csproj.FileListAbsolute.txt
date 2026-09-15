@@ -1,0 +1,11 @@
+/home/lmaslanka/projects/sqlparser/src/SqlParser/bin/Debug/net10.0/SqlParser.deps.json
+/home/lmaslanka/projects/sqlparser/src/SqlParser/bin/Debug/net10.0/SqlParser.dll
+/home/lmaslanka/projects/sqlparser/src/SqlParser/bin/Debug/net10.0/SqlParser.pdb
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.GeneratedMSBuildEditorConfig.editorconfig
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.AssemblyInfoInputs.cache
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.AssemblyInfo.cs
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.csproj.CoreCompileInputs.cache
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.dll
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/refint/SqlParser.dll
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/SqlParser.pdb
+/home/lmaslanka/projects/sqlparser/src/SqlParser/obj/Debug/net10.0/ref/SqlParser.dll
