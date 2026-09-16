@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+
+repeats=${1:-1000}
+dotnet build src/SqlParser.Cli -c Release -v q
+dotnet run --project src/SqlParser.Cli -c Release --no-build -- sample.sql --repeat="$repeats" --no-color

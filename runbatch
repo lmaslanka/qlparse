@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+cd "$(dirname "$0")"
+
+count=${1:-800}
+dir=$(mktemp -d)
+trap 'rm -rf "$dir"' EXIT
+
+i=1
+while [ "$i" -le "$count" ]; do
+  cp sample.sql "$dir/$i.sql"
+  i=$((i + 1))
+done
+
+dotnet build src/SqlParser.Cli -c Release -v q
+TIMEFORMAT='real %R s'
+time dotnet run --project src/SqlParser.Cli -c Release --no-build -- "$dir"

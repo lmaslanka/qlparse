@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("SqlParser.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+66655373f51ff130d7a600124ed99a0093584efd")]
 [assembly: System.Reflection.AssemblyProductAttribute("SqlParser.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("SqlParser.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

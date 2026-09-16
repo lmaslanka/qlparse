@@ -20,6 +20,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SqlParser\SqlParser.csproj" />
+    <ProjectReference Include="..\..\src\SqlParser.Cli\SqlParser.Cli.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\..\sample.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

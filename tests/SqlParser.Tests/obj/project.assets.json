@@ -403,6 +403,19 @@
         "runtime": {
           "bin/placeholder/SqlParser.dll": {}
         }
+      },
+      "SqlParser.Cli/1.0.0": {
+        "type": "project",
+        "framework": ".NETCoreApp,Version=v10.0",
+        "dependencies": {
+          "SqlParser": "1.0.0"
+        },
+        "compile": {
+          "bin/placeholder/SqlParser.Cli.dll": {}
+        },
+        "runtime": {
+          "bin/placeholder/SqlParser.Cli.dll": {}
+        }
       }
     }
   },
@@ -918,12 +931,18 @@
       "type": "project",
       "path": "../../src/SqlParser/SqlParser.csproj",
       "msbuildProject": "../../src/SqlParser/SqlParser.csproj"
+    },
+    "SqlParser.Cli/1.0.0": {
+      "type": "project",
+      "path": "../../src/SqlParser.Cli/SqlParser.Cli.csproj",
+      "msbuildProject": "../../src/SqlParser.Cli/SqlParser.Cli.csproj"
     }
   },
   "projectFileDependencyGroups": {
     "net10.0": [
       "Microsoft.NET.Test.Sdk >= 17.14.1",
       "SqlParser >= 1.0.0",
+      "SqlParser.Cli >= 1.0.0",
       "coverlet.collector >= 6.0.4",
       "xunit >= 2.9.3",
       "xunit.runner.visualstudio >= 3.1.4"
@@ -955,6 +974,9 @@
           "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {
+            "/home/lmaslanka/projects/sqlparser/src/SqlParser.Cli/SqlParser.Cli.csproj": {
+              "projectPath": "/home/lmaslanka/projects/sqlparser/src/SqlParser.Cli/SqlParser.Cli.csproj"
+            },
             "/home/lmaslanka/projects/sqlparser/src/SqlParser/SqlParser.csproj": {
               "projectPath": "/home/lmaslanka/projects/sqlparser/src/SqlParser/SqlParser.csproj"
             }
