@@ -1,9 +1,0 @@
-<Solution>
-  <Folder Name="/src/">
-    <Project Path="src/SqlParser.Cli/SqlParser.Cli.csproj" />
-    <Project Path="src/SqlParser/SqlParser.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/SqlParser.Tests/SqlParser.Tests.csproj" />
-  </Folder>
-</Solution>
