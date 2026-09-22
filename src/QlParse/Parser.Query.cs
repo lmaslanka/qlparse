@@ -9,6 +9,11 @@ internal sealed partial class Parser
             return ParseWithQuery();
         }
 
+        if (IsInsert())
+        {
+            return ParseInsert();
+        }
+
         return ParseSetOp(minBindingPower);
     }
 
@@ -23,12 +28,14 @@ internal sealed partial class Parser
             ctes.Add(ParseCte());
         }
 
+        var query = ParseQuery(1);
         return new WithQuery
         {
+            Span = SourceSpan.From(withKeyword, query.Span),
             WithKeyword = withKeyword,
             RecursiveKeyword = recursive,
             Ctes = ctes,
-            Query = ParseSetOp(),
+            Query = query,
         };
     }
 
@@ -52,16 +59,21 @@ internal sealed partial class Parser
             closeParen = Expect(SyntaxKind.CloseParen);
         }
 
+        var asKeyword = Expect(SyntaxKind.AsKeyword);
+        var openQuery = Expect(SyntaxKind.OpenParen);
+        var query = ParseQuery();
+        var closeQuery = Expect(SyntaxKind.CloseParen);
         return new CommonTableExpression
         {
+            Span = SourceSpan.From(name, closeQuery),
             Name = name,
             OpenParen = openParen,
             Columns = columns,
             CloseParen = closeParen,
-            AsKeyword = Expect(SyntaxKind.AsKeyword),
-            OpenQuery = Expect(SyntaxKind.OpenParen),
-            Query = ParseQuery(),
-            CloseQuery = Expect(SyntaxKind.CloseParen),
+            AsKeyword = asKeyword,
+            OpenQuery = openQuery,
+            Query = query,
+            CloseQuery = closeQuery,
         };
     }
 
@@ -98,8 +110,10 @@ internal sealed partial class Parser
                 closeParen = Expect(SyntaxKind.CloseParen);
             }
 
+            var right = ParseQuery(bindingPower + 1);
             left = new SetOperation
             {
+                Span = SourceSpan.From(left.Span, right.Span),
                 Left = left,
                 Operator = op,
                 AllKeyword = all,
@@ -108,11 +122,42 @@ internal sealed partial class Parser
                 OpenParen = openParen,
                 Columns = columns,
                 CloseParen = closeParen,
-                Right = ParseQuery(bindingPower + 1),
+                Right = right,
             };
         }
 
         return left;
+    }
+
+    private bool IsInsert() =>
+        IdentifierEquals(Keyword.Insert)
+        && _index < _tokens.Count
+        && TokenEquals(_tokens[_index], Keyword.Into);
+
+    private InsertStatement ParseInsert()
+    {
+        var insertKeyword = Advance();
+        var intoKeyword = Advance();
+        var tableName = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
+        while (_current.Kind == SyntaxKind.Dot)
+        {
+            Advance();
+            tableName.Add(Expect(SyntaxKind.Identifier));
+        }
+
+        ParseOptionalColumnList(out var columnOpen, out var columns, out var columnClose);
+        var query = ParseQuery();
+        return new InsertStatement
+        {
+            Span = SourceSpan.From(insertKeyword, query.Span),
+            InsertKeyword = insertKeyword,
+            IntoKeyword = intoKeyword,
+            TableName = tableName,
+            ColumnOpenParen = columnOpen,
+            Columns = columns,
+            ColumnCloseParen = columnClose,
+            Query = query,
+        };
     }
 
     private Query ParseSetPrimary()
@@ -142,6 +187,7 @@ internal sealed partial class Parser
 
         return new ValuesQuery
         {
+            Span = SourceSpan.From(valuesKeyword, rows[^1].Span),
             ValuesKeyword = valuesKeyword,
             Rows = rows,
         };
@@ -151,21 +197,27 @@ internal sealed partial class Parser
     {
         var openParen = Expect(SyntaxKind.OpenParen);
         var values = ParseExpressionList();
+        var closeParen = Expect(SyntaxKind.CloseParen);
         return new ValuesRow
         {
+            Span = SourceSpan.From(openParen, closeParen),
             OpenParen = openParen,
             Values = values,
-            CloseParen = Expect(SyntaxKind.CloseParen),
+            CloseParen = closeParen,
         };
     }
 
     private ParenQuery ParseParenQuery()
     {
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var inner = ParseQuery();
+        var closeParen = Expect(SyntaxKind.CloseParen);
         return new ParenQuery
         {
-            OpenParen = Expect(SyntaxKind.OpenParen),
-            Inner = ParseQuery(),
-            CloseParen = Expect(SyntaxKind.CloseParen),
+            Span = SourceSpan.From(openParen, closeParen),
+            OpenParen = openParen,
+            Inner = inner,
+            CloseParen = closeParen,
         };
     }
 

@@ -55,6 +55,11 @@ internal static partial class Keyword
                 return SyntaxKind.DistinctKeyword;
             }
 
+            if (EqualsKeyword(text, Keyword.Coalesce))
+            {
+                return SyntaxKind.CoalesceKeyword;
+            }
+
             if (EqualsKeyword(text, Keyword.Overlaps))
             {
                 return SyntaxKind.OverlapsKeyword;
@@ -133,6 +138,11 @@ internal static partial class Keyword
             if (EqualsKeyword(text, Keyword.Select))
             {
                 return SyntaxKind.SelectKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.NullIf))
+            {
+                return SyntaxKind.NullIfKeyword;
             }
 
             if (EqualsKeyword(text, Keyword.Having))
@@ -233,6 +243,11 @@ internal static partial class Keyword
             if (EqualsKeyword(text, Keyword.Match))
             {
                 return SyntaxKind.MatchKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Treat))
+            {
+                return SyntaxKind.TreatKeyword;
             }
 
             if (EqualsKeyword(text, Keyword.Inner))

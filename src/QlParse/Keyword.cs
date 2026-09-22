@@ -3,6 +3,8 @@ namespace QlParse;
 internal static partial class Keyword
 {
     public const string Select = "select";
+    public const string Insert = "insert";
+    public const string Into = "into";
     public const string From = "from";
     public const string Where = "where";
     public const string And = "and";
@@ -48,6 +50,11 @@ internal static partial class Keyword
     public const string Distinct = "distinct";
     public const string Like = "like";
     public const string Cast = "cast";
+    public const string Treat = "treat";
+    public const string NullIf = "nullif";
+    public const string Coalesce = "coalesce";
+    public const string Next = "next";
+    public const string Value = "value";
     public const string Array = "array";
     public const string True = "true";
     public const string False = "false";
@@ -86,6 +93,16 @@ internal static partial class Keyword
     public const string Character = "character";
     public const string Char = "char";
     public const string Varying = "varying";
+    public const string Large = "large";
+    public const string Object = "object";
+    public const string National = "national";
+    public const string Nchar = "nchar";
+    public const string Binary = "binary";
+    public const string Multiset = "multiset";
+    public const string Row = "row";
+    public const string Ref = "ref";
+    public const string Scope = "scope";
+    public const string Mdarray = "mdarray";
     public const string Zone = "zone";
     public const string Convert = "convert";
     public const string Translate = "translate";

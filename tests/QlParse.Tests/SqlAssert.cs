@@ -12,8 +12,12 @@ internal static class SqlAssert
     public static SyntaxKind[] Kinds(string sql) =>
         [.. Lex(sql).Tokens.Select(token => token.Kind)];
 
-    public static T Parse<T>(string sql) where T : Query =>
-        Assert.IsType<T>(Sql.Parse(sql).Root);
+    public static T Parse<T>(string sql) where T : Query
+    {
+        var result = Sql.Parse(sql);
+        Assert.Null(result.Error);
+        return Assert.IsType<T>(result.Root);
+    }
 
     public static SelectStatement Select(string sql) =>
         Parse<SelectStatement>(sql);

@@ -21,11 +21,14 @@ internal sealed partial class Parser
         {
             if (_current.Kind == SyntaxKind.CollateKeyword && CollateBindingPower >= minBindingPower)
             {
+                var collateKeyword = Advance();
+                var name = Expect(SyntaxKind.Identifier);
                 left = new CollateExpression
                 {
+                    Span = SourceSpan.From(left.Span, name),
                     Expression = left,
-                    CollateKeyword = Advance(),
-                    Name = Expect(SyntaxKind.Identifier),
+                    CollateKeyword = collateKeyword,
+                    Name = name,
                 };
                 continue;
             }
@@ -33,11 +36,13 @@ internal sealed partial class Parser
             if (_current.Kind == SyntaxKind.DoubleColonToken && ColonCastBindingPower >= minBindingPower)
             {
                 var doubleColon = Advance();
+                var type = ParseDataType();
                 left = new ColonCastExpression
                 {
+                    Span = SourceSpan.From(left.Span, type.Span),
                     Expression = left,
                     DoubleColon = doubleColon,
-                    Type = ParseDataType(),
+                    Type = type,
                 };
                 continue;
             }
@@ -47,20 +52,24 @@ internal sealed partial class Parser
                 var dot = Advance();
                 if (_current.Kind == SyntaxKind.Star)
                 {
+                    var star = Advance();
                     left = new QualifiedStarExpression
                     {
+                        Span = SourceSpan.From(left.Span, star),
                         Target = left,
                         Dot = dot,
-                        Star = Advance(),
+                        Star = star,
                     };
                     continue;
                 }
 
+                var member = Expect(SyntaxKind.Identifier);
                 left = new MemberAccessExpression
                 {
+                    Span = SourceSpan.From(left.Span, member),
                     Target = left,
                     Dot = dot,
-                    Member = Expect(SyntaxKind.Identifier),
+                    Member = member,
                 };
                 continue;
             }
@@ -116,6 +125,7 @@ internal sealed partial class Parser
             var right = ParseExpression(bindingPower + 1);
             left = new BinaryExpression
             {
+                Span = SourceSpan.From(left.Span, right.Span),
                 Left = left,
                 OperatorToken = operatorToken,
                 Right = right,
@@ -140,6 +150,7 @@ internal sealed partial class Parser
 
         return new LikeExpression
         {
+            Span = SourceSpan.From(target.Span, escape?.Span ?? pattern.Span),
             Target = target,
             NotKeyword = notKeyword,
             LikeKeyword = likeKeyword,
@@ -151,14 +162,20 @@ internal sealed partial class Parser
 
     private BetweenExpression ParseBetween(Expression target)
     {
+        var notKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : (SyntaxToken?)null;
+        var betweenKeyword = Expect(SyntaxKind.BetweenKeyword);
+        var lower = ParseExpression(ComparisonBindingPower + 1);
+        var andKeyword = Expect(SyntaxKind.AndKeyword);
+        var upper = ParseExpression(ComparisonBindingPower + 1);
         return new BetweenExpression
         {
+            Span = SourceSpan.From(target.Span, upper.Span),
             Target = target,
-            NotKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : null,
-            BetweenKeyword = Expect(SyntaxKind.BetweenKeyword),
-            Lower = ParseExpression(ComparisonBindingPower + 1),
-            AndKeyword = Expect(SyntaxKind.AndKeyword),
-            Upper = ParseExpression(ComparisonBindingPower + 1),
+            NotKeyword = notKeyword,
+            BetweenKeyword = betweenKeyword,
+            Lower = lower,
+            AndKeyword = andKeyword,
+            Upper = upper,
         };
     }
 
@@ -169,15 +186,18 @@ internal sealed partial class Parser
         var openParen = Expect(SyntaxKind.OpenParen);
         if (IsQueryStart(_current.Kind))
         {
+            var query = ParseQuery();
+            var closeParen = Expect(SyntaxKind.CloseParen);
             return new InExpression
             {
+                Span = SourceSpan.From(target.Span, closeParen),
                 Target = target,
                 NotKeyword = notKeyword,
                 InKeyword = inKeyword,
                 OpenParen = openParen,
                 Values = [],
-                Query = ParseQuery(),
-                CloseParen = Expect(SyntaxKind.CloseParen),
+                Query = query,
+                CloseParen = closeParen,
             };
         }
 
@@ -188,25 +208,31 @@ internal sealed partial class Parser
             values.Add(ParseExpression());
         }
 
+        var close = Expect(SyntaxKind.CloseParen);
         return new InExpression
         {
+            Span = SourceSpan.From(target.Span, close),
             Target = target,
             NotKeyword = notKeyword,
             InKeyword = inKeyword,
             OpenParen = openParen,
             Values = values,
-            CloseParen = Expect(SyntaxKind.CloseParen),
+            CloseParen = close,
         };
     }
 
     private IsExpression ParseIs(Expression target)
     {
+        var isKeyword = Expect(SyntaxKind.IsKeyword);
+        var notKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : (SyntaxToken?)null;
+        var value = ParseIsValue();
         return new IsExpression
         {
+            Span = SourceSpan.From(target.Span, value),
             Target = target,
-            IsKeyword = Expect(SyntaxKind.IsKeyword),
-            NotKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : null,
-            Value = ParseIsValue(),
+            IsKeyword = isKeyword,
+            NotKeyword = notKeyword,
+            Value = value,
         };
     }
 

@@ -63,6 +63,9 @@ public sealed class LexTests
     [InlineData("distinct", SyntaxKind.DistinctKeyword)]
     [InlineData("like", SyntaxKind.LikeKeyword)]
     [InlineData("cast", SyntaxKind.CastKeyword)]
+    [InlineData("treat", SyntaxKind.TreatKeyword)]
+    [InlineData("nullif", SyntaxKind.NullIfKeyword)]
+    [InlineData("coalesce", SyntaxKind.CoalesceKeyword)]
     [InlineData("array", SyntaxKind.ArrayKeyword)]
     [InlineData("true", SyntaxKind.TrueKeyword)]
     [InlineData("false", SyntaxKind.FalseKeyword)]
@@ -113,7 +116,11 @@ public sealed class LexTests
 
     [Theory]
     [InlineData("foo")]
+    [InlineData("next")]
+    [InlineData("value")]
+    [InlineData("U")]
     [InlineData("_x")]
+    [InlineData("_foo")]
     [InlineData("foo_bar")]
     [InlineData("foo1")]
     [InlineData("foo$")]
@@ -151,6 +158,46 @@ public sealed class LexTests
     }
 
     [Theory]
+    [InlineData("_latin1\"foo\"")]
+    [InlineData("_UTF8\"a\"\"b\"")]
+    public void Character_set_introducer_identifier(string text)
+    {
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.Identifier, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Theory]
+    [InlineData("_utf8'hi'")]
+    public void Character_set_introducer_string(string text)
+    {
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Theory]
+    [InlineData("_latin1 \"foo\"")]
+    public void Character_set_introducer_requires_no_space(string sql)
+    {
+        Assert.Equal(
+            [SyntaxKind.Identifier, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds(sql));
+    }
+
+    [Theory]
+    [InlineData("U&\"foo\"")]
+    [InlineData("u&\"foo\"")]
+    [InlineData("U&\"a\"\"b\"")]
+    [InlineData("U&\"\\0441\"")]
+    public void Unicode_delimited_identifier(string text)
+    {
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.Identifier, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Theory]
     [InlineData(",", SyntaxKind.Comma)]
     [InlineData("=", SyntaxKind.EqualsToken)]
     [InlineData(".", SyntaxKind.Dot)]
@@ -165,9 +212,21 @@ public sealed class LexTests
     [InlineData("+", SyntaxKind.PlusToken)]
     [InlineData("-", SyntaxKind.MinusToken)]
     [InlineData("/", SyntaxKind.SlashToken)]
+    [InlineData("?", SyntaxKind.QuestionMark)]
+    [InlineData(":", SyntaxKind.ColonToken)]
     public void Single_char_tokens(string text, SyntaxKind kind)
     {
         Assert.Equal([kind, SyntaxKind.EndOfFile], SqlAssert.Kinds(text));
+    }
+
+    [Theory]
+    [InlineData(":foo")]
+    [InlineData(":from")]
+    public void Embedded_host_name(string text)
+    {
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.EmbeddedHost, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
     }
 
     [Theory]
@@ -198,9 +257,31 @@ public sealed class LexTests
     [InlineData("42")]
     [InlineData("3.14")]
     [InlineData("10.0")]
+    [InlineData("1e2")]
+    [InlineData("1E2")]
+    [InlineData("1.5e+10")]
+    [InlineData("1.5E-3")]
+    [InlineData("1e0")]
     public void Numbers(string text)
     {
         Assert.Equal([SyntaxKind.Number, SyntaxKind.EndOfFile], SqlAssert.Kinds(text));
+    }
+
+    [Theory]
+    [InlineData("1e", SyntaxKind.Number, SyntaxKind.Identifier)]
+    [InlineData("1 e10", SyntaxKind.Number, SyntaxKind.Identifier)]
+    public void Incomplete_exponent_is_not_a_number(string sql, SyntaxKind first, SyntaxKind second)
+    {
+        Assert.Equal([first, second, SyntaxKind.EndOfFile], SqlAssert.Kinds(sql));
+    }
+
+    [Theory]
+    [InlineData("1e+")]
+    public void Exponent_sign_without_digits_is_not_a_number(string sql)
+    {
+        Assert.Equal(
+            [SyntaxKind.Number, SyntaxKind.Identifier, SyntaxKind.PlusToken, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds(sql));
     }
 
     [Theory]
@@ -230,9 +311,16 @@ public sealed class LexTests
     [InlineData("b'1'")]
     [InlineData("X'AB'")]
     [InlineData("x'ab'")]
+    [InlineData("U&'foo'")]
+    [InlineData("u&'foo'")]
+    [InlineData("U&'it''s'")]
+    [InlineData("U&'\\0441'")]
+    [InlineData("U&''")]
     public void Strings(string text)
     {
-        Assert.Equal([SyntaxKind.String, SyntaxKind.EndOfFile], SqlAssert.Kinds(text));
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
     }
 
     [Fact]
@@ -243,6 +331,39 @@ public sealed class LexTests
         Assert.Equal(SyntaxKind.SelectKeyword, token.Kind);
         Assert.Equal(1, token.LeadingTriviaCount);
         Assert.Equal(SyntaxKind.LineCommentTrivia, result.Trivia[token.LeadingTriviaStart].Kind);
+    }
+
+    [Fact]
+    public void Extra_minuses_are_still_a_line_comment()
+    {
+        var result = SqlAssert.Lex("--- c\nselect");
+        var token = result.Tokens[0];
+        Assert.Equal(SyntaxKind.SelectKeyword, token.Kind);
+        Assert.Equal(1, token.LeadingTriviaCount);
+        Assert.Equal(SyntaxKind.LineCommentTrivia, result.Trivia[token.LeadingTriviaStart].Kind);
+    }
+
+    [Fact]
+    public void Extra_minuses_after_a_token_are_a_line_comment()
+    {
+        var result = SqlAssert.Lex("select 1---x");
+        Assert.Equal(SyntaxKind.SelectKeyword, result.Tokens[0].Kind);
+        Assert.Equal(SyntaxKind.Number, result.Tokens[1].Kind);
+        var eof = result.Tokens[^1];
+        Assert.Equal(SyntaxKind.EndOfFile, eof.Kind);
+        Assert.Equal(1, eof.LeadingTriviaCount);
+        Assert.Equal(SyntaxKind.LineCommentTrivia, result.Trivia[eof.LeadingTriviaStart].Kind);
+    }
+
+    [Fact]
+    public void Glued_line_comment_is_trivia()
+    {
+        var result = SqlAssert.Lex("select--c");
+        Assert.Equal(SyntaxKind.SelectKeyword, result.Tokens[0].Kind);
+        var eof = result.Tokens[^1];
+        Assert.Equal(SyntaxKind.EndOfFile, eof.Kind);
+        Assert.Equal(1, eof.LeadingTriviaCount);
+        Assert.Equal(SyntaxKind.LineCommentTrivia, result.Trivia[eof.LeadingTriviaStart].Kind);
     }
 
     [Fact]
@@ -282,12 +403,22 @@ public sealed class LexTests
     [InlineData("@")]
     [InlineData("!")]
     [InlineData("|")]
-    [InlineData(":")]
     [InlineData("$foo")]
+    [InlineData("# c\nselect")]
     public void Unexpected_character_sets_error(string sql)
     {
         var result = Sql.Lex(sql);
         Assert.IsType<SqlParseException>(result.Error);
+    }
+
+    [Theory]
+    [InlineData("@foo")]
+    public void At_parameter_lexes_with_flag(string sql)
+    {
+        var result = Sql.Lex(sql, SqlFlags.AtParameters);
+        Assert.Null(result.Error);
+        Assert.Equal(SyntaxKind.EmbeddedHost, result.Tokens[0].Kind);
+        Assert.Equal(sql, result.Tokens[0].TextOf(result.Source));
     }
 
     [Fact]
@@ -302,6 +433,11 @@ public sealed class LexTests
     [InlineData("'oops")]
     [InlineData("\"oops")]
     [InlineData("\"\"")]
+    [InlineData("U&\"oops")]
+    [InlineData("U&\"\"")]
+    [InlineData("U&'oops")]
+    [InlineData("_cs\"oops")]
+    [InlineData("_cs\"\"")]
     [InlineData("/* oops")]
     public void Unterminated_lexemes_set_error(string sql)
     {

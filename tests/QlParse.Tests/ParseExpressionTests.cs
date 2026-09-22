@@ -132,7 +132,7 @@ public sealed class ParseExpressionTests
     [Fact]
     public void Is_rejects_other_values()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select x is 1"));
+        Assert.NotNull(Sql.Parse("select x is 1").Error);
     }
 
     [Fact]

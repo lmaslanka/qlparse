@@ -43,8 +43,60 @@ internal sealed partial class Parser
         }
 
         var lockClause = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
+        var end = selectList[^1].Span;
+        if (from is not null)
+        {
+            end = from.Span;
+        }
+
+        if (joins.Count > 0)
+        {
+            end = joins[^1].Span;
+        }
+
+        if (extraFrom.Count > 0)
+        {
+            end = extraFrom[^1].Span;
+        }
+
+        if (where is not null)
+        {
+            end = where.Span;
+        }
+
+        if (groupBy is not null)
+        {
+            end = groupBy.Span;
+        }
+
+        if (having is not null)
+        {
+            end = having.Span;
+        }
+
+        if (orderBy is not null)
+        {
+            end = orderBy.Span;
+        }
+
+        if (limit is not null)
+        {
+            end = limit.Span;
+        }
+
+        if (offset is not null)
+        {
+            end = offset.Span;
+        }
+
+        if (lockClause is not null)
+        {
+            end = lockClause.Span;
+        }
+
         return new SelectStatement
         {
+            Span = SourceSpan.From(selectKeyword, end),
             SelectKeyword = selectKeyword,
             DistinctKeyword = distinct,
             AllKeyword = all,
@@ -68,11 +120,14 @@ internal sealed partial class Parser
         var forKeyword = Advance();
         if (_current.Kind == SyntaxKind.ReadKeyword)
         {
+            var readKeyword = Advance();
+            var onlyKeyword = Expect(SyntaxKind.OnlyKeyword);
             return new LockClause
             {
+                Span = SourceSpan.From(forKeyword, onlyKeyword),
                 ForKeyword = forKeyword,
-                ReadKeyword = Advance(),
-                OnlyKeyword = Expect(SyntaxKind.OnlyKeyword),
+                ReadKeyword = readKeyword,
+                OnlyKeyword = onlyKeyword,
             };
         }
 
@@ -99,6 +154,7 @@ internal sealed partial class Parser
 
         return new LockClause
         {
+            Span = SourceSpan.From(forKeyword, columns is null ? updateKeyword : columns[^1]),
             ForKeyword = forKeyword,
             UpdateKeyword = updateKeyword,
             OfKeyword = ofKeyword,
@@ -121,7 +177,7 @@ internal sealed partial class Parser
     private SelectItem ParseSelectItem()
     {
         var expression = _current.Kind == SyntaxKind.Star
-            ? new StarExpression { Star = Advance() }
+            ? ParseStar()
             : ParseExpression();
         SyntaxToken? asKeyword = null;
         SyntaxToken? alias = null;
@@ -137,6 +193,7 @@ internal sealed partial class Parser
 
         return new SelectItem
         {
+            Span = alias is null ? expression.Span : SourceSpan.From(expression.Span, alias.Value),
             Expression = expression,
             AsKeyword = asKeyword,
             Alias = alias,
@@ -145,11 +202,15 @@ internal sealed partial class Parser
 
     private GroupByClause ParseGroupBy()
     {
+        var groupKeyword = Expect(SyntaxKind.GroupKeyword);
+        var byKeyword = Expect(SyntaxKind.ByKeyword);
+        var keys = ParseExpressionList();
         return new GroupByClause
         {
-            GroupKeyword = Expect(SyntaxKind.GroupKeyword),
-            ByKeyword = Expect(SyntaxKind.ByKeyword),
-            Keys = ParseExpressionList(),
+            Span = SourceSpan.From(groupKeyword, keys[^1].Span),
+            GroupKeyword = groupKeyword,
+            ByKeyword = byKeyword,
+            Keys = keys,
         };
     }
 
@@ -166,6 +227,7 @@ internal sealed partial class Parser
 
         return new OrderByClause
         {
+            Span = SourceSpan.From(orderKeyword, items[^1].Span),
             OrderKeyword = orderKeyword,
             ByKeyword = byKeyword,
             Items = items,
@@ -183,6 +245,7 @@ internal sealed partial class Parser
 
         return new OrderByItem
         {
+            Span = direction is null ? expression.Span : SourceSpan.From(expression.Span, direction.Value),
             Expression = expression,
             Direction = direction,
         };
@@ -190,37 +253,49 @@ internal sealed partial class Parser
 
     private LimitClause ParseLimit()
     {
+        var limitKeyword = Expect(SyntaxKind.LimitKeyword);
+        var count = ParseExpression();
         return new LimitClause
         {
-            LimitKeyword = Expect(SyntaxKind.LimitKeyword),
-            Count = ParseExpression(),
+            Span = SourceSpan.From(limitKeyword, count.Span),
+            LimitKeyword = limitKeyword,
+            Count = count,
         };
     }
 
     private OffsetClause ParseOffset()
     {
+        var offsetKeyword = Expect(SyntaxKind.OffsetKeyword);
+        var count = ParseExpression();
         return new OffsetClause
         {
-            OffsetKeyword = Expect(SyntaxKind.OffsetKeyword),
-            Count = ParseExpression(),
+            Span = SourceSpan.From(offsetKeyword, count.Span),
+            OffsetKeyword = offsetKeyword,
+            Count = count,
         };
     }
 
     private HavingClause ParseHaving()
     {
+        var havingKeyword = Expect(SyntaxKind.HavingKeyword);
+        var expression = ParseExpression();
         return new HavingClause
         {
-            HavingKeyword = Expect(SyntaxKind.HavingKeyword),
-            Expression = ParseExpression(),
+            Span = SourceSpan.From(havingKeyword, expression.Span),
+            HavingKeyword = havingKeyword,
+            Expression = expression,
         };
     }
 
     private WhereClause ParseWhereClause()
     {
+        var whereKeyword = Expect(SyntaxKind.WhereKeyword);
+        var expression = ParseExpression();
         return new WhereClause
         {
-            WhereKeyword = Expect(SyntaxKind.WhereKeyword),
-            Expression = ParseExpression(),
+            Span = SourceSpan.From(whereKeyword, expression.Span),
+            WhereKeyword = whereKeyword,
+            Expression = expression,
         };
     }
 }

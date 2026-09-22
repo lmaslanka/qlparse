@@ -1,9 +1,13 @@
 namespace QlParse;
 
-public abstract class Query;
+public abstract class Query
+{
+    public required SourceSpan Span { get; init; }
+}
 
 public sealed class ValuesRow
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken OpenParen { get; init; }
     public required IReadOnlyList<Expression> Values { get; init; }
     public required SyntaxToken CloseParen { get; init; }
@@ -45,6 +49,7 @@ public sealed class WithQuery : Query
 
 public sealed class CommonTableExpression
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken Name { get; init; }
     public SyntaxToken? OpenParen { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
@@ -55,12 +60,41 @@ public sealed class CommonTableExpression
     public required SyntaxToken CloseQuery { get; init; }
 }
 
-public abstract class Expression;
+public abstract class Expression
+{
+    public required SourceSpan Span { get; init; }
+}
+
+public sealed class MdarrayDimension
+{
+    public required SourceSpan Span { get; init; }
+    public SyntaxToken? Lower { get; init; }
+    public SyntaxToken? Colon { get; init; }
+    public required SyntaxToken Upper { get; init; }
+}
+
+public sealed class CollectionSuffix
+{
+    public required SourceSpan Span { get; init; }
+    public required SyntaxToken Keyword { get; init; }
+    public SyntaxToken? OpenBracket { get; init; }
+    public SyntaxToken? Cardinality { get; init; }
+    public SyntaxToken? CloseBracket { get; init; }
+    public IReadOnlyList<MdarrayDimension>? Dimensions { get; init; }
+}
+
+public sealed class FieldDefinition
+{
+    public required SourceSpan Span { get; init; }
+    public required SyntaxToken Name { get; init; }
+    public required DataType Type { get; init; }
+}
 
 public sealed class DataType
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken Name { get; init; }
-    public SyntaxToken? SecondName { get; init; }
+    public IReadOnlyList<SyntaxToken> NameTail { get; init; } = [];
     public SyntaxToken? OpenParen { get; init; }
     public SyntaxToken? Precision { get; init; }
     public SyntaxToken? Scale { get; init; }
@@ -68,6 +102,11 @@ public sealed class DataType
     public SyntaxToken? WithKeyword { get; init; }
     public SyntaxToken? TimeKeyword { get; init; }
     public SyntaxToken? Zone { get; init; }
+    public IReadOnlyList<CollectionSuffix> Collections { get; init; } = [];
+    public IReadOnlyList<FieldDefinition>? Fields { get; init; }
+    public DataType? ReferencedType { get; init; }
+    public SyntaxToken? ScopeKeyword { get; init; }
+    public IReadOnlyList<SyntaxToken>? ScopeName { get; init; }
 }
 
 public sealed class CastExpression : Expression
@@ -78,6 +117,41 @@ public sealed class CastExpression : Expression
     public required SyntaxToken AsKeyword { get; init; }
     public required DataType Type { get; init; }
     public required SyntaxToken CloseParen { get; init; }
+}
+
+public sealed class TreatExpression : Expression
+{
+    public required SyntaxToken TreatKeyword { get; init; }
+    public required SyntaxToken OpenParen { get; init; }
+    public required Expression Expression { get; init; }
+    public required SyntaxToken AsKeyword { get; init; }
+    public required DataType Type { get; init; }
+    public required SyntaxToken CloseParen { get; init; }
+}
+
+public sealed class NullIfExpression : Expression
+{
+    public required SyntaxToken NullIfKeyword { get; init; }
+    public required SyntaxToken OpenParen { get; init; }
+    public required Expression First { get; init; }
+    public required Expression Second { get; init; }
+    public required SyntaxToken CloseParen { get; init; }
+}
+
+public sealed class CoalesceExpression : Expression
+{
+    public required SyntaxToken CoalesceKeyword { get; init; }
+    public required SyntaxToken OpenParen { get; init; }
+    public required IReadOnlyList<Expression> Arguments { get; init; }
+    public required SyntaxToken CloseParen { get; init; }
+}
+
+public sealed class NextValueExpression : Expression
+{
+    public required SyntaxToken NextKeyword { get; init; }
+    public required SyntaxToken ValueKeyword { get; init; }
+    public required SyntaxToken ForKeyword { get; init; }
+    public required IReadOnlyList<SyntaxToken> NameParts { get; init; }
 }
 
 public sealed class ColonCastExpression : Expression
@@ -132,6 +206,16 @@ public sealed class IdentifierExpression : Expression
     public required SyntaxToken Identifier { get; init; }
 }
 
+public sealed class HostParameterExpression : Expression
+{
+    public required SyntaxToken QuestionMark { get; init; }
+}
+
+public sealed class EmbeddedHostExpression : Expression
+{
+    public required SyntaxToken Name { get; init; }
+}
+
 public sealed class LiteralExpression : Expression
 {
     public required SyntaxToken Literal { get; init; }
@@ -153,6 +237,7 @@ public sealed class DatetimeLiteralExpression : Expression
 
 public sealed class IntervalField
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken Name { get; init; }
     public SyntaxToken? OpenParen { get; init; }
     public SyntaxToken? Precision { get; init; }
@@ -162,6 +247,7 @@ public sealed class IntervalField
 
 public sealed class IntervalQualifier
 {
+    public required SourceSpan Span { get; init; }
     public required IntervalField Start { get; init; }
     public SyntaxToken? ToKeyword { get; init; }
     public IntervalField? End { get; init; }
@@ -295,6 +381,7 @@ public sealed class NotExpression : Expression
 
 public sealed class FilterClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken FilterKeyword { get; init; }
     public required SyntaxToken OpenParen { get; init; }
     public required SyntaxToken WhereKeyword { get; init; }
@@ -313,12 +400,14 @@ public sealed class FunctionCallExpression : Expression
 
 public sealed class HavingClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken HavingKeyword { get; init; }
     public required Expression Expression { get; init; }
 }
 
 public sealed class OffsetClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken OffsetKeyword { get; init; }
     public required Expression Count { get; init; }
 }
@@ -365,6 +454,7 @@ public sealed class QuantifiedSubqueryExpression : Expression
 
 public sealed class WhenClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken WhenKeyword { get; init; }
     public required Expression Condition { get; init; }
     public required SyntaxToken ThenKeyword { get; init; }
@@ -395,12 +485,16 @@ public sealed class QualifiedStarExpression : Expression
 
 public sealed class SelectItem
 {
+    public required SourceSpan Span { get; init; }
     public required Expression Expression { get; init; }
     public SyntaxToken? AsKeyword { get; init; }
     public SyntaxToken? Alias { get; init; }
 }
 
-public abstract class TableSource;
+public abstract class TableSource
+{
+    public required SourceSpan Span { get; init; }
+}
 
 public sealed class TableReference : TableSource
 {
@@ -434,6 +528,7 @@ public sealed class JoinedTable : TableSource
 
 public sealed class GroupByClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken GroupKeyword { get; init; }
     public required SyntaxToken ByKeyword { get; init; }
     public required IReadOnlyList<Expression> Keys { get; init; }
@@ -441,12 +536,14 @@ public sealed class GroupByClause
 
 public sealed class OrderByItem
 {
+    public required SourceSpan Span { get; init; }
     public required Expression Expression { get; init; }
     public SyntaxToken? Direction { get; init; }
 }
 
 public sealed class OrderByClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken OrderKeyword { get; init; }
     public required SyntaxToken ByKeyword { get; init; }
     public required IReadOnlyList<OrderByItem> Items { get; init; }
@@ -454,11 +551,15 @@ public sealed class OrderByClause
 
 public sealed class LimitClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken LimitKeyword { get; init; }
     public required Expression Count { get; init; }
 }
 
-public abstract class JoinConstraint;
+public abstract class JoinConstraint
+{
+    public required SourceSpan Span { get; init; }
+}
 
 public sealed class OnConstraint : JoinConstraint
 {
@@ -476,6 +577,7 @@ public sealed class UsingConstraint : JoinConstraint
 
 public sealed class JoinClause
 {
+    public required SourceSpan Span { get; init; }
     public SyntaxToken? NaturalKeyword { get; init; }
     public SyntaxToken? JoinType { get; init; }
     public SyntaxToken? OuterKeyword { get; init; }
@@ -486,12 +588,14 @@ public sealed class JoinClause
 
 public sealed class WhereClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken WhereKeyword { get; init; }
     public required Expression Expression { get; init; }
 }
 
 public sealed class CommaFrom
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken Comma { get; init; }
     public required TableSource Table { get; init; }
     public required IReadOnlyList<JoinClause> Joins { get; init; }
@@ -499,12 +603,24 @@ public sealed class CommaFrom
 
 public sealed class LockClause
 {
+    public required SourceSpan Span { get; init; }
     public required SyntaxToken ForKeyword { get; init; }
     public SyntaxToken? ReadKeyword { get; init; }
     public SyntaxToken? OnlyKeyword { get; init; }
     public SyntaxToken? UpdateKeyword { get; init; }
     public SyntaxToken? OfKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
+}
+
+public sealed class InsertStatement : Query
+{
+    public required SyntaxToken InsertKeyword { get; init; }
+    public required SyntaxToken IntoKeyword { get; init; }
+    public required IReadOnlyList<SyntaxToken> TableName { get; init; }
+    public SyntaxToken? ColumnOpenParen { get; init; }
+    public IReadOnlyList<SyntaxToken>? Columns { get; init; }
+    public SyntaxToken? ColumnCloseParen { get; init; }
+    public required Query Query { get; init; }
 }
 
 public sealed class SelectStatement : Query

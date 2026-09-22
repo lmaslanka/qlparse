@@ -38,6 +38,23 @@ public sealed class ParseFromTests
     }
 
     [Fact]
+    public void Parses_unicode_delimited_table_name()
+    {
+        var table = Assert.IsType<TableReference>(SqlAssert.Select("select * from U&\"from\"").From);
+        Assert.Equal(SyntaxKind.Identifier, table.NameParts[0].Kind);
+        Assert.Null(table.Alias);
+    }
+
+    [Fact]
+    public void Parses_character_set_introducer_table_name()
+    {
+        var table = Assert.IsType<TableReference>(SqlAssert.Select("select * from _latin1\"from\"").From);
+        Assert.Single(table.NameParts);
+        Assert.Equal(SyntaxKind.Identifier, table.NameParts[0].Kind);
+        Assert.Null(table.Alias);
+    }
+
+    [Fact]
     public void Parses_derived_table()
     {
         var derived = Assert.IsType<DerivedTable>(SqlAssert.Select("select * from (select 1) as x (a)").From);
@@ -49,7 +66,7 @@ public sealed class ParseFromTests
     [Fact]
     public void Derived_table_requires_alias()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select * from (select 1)"));
+        Assert.NotNull(Sql.Parse("select * from (select 1)").Error);
     }
 
     [Fact]
@@ -70,7 +87,7 @@ public sealed class ParseFromTests
     [Fact]
     public void Parenthesized_table_without_join_throws()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select * from (t)"));
+        Assert.NotNull(Sql.Parse("select * from (t)").Error);
     }
 
     [Fact]
@@ -146,13 +163,13 @@ public sealed class ParseFromTests
     [Fact]
     public void Join_requires_on_or_using()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select * from t join u"));
+        Assert.NotNull(Sql.Parse("select * from t join u").Error);
     }
 
     [Fact]
     public void Outer_without_left_right_full_throws()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select * from t inner outer join u on true"));
+        Assert.NotNull(Sql.Parse("select * from t inner outer join u on true").Error);
     }
 
     [Theory]
@@ -163,7 +180,7 @@ public sealed class ParseFromTests
     [InlineData("select * from t cross join u using (a)")]
     public void On_and_using_invalid_with_natural_cross_union(string sql)
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse(sql));
+        Assert.NotNull(Sql.Parse(sql).Error);
     }
 
     [Fact]

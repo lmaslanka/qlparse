@@ -53,4 +53,10 @@ internal sealed partial class Parser
 
         return Advance();
     }
+
+    private StarExpression ParseStar()
+    {
+        var star = Advance();
+        return new StarExpression { Star = star, Span = star.Span };
+    }
 }

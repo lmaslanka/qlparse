@@ -4,7 +4,10 @@ public sealed class ParsePrefixTests
 {
     [Theory]
     [InlineData("1", SyntaxKind.Number)]
+    [InlineData("1e10", SyntaxKind.Number)]
     [InlineData("'x'", SyntaxKind.String)]
+    [InlineData("U&'foo'", SyntaxKind.String)]
+    [InlineData("_utf8'hi'", SyntaxKind.String)]
     [InlineData("true", SyntaxKind.TrueKeyword)]
     [InlineData("false", SyntaxKind.FalseKeyword)]
     [InlineData("null", SyntaxKind.NullKeyword)]
@@ -15,9 +18,50 @@ public sealed class ParsePrefixTests
 
     [Theory]
     [InlineData("a")]
+    [InlineData("U&\"foo\"")]
+    [InlineData("_latin1\"foo\"")]
     public void Parses_identifier(string sql)
     {
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr(sql));
+    }
+
+    [Theory]
+    [InlineData("?")]
+    public void Parses_host_parameter(string sql)
+    {
+        Assert.IsType<HostParameterExpression>(SqlAssert.Expr(sql));
+    }
+
+    [Theory]
+    [InlineData(":foo")]
+    public void Parses_embedded_host(string sql)
+    {
+        Assert.IsType<EmbeddedHostExpression>(SqlAssert.Expr(sql));
+    }
+
+    [Fact]
+    public void Parses_comparison_with_embedded_host()
+    {
+        var eq = SqlAssert.Expr<BinaryExpression>("x = :id");
+        Assert.Equal(SyntaxKind.EqualsToken, eq.OperatorToken.Kind);
+        Assert.IsType<EmbeddedHostExpression>(eq.Right);
+    }
+
+    [Fact]
+    public void Parses_at_parameter_with_flag()
+    {
+        var result = Sql.Parse("select x = @auditEventId", SqlFlags.AtParameters);
+        Assert.Null(result.Error);
+        var eq = Assert.IsType<BinaryExpression>(Assert.IsType<SelectStatement>(result.Root).SelectList[0].Expression);
+        Assert.IsType<EmbeddedHostExpression>(eq.Right);
+    }
+
+    [Fact]
+    public void Parses_comparison_with_host_parameter()
+    {
+        var eq = SqlAssert.Expr<BinaryExpression>("x = ?");
+        Assert.Equal(SyntaxKind.EqualsToken, eq.OperatorToken.Kind);
+        Assert.IsType<HostParameterExpression>(eq.Right);
     }
 
     [Fact]
@@ -50,7 +94,7 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Case_without_when_throws()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select case x end"));
+        Assert.NotNull(Sql.Parse("select case x end").Error);
     }
 
     [Fact]
@@ -58,13 +102,13 @@ public sealed class ParsePrefixTests
     {
         var cast = SqlAssert.Expr<CastExpression>("cast(x as int)");
         Assert.Equal(SyntaxKind.Identifier, cast.Type.Name.Kind);
-        Assert.Null(cast.Type.SecondName);
+        Assert.Empty(cast.Type.NameTail);
 
         var dbl = SqlAssert.Expr<CastExpression>("cast(x as double precision)").Type;
-        Assert.NotNull(dbl.SecondName);
+        Assert.Single(dbl.NameTail);
 
         var varying = SqlAssert.Expr<CastExpression>("cast(x as char varying(10))").Type;
-        Assert.NotNull(varying.SecondName);
+        Assert.Single(varying.NameTail);
         Assert.NotNull(varying.Precision);
 
         var numeric = SqlAssert.Expr<CastExpression>("cast(x as numeric(10, 2))").Type;
@@ -73,6 +117,186 @@ public sealed class ParsePrefixTests
         var tstz = SqlAssert.Expr<CastExpression>("cast(x as timestamp(6) with time zone)").Type;
         Assert.NotNull(tstz.WithKeyword);
         Assert.NotNull(tstz.Zone);
+
+        var clob = SqlAssert.Expr<CastExpression>("cast(x as character large object)");
+        Assert.Equal(Count.Two, clob.Type.NameTail.Count);
+
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as char(10))").Type.Precision);
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as varchar(10))").Type.Precision);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as clob)").Type.NameTail);
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as char large object(10))").Type.Precision);
+    }
+
+    [Fact]
+    public void Parses_treat()
+    {
+        Assert.IsType<TreatExpression>(SqlAssert.Expr("treat(x as int)"));
+        Assert.Single(SqlAssert.Expr<TreatExpression>("treat(x as public.my_udt)").Type.NameTail);
+    }
+
+    [Fact]
+    public void Treat_as_column_throws()
+    {
+        Assert.NotNull(Sql.Parse("select treat from t").Error);
+    }
+
+    [Fact]
+    public void Parses_nullif()
+    {
+        Assert.IsType<NullIfExpression>(SqlAssert.Expr("nullif(a, b)"));
+    }
+
+    [Fact]
+    public void Nullif_arity_and_keyword_throw()
+    {
+        Assert.NotNull(Sql.Parse("select nullif(a)").Error);
+        Assert.NotNull(Sql.Parse("select nullif from t").Error);
+    }
+
+    [Fact]
+    public void Parses_coalesce()
+    {
+        Assert.Equal(Count.Two, SqlAssert.Expr<CoalesceExpression>("coalesce(a, b)").Arguments.Count);
+        Assert.Equal(Count.Three, SqlAssert.Expr<CoalesceExpression>("coalesce(a, b, c)").Arguments.Count);
+    }
+
+    [Fact]
+    public void Coalesce_arity_and_keyword_throw()
+    {
+        Assert.NotNull(Sql.Parse("select coalesce(a)").Error);
+        Assert.NotNull(Sql.Parse("select coalesce from t").Error);
+    }
+
+    [Fact]
+    public void Parses_next_value_for()
+    {
+        Assert.Single(SqlAssert.Expr<NextValueExpression>("next value for seq").NameParts);
+        Assert.Equal(Count.Two, SqlAssert.Expr<NextValueExpression>("next value for public.seq").NameParts.Count);
+    }
+
+    [Fact]
+    public void Next_alone_is_identifier()
+    {
+        Assert.IsType<IdentifierExpression>(SqlAssert.Select("select next from t").SelectList[0].Expression);
+    }
+
+    [Fact]
+    public void Parses_exact_numeric_types()
+    {
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as numeric)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as decimal)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as smallint)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as integer)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as bigint)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as int)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as dec)").Type.NameTail);
+    }
+
+    [Fact]
+    public void Parses_approximate_numeric_types()
+    {
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as float)").Type.NameTail);
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as float(53))").Type.Precision);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as real)").Type.NameTail);
+    }
+
+    [Fact]
+    public void Parses_national_character_types()
+    {
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as nchar(10))").Type.Precision);
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as nvarchar(10))").Type.Precision);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as nclob)").Type.NameTail);
+        var national = SqlAssert.Expr<CastExpression>("cast(x as national character varying(10))").Type;
+        Assert.Equal(Count.Two, national.NameTail.Count);
+        Assert.NotNull(national.Precision);
+    }
+
+    [Fact]
+    public void Parses_binary_types()
+    {
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as binary(8))").Type.Precision);
+        Assert.NotNull(SqlAssert.Expr<CastExpression>("cast(x as varbinary(8))").Type.Precision);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as blob)").Type.NameTail);
+        Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as binary varying(8))").Type.NameTail);
+        Assert.Equal(Count.Two, SqlAssert.Expr<CastExpression>("cast(x as binary large object)").Type.NameTail.Count);
+    }
+
+    [Fact]
+    public void Parses_xml_and_json_types()
+    {
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as xml)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as json)").Type.NameTail);
+        Assert.Empty(SqlAssert.Expr<ColonCastExpression>("x :: xml").Type.NameTail);
+    }
+
+    [Fact]
+    public void Parses_array_types()
+    {
+        var arrayType = SqlAssert.Expr<CastExpression>("cast(x as integer array)").Type;
+        var suffix = Assert.Single(arrayType.Collections);
+        Assert.Equal(SyntaxKind.ArrayKeyword, suffix.Keyword.Kind);
+        Assert.Null(suffix.OpenBracket);
+
+        var bounded = SqlAssert.Expr<CastExpression>("cast(x as integer array[3])").Type;
+        Assert.NotNull(Assert.Single(bounded.Collections).Cardinality);
+
+        Assert.IsType<ArrayExpression>(SqlAssert.Expr<CastExpression>("cast(array[1, 2] as integer array)").Expression);
+        Assert.IsType<ArrayExpression>(SqlAssert.Expr<ColonCastExpression>("array[1] :: integer array").Expression);
+    }
+
+    [Fact]
+    public void Parses_multiset_types()
+    {
+        var multiset = Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as integer multiset)").Type.Collections);
+        Assert.Equal(SyntaxKind.Identifier, multiset.Keyword.Kind);
+
+        Assert.Equal(Count.Two, SqlAssert.Expr<CastExpression>("cast(x as integer array multiset)").Type.Collections.Count);
+    }
+
+    [Fact]
+    public void Parses_row_types()
+    {
+        var row = SqlAssert.Expr<CastExpression>("cast(x as row(a int, b varchar(10)))").Type;
+        Assert.Equal(Count.Two, row.Fields!.Count);
+        Assert.NotNull(row.Fields[1].Type.Precision);
+
+        Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as row(a int) array)").Type.Collections);
+    }
+
+    [Fact]
+    public void Parses_ref_types()
+    {
+        var refType = SqlAssert.Expr<CastExpression>("cast(x as ref(foo))").Type;
+        Assert.NotNull(refType.ReferencedType);
+
+        var scoped = SqlAssert.Expr<CastExpression>("cast(x as ref(foo) scope t)").Type;
+        Assert.NotNull(scoped.ScopeKeyword);
+        Assert.NotNull(scoped.ScopeName);
+    }
+
+    [Fact]
+    public void Parses_user_defined_types()
+    {
+        Assert.Empty(SqlAssert.Expr<CastExpression>("cast(x as my_udt)").Type.NameTail);
+        Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as public.my_udt)").Type.NameTail);
+        Assert.Equal(Count.Two, SqlAssert.Expr<CastExpression>("cast(x as catalog.schema.my_udt)").Type.NameTail.Count);
+    }
+
+    [Fact]
+    public void Parses_mdarray_types()
+    {
+        var simple = Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as integer mdarray[5])").Type.Collections);
+        Assert.Single(simple.Dimensions!);
+
+        var ranged = Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as integer mdarray[0:4, 0:9])").Type.Collections);
+        Assert.Equal(Count.Two, ranged.Dimensions!.Count);
+        Assert.NotNull(ranged.Dimensions[0].Colon);
+    }
+
+    [Fact]
+    public void Row_type_without_field_name_throws()
+    {
+        Assert.NotNull(Sql.Parse("select cast(x as row(1))").Error);
     }
 
     [Theory]
@@ -168,8 +392,8 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Niladic_without_precision_rejects_parens()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select user()"));
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select current_date()"));
+        Assert.NotNull(Sql.Parse("select user()").Error);
+        Assert.NotNull(Sql.Parse("select current_date()").Error);
     }
 
     [Fact]
@@ -211,6 +435,6 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Unknown_prefix_throws()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select )"));
+        Assert.NotNull(Sql.Parse("select )").Error);
     }
 }

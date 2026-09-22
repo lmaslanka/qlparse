@@ -22,4 +22,8 @@
     <ProjectReference Include="..\..\src\QlParse\QlParse.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="..\..\sample.sql" Link="sample.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

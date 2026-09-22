@@ -40,6 +40,31 @@ public sealed class ParseSelectTests
     }
 
     [Fact]
+    public void Exponent_literal_is_not_an_alias()
+    {
+        var item = SqlAssert.Select("select 1e10").SelectList[0];
+        Assert.IsType<LiteralExpression>(item.Expression);
+        Assert.Null(item.Alias);
+    }
+
+    [Fact]
+    public void Number_still_takes_bare_alias()
+    {
+        var item = SqlAssert.Select("select 1 e").SelectList[0];
+        Assert.IsType<LiteralExpression>(item.Expression);
+        Assert.NotNull(item.Alias);
+    }
+
+    [Fact]
+    public void Underscore_identifier_still_takes_bare_alias()
+    {
+        var item = SqlAssert.Select("select _x y").SelectList[0];
+        Assert.IsType<IdentifierExpression>(item.Expression);
+        Assert.NotNull(item.Alias);
+        Assert.Null(item.AsKeyword);
+    }
+
+    [Fact]
     public void Parses_where()
     {
         var select = SqlAssert.Select("select a from t where x = 1");
@@ -112,6 +137,6 @@ public sealed class ParseSelectTests
     [Fact]
     public void For_without_read_or_update_throws()
     {
-        Assert.Throws<SqlParseException>(() => Sql.Parse("select a from t for share"));
+        Assert.NotNull(Sql.Parse("select a from t for share").Error);
     }
 }

@@ -22,12 +22,14 @@ internal sealed partial class Parser
             throw new SqlParseException("Expected JOIN in parenthesized table", _current.Position);
         }
 
+        var closeParen = Expect(SyntaxKind.CloseParen);
         return new JoinedTable
         {
+            Span = SourceSpan.From(openParen, closeParen),
             OpenParen = openParen,
             Table = table,
             Joins = joins,
-            CloseParen = Expect(SyntaxKind.CloseParen),
+            CloseParen = closeParen,
         };
     }
 
@@ -53,8 +55,10 @@ internal sealed partial class Parser
         }
 
         ParseOptionalColumnList(out var columnOpen, out var columns, out var columnClose);
+        var end = columnClose ?? alias;
         return new DerivedTable
         {
+            Span = SourceSpan.From(openParen, end),
             OpenParen = openParen,
             Query = query,
             CloseParen = closeParen,
@@ -95,8 +99,10 @@ internal sealed partial class Parser
             ParseOptionalColumnList(out columnOpen, out columns, out columnClose);
         }
 
+        var end = columnClose ?? alias ?? nameParts[^1];
         return new TableReference
         {
+            Span = SourceSpan.From(nameParts[0], end),
             NameParts = nameParts,
             AsKeyword = asKeyword,
             Alias = alias,
@@ -141,11 +147,15 @@ internal sealed partial class Parser
         var extras = new List<CommaFrom>();
         while (_current.Kind == SyntaxKind.Comma)
         {
+            var comma = Advance();
+            var table = ParseTableSource();
+            var joins = ParseJoins();
             extras.Add(new CommaFrom
             {
-                Comma = Advance(),
-                Table = ParseTableSource(),
-                Joins = ParseJoins(),
+                Span = SourceSpan.From(comma, joins.Count > 0 ? joins[^1].Span : table.Span),
+                Comma = comma,
+                Table = table,
+                Joins = joins,
             });
         }
 
@@ -192,9 +202,11 @@ internal sealed partial class Parser
         var joinKeyword = Expect(SyntaxKind.JoinKeyword);
         var table = ParseTableSource();
         var constraint = ParseJoinConstraint(natural, joinType);
-
+        var start = natural ?? joinType ?? joinKeyword;
+        var end = constraint?.Span ?? table.Span;
         return new JoinClause
         {
+            Span = SourceSpan.From(start, end),
             NaturalKeyword = natural,
             JoinType = joinType,
             OuterKeyword = outer,
@@ -215,10 +227,13 @@ internal sealed partial class Parser
                 throw new SqlParseException("ON is not valid with NATURAL, CROSS, or UNION JOIN", _current.Position);
             }
 
+            var onKeyword = Advance();
+            var condition = ParseExpression();
             return new OnConstraint
             {
-                OnKeyword = Advance(),
-                Condition = ParseExpression(),
+                Span = SourceSpan.From(onKeyword, condition.Span),
+                OnKeyword = onKeyword,
+                Condition = condition,
             };
         }
 
@@ -251,12 +266,14 @@ internal sealed partial class Parser
             columns.Add(Expect(SyntaxKind.Identifier));
         }
 
+        var closeParen = Expect(SyntaxKind.CloseParen);
         return new UsingConstraint
         {
+            Span = SourceSpan.From(usingKeyword, closeParen),
             UsingKeyword = usingKeyword,
             OpenParen = openParen,
             Columns = columns,
-            CloseParen = Expect(SyntaxKind.CloseParen),
+            CloseParen = closeParen,
         };
     }
 

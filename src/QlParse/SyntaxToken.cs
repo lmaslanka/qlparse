@@ -7,5 +7,7 @@ public readonly record struct SyntaxToken(
     int LeadingTriviaStart,
     int LeadingTriviaCount)
 {
+    public SourceSpan Span => new(Position, Length);
+
     public ReadOnlySpan<char> TextOf(string source) => source.AsSpan(Position, Length);
 }
