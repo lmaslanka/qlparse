@@ -2,12 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreatePropertyGraph() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Property);
-
-    private bool IsDropPropertyGraph() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Property);
-
     private bool IsGraphTable() =>
         TokenEquals(_current, Keyword.GraphTable) && NextKind == SyntaxKind.OpenParen;
 

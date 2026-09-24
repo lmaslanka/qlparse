@@ -2,38 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsPrepare() => IdentifierEquals(Keyword.Prepare);
-
-    private bool IsExecuteImmediate() =>
-        IdentifierEquals(Keyword.Execute) && NextEquals(Keyword.Immediate);
-
-    private bool IsExecute() => IdentifierEquals(Keyword.Execute);
-
-    private bool IsDescribe() => IdentifierEquals(Keyword.Describe);
-
-    private bool IsAllocateDescriptor()
-    {
-        if (!IdentifierEquals(Keyword.Allocate))
-        {
-            return false;
-        }
-
-        var index = _index;
-        if (IsKeywordAt(index, Keyword.Sql))
-        {
-            index++;
-        }
-
-        return IsKeywordAt(index, Keyword.Descriptor);
-    }
-
-    private bool IsGetDiagnostics() =>
-        IdentifierEquals(Keyword.Get) && NextEquals(Keyword.Diagnostics);
-
-    private bool IsSignal() => IdentifierEquals(Keyword.Signal);
-
-    private bool IsResignal() => IdentifierEquals(Keyword.Resignal);
-
     private PrepareStatement ParsePrepare()
     {
         var prepareKeyword = Advance();

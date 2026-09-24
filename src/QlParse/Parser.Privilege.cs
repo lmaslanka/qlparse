@@ -2,19 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsGrant() => IdentifierEquals(Keyword.Grant);
-
-    private bool IsRevoke() => IdentifierEquals(Keyword.Revoke);
-
-    private bool IsCreateRole() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Role);
-
-    private bool IsDropRole() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Role);
-
-    private bool IsSetRole() =>
-        _current.Kind == SyntaxKind.SetKeyword && NextEquals(Keyword.Role);
-
     private Query ParseGrant() => NextIsPrivilege() ? ParseGrantPrivilege() : ParseGrantRole();
 
     private Query ParseRevoke()

@@ -2,24 +2,9 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreateSchema() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Schema);
-
-    private bool IsAlterSchema() =>
-        IdentifierEquals(Keyword.Alter) && NextEquals(Keyword.Schema);
-
-    private bool IsDropSchema() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Schema);
-
     private bool IsCreateTable() =>
         IdentifierEquals(Keyword.Create)
         && (NextEquals(Keyword.Table) || NextEquals(Keyword.Global) || NextEquals(Keyword.Local));
-
-    private bool IsAlterTable() =>
-        IdentifierEquals(Keyword.Alter) && NextEquals(Keyword.Table);
-
-    private bool IsDropTable() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Table);
 
     private bool NextEquals(string keyword) =>
         _index < _tokens.Count && TokenEquals(_tokens[_index], keyword);

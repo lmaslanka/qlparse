@@ -2,67 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreateAssertion() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Assertion);
-
-    private bool IsDropAssertion() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Assertion);
-
-    private bool IsCreateCharacterSet() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Character) && NextNextIsSet();
-
-    private bool IsDropCharacterSet() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Character) && NextNextIsSet();
-
-    private bool IsCreateCollation() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Collation);
-
-    private bool IsDropCollation() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Collation);
-
-    private bool IsCreateTranslation() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Translation);
-
-    private bool IsDropTranslation() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Translation);
-
-    private bool IsCreateSequence() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Sequence);
-
-    private bool IsDropSequence() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Sequence);
-
-    private bool IsCreateIndex()
-    {
-        if (!IdentifierEquals(Keyword.Create))
-        {
-            return false;
-        }
-
-        var index = _index;
-        if (index < _tokens.Count && _tokens[index].Kind == SyntaxKind.UniqueKeyword)
-        {
-            index++;
-        }
-
-        if (index < _tokens.Count
-            && (TokenEquals(_tokens[index], Keyword.Clustered) || TokenEquals(_tokens[index], Keyword.Nonclustered)))
-        {
-            index++;
-        }
-
-        return index < _tokens.Count && TokenEquals(_tokens[index], Keyword.Index);
-    }
-
-    private bool IsAlterIndex() =>
-        IdentifierEquals(Keyword.Alter) && NextEquals(Keyword.Index);
-
-    private bool IsDropIndex() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Index);
-
-    private bool IsComment() =>
-        IdentifierEquals(Keyword.Comment) && NextKind == SyntaxKind.OnKeyword;
-
     private bool NextNextIsSet() =>
         _index + 1 < _tokens.Count && _tokens[_index + 1].Kind == SyntaxKind.SetKeyword;
 

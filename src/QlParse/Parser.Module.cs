@@ -2,17 +2,10 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsModule() => IdentifierEquals(Keyword.Module);
-
-    private bool IsEmbeddedSql() =>
-        IdentifierEquals(Keyword.Exec) && NextEquals(Keyword.Sql);
-
     private bool IsDeclareSection() =>
         (IdentifierEquals(Keyword.Begin) || _current.Kind == SyntaxKind.EndKeyword)
         && NextEquals(Keyword.Declare)
         && IsKeywordAt(_index + 1, Keyword.Section);
-
-    private bool IsWhenever() => IdentifierEquals(Keyword.Whenever);
 
     private ModuleDefinition ParseModule()
     {
@@ -76,7 +69,7 @@ internal sealed partial class Parser
                 continue;
             }
 
-            contents.Add(IdentifierEquals(Keyword.Procedure) ? ParseModuleProcedure() : ParseQuery());
+            contents.Add(IdentifierEquals(Keyword.Procedure) ? ParseModuleProcedure() : ParseStatement());
             if (_current.Kind == SyntaxKind.Semicolon)
             {
                 Advance();
@@ -121,7 +114,7 @@ internal sealed partial class Parser
         }
 
         var semicolon = _current.Kind == SyntaxKind.Semicolon ? Advance() : (SyntaxToken?)null;
-        var statement = ParseQuery();
+        var statement = ParseStatement();
         var statementSemicolon = _current.Kind == SyntaxKind.Semicolon ? Advance() : (SyntaxToken?)null;
         var end = statementSemicolon?.Span ?? statement.Span;
         return new ModuleProcedure
@@ -142,7 +135,7 @@ internal sealed partial class Parser
     {
         var execKeyword = Advance();
         var sqlKeyword = ExpectIdent(Keyword.Sql);
-        var statement = ParseQuery();
+        var statement = ParseStatement();
         SyntaxToken? endKeyword = null;
         SyntaxToken? minus = null;
         SyntaxToken? endExec = null;

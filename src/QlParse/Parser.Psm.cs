@@ -2,38 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCompound() =>
-        IdentifierEquals(Keyword.Begin) || IsLabeled(Keyword.Begin);
-
-    private bool IsIf() => IdentifierEquals(Keyword.If);
-
-    private bool IsCaseStatement() => _current.Kind == SyntaxKind.CaseKeyword;
-
-    private bool IsLoop() =>
-        IdentifierEquals(Keyword.Loop) || IsLabeled(Keyword.Loop);
-
-    private bool IsWhile() =>
-        IdentifierEquals(Keyword.While) || IsLabeled(Keyword.While);
-
-    private bool IsRepeatStatement() =>
-        IdentifierEquals(Keyword.Repeat) || IsLabeled(Keyword.Repeat);
-
-    private bool IsForStatement() =>
-        _current.Kind == SyntaxKind.ForKeyword || IsLabeled(SyntaxKind.ForKeyword);
-
-    private bool IsLeave() => IdentifierEquals(Keyword.Leave);
-
-    private bool IsIterate() => IdentifierEquals(Keyword.Iterate);
-
-    private bool IsDeclareHandler() =>
-        IdentifierEquals(Keyword.Declare)
-        && (NextEquals(Keyword.Continue) || NextEquals(Keyword.Exit) || NextEquals(Keyword.Undo));
-
-    private bool IsDeclareVariable() =>
-        IdentifierEquals(Keyword.Declare) && !IsDeclareCursor() && !IsDeclareHandler();
-
-    private bool IsSetAssignment() => _current.Kind == SyntaxKind.SetKeyword;
-
     private CompoundStatement ParseCompound()
     {
         ParseBeginningLabel(out var label, out var colon);
@@ -145,7 +113,7 @@ internal sealed partial class Parser
             conditions.Add(ParseConditionValue());
         }
 
-        var action = ParseQuery();
+        var action = ParseStatement();
         return new DeclareHandlerStatement
         {
             Span = SourceSpan.From(declareKeyword, action.Span),
@@ -441,7 +409,7 @@ internal sealed partial class Parser
         var statements = new List<Query>();
         while (_current.Kind != SyntaxKind.EndOfFile && !stop())
         {
-            statements.Add(ParseQuery());
+            statements.Add(ParseStatement());
             if (_current.Kind != SyntaxKind.Semicolon)
             {
                 break;
@@ -538,28 +506,4 @@ internal sealed partial class Parser
 
     private bool IsCaseWhenEnd() =>
         _current.Kind is SyntaxKind.WhenKeyword or SyntaxKind.ElseKeyword or SyntaxKind.EndKeyword;
-
-    private bool IsLabeled(string keyword)
-    {
-        if (_current.Kind != SyntaxKind.Identifier || NextKind != SyntaxKind.ColonToken)
-        {
-            return false;
-        }
-
-        var after = _index;
-        after++;
-        return IsKeywordAt(after, keyword);
-    }
-
-    private bool IsLabeled(SyntaxKind kind)
-    {
-        if (_current.Kind != SyntaxKind.Identifier || NextKind != SyntaxKind.ColonToken)
-        {
-            return false;
-        }
-
-        var after = _index;
-        after++;
-        return after < _tokens.Count && _tokens[after].Kind == kind;
-    }
 }

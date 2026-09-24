@@ -2,28 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsInsert() =>
-        IdentifierEquals(Keyword.Insert)
-        && _index < _tokens.Count
-        && TokenEquals(_tokens[_index], Keyword.Into);
-
-    private bool IsUpdate() => _current.Kind == SyntaxKind.UpdateKeyword;
-
-    private bool IsDelete() =>
-        IdentifierEquals(Keyword.Delete)
-        && _index < _tokens.Count
-        && _tokens[_index].Kind == SyntaxKind.FromKeyword;
-
-    private bool IsMerge() =>
-        IdentifierEquals(Keyword.Merge)
-        && _index < _tokens.Count
-        && TokenEquals(_tokens[_index], Keyword.Into);
-
-    private bool IsTruncate() =>
-        IdentifierEquals(Keyword.Truncate)
-        && _index < _tokens.Count
-        && TokenEquals(_tokens[_index], Keyword.Table);
-
     private InsertStatement ParseInsert()
     {
         var insertKeyword = Advance();

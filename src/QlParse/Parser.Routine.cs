@@ -2,51 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreateTrigger() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Trigger);
-
-    private bool IsDropTrigger() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Trigger);
-
-    private bool IsCreateFunction() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Function);
-
-    private bool IsCreateProcedure() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Procedure);
-
-    private bool IsCreateMethod()
-    {
-        if (!IdentifierEquals(Keyword.Create))
-        {
-            return false;
-        }
-
-        if (NextEquals(Keyword.Method))
-        {
-            return true;
-        }
-
-        var index = _index;
-        if (!IsKeywordAt(index, Keyword.Instance) && !IsKeywordAt(index, Keyword.Static)
-            && !IsKeywordAt(index, Keyword.Constructor))
-        {
-            return false;
-        }
-
-        index++;
-        return IsKeywordAt(index, Keyword.Method);
-    }
-
-    private bool IsAlterRoutine() =>
-        IdentifierEquals(Keyword.Alter) && NextIsRoutineDesignator();
-
-    private bool IsDropRoutine() =>
-        IdentifierEquals(Keyword.Drop) && NextIsRoutineDesignator();
-
-    private bool IsCall() => IdentifierEquals(Keyword.Call);
-
-    private bool IsReturn() => IdentifierEquals(Keyword.Return);
-
     private CreateTriggerStatement ParseCreateTrigger()
     {
         var createKeyword = Advance();
@@ -123,7 +78,7 @@ internal sealed partial class Parser
             whenClose = Expect(SyntaxKind.CloseParen);
         }
 
-        var body = ParseQuery();
+        var body = ParseStatement();
         return new CreateTriggerStatement
         {
             Span = SourceSpan.From(createKeyword, body.Span),
@@ -463,7 +418,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Sql))
         {
             sqlKeyword = Advance();
-            body = ParseQuery();
+            body = ParseStatement();
             return;
         }
 
@@ -481,14 +436,4 @@ internal sealed partial class Parser
         nameKeyword = Advance();
         externalName = ParseSessionValue();
     }
-
-    private bool NextIsRoutineDesignator() =>
-        NextEquals(Keyword.Function)
-        || NextEquals(Keyword.Procedure)
-        || NextEquals(Keyword.Method)
-        || NextEquals(Keyword.Specific)
-        || NextEquals(Keyword.Routine)
-        || NextEquals(Keyword.Instance)
-        || NextEquals(Keyword.Static)
-        || NextEquals(Keyword.Constructor);
 }

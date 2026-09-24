@@ -2,26 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsConnect() => IdentifierEquals(Keyword.Connect);
-
-    private bool IsDisconnect() => IdentifierEquals(Keyword.Disconnect);
-
-    private bool IsSetConnection() =>
-        _current.Kind == SyntaxKind.SetKeyword && NextEquals(Keyword.Connection);
-
     private bool IsDeclareCursor() => LooksLikeCursor(Keyword.Declare);
-
-    private bool IsOpen() => IdentifierEquals(Keyword.Open);
-
-    private bool IsFetch() => _current.Kind == SyntaxKind.FetchKeyword;
-
-    private bool IsClose() => IdentifierEquals(Keyword.Close);
-
-    private bool IsAllocateCursor() => LooksLikeCursor(Keyword.Allocate);
-
-    private bool IsDeallocate() =>
-        IdentifierEquals(Keyword.Deallocate)
-        && (NextEquals(Keyword.Prepare) || NextEquals(Keyword.Descriptor));
 
     private ConnectStatement ParseConnect()
     {

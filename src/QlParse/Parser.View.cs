@@ -2,54 +2,6 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreateView()
-    {
-        if (!IdentifierEquals(Keyword.Create))
-        {
-            return false;
-        }
-
-        if (NextEquals(Keyword.View))
-        {
-            return true;
-        }
-
-        return NextKind == SyntaxKind.RecursiveKeyword
-            && _index + 1 < _tokens.Count
-            && TokenEquals(_tokens[_index + 1], Keyword.View);
-    }
-
-    private bool IsAlterView() =>
-        IdentifierEquals(Keyword.Alter) && NextEquals(Keyword.View);
-
-    private bool IsDropView() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.View);
-
-    private bool IsCreateDomain() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Domain);
-
-    private bool IsAlterDomain() =>
-        IdentifierEquals(Keyword.Alter) && NextEquals(Keyword.Domain);
-
-    private bool IsDropDomain() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Domain);
-
-    private bool IsCreateType() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Type);
-
-    private bool IsDropType() =>
-        IdentifierEquals(Keyword.Drop) && NextEquals(Keyword.Type);
-
-    private bool IsCreateOrdering() =>
-        IdentifierEquals(Keyword.Create) && NextEquals(Keyword.Ordering);
-
-    private bool IsCreateCast() =>
-        IdentifierEquals(Keyword.Create) && NextKind == SyntaxKind.CastKeyword;
-
-    private bool IsCreateTransform() =>
-        IdentifierEquals(Keyword.Create)
-        && (NextEquals(Keyword.Transform) || NextEquals(Keyword.Transforms));
-
     private CreateViewStatement ParseCreateView()
     {
         var createKeyword = Advance();

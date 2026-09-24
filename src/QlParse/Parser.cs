@@ -18,7 +18,7 @@ internal sealed partial class Parser
     public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source)
     {
         var parser = new Parser(tokens, source);
-        var statements = new List<Query> { parser.ParseQuery() };
+        var statements = new List<Query> { parser.ParseStatement() };
         var semicolons = new List<SyntaxToken>();
         while (parser._current.Kind == SyntaxKind.Semicolon)
         {
@@ -40,7 +40,7 @@ internal sealed partial class Parser
             }
 
             semicolons.Add(semicolon);
-            statements.Add(parser.ParseQuery());
+            statements.Add(parser.ParseStatement());
         }
 
         parser.Expect(SyntaxKind.EndOfFile);
