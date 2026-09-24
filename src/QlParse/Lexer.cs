@@ -112,7 +112,11 @@ internal sealed class Lexer
                     : ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount),
             '|' => Peek() == '|'
                 ? ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount)
-                : throw new SqlParseException("Unexpected character '|'", _position),
+                : ReadSingle(SyntaxKind.BarToken, triviaStart, triviaCount),
+            '{' => ReadSingle(SyntaxKind.OpenBrace, triviaStart, triviaCount),
+            '}' => ReadSingle(SyntaxKind.CloseBrace, triviaStart, triviaCount),
+            '^' => ReadSingle(SyntaxKind.CaretToken, triviaStart, triviaCount),
+            '$' => ReadSingle(SyntaxKind.DollarToken, triviaStart, triviaCount),
             '(' => ReadSingle(SyntaxKind.OpenParen, triviaStart, triviaCount),
             ')' => ReadSingle(SyntaxKind.CloseParen, triviaStart, triviaCount),
             '[' => ReadSingle(SyntaxKind.OpenBracket, triviaStart, triviaCount),

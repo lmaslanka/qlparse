@@ -95,6 +95,40 @@ public sealed class ParseQueryTests
     }
 
     [Fact]
+    public void Parses_search_and_cycle()
+    {
+        var depth = SqlAssert.Parse<WithQuery>("with recursive cte as (select 1) search depth first by id set seq select * from cte");
+        var search = depth.Ctes[0].Search;
+        Assert.NotNull(search);
+        Assert.Null(depth.Ctes[0].Cycle);
+        Assert.Single(search.Columns);
+
+        var breadth = SqlAssert.Parse<WithQuery>("with cte as (select 1) search breadth first by a, b set seq select * from cte");
+        Assert.Equal(Count.Two, breadth.Ctes[0].Search!.Columns.Count);
+
+        var cycle = SqlAssert.Parse<WithQuery>("with recursive cte as (select 1) cycle id set is_cycle to true default false using path select * from cte");
+        Assert.Null(cycle.Ctes[0].Search);
+        var cycleClause = cycle.Ctes[0].Cycle;
+        Assert.NotNull(cycleClause);
+        Assert.IsType<LiteralExpression>(cycleClause.MarkValue);
+
+        var both = SqlAssert.Parse<WithQuery>("with recursive cte as (select 1) search depth first by id set seq cycle id, parent set is_cycle to 'Y' default 'N' using path select * from cte");
+        Assert.NotNull(both.Ctes[0].Search);
+        Assert.Equal(Count.Two, both.Ctes[0].Cycle!.Columns.Count);
+    }
+
+    [Fact]
+    public void Parses_linear_and_general_recursion()
+    {
+        var linear = SqlAssert.Parse<WithQuery>("with recursive linear cte as (select 1) select * from cte");
+        Assert.NotNull(linear.RecursionLimit);
+
+        var general = SqlAssert.Parse<WithQuery>("with recursive general cte as (select 1) select * from cte");
+        Assert.NotNull(general.RecursionLimit);
+        Assert.NotNull(general.RecursiveKeyword);
+    }
+
+    [Fact]
     public void Parses_multiple_ctes()
     {
         var query = SqlAssert.Parse<WithQuery>("with a as (select 1), b as (select 2) select * from a");
@@ -175,6 +209,62 @@ public sealed class ParseQueryTests
     public void Extra_semicolon_throws()
     {
         Assert.NotNull(Sql.Parse("select 1;;").Error);
+    }
+
+    [Fact]
+    public void Parses_direct_sql_script()
+    {
+        var script = SqlAssert.Parse<DirectSqlScript>("select 1; select 2; select 3");
+        Assert.Equal(Count.Three, script.Statements.Count);
+        Assert.Equal(Count.Two, script.Semicolons.Count);
+        Assert.IsType<SelectStatement>(script.Statements[0]);
+        var terminated = SqlAssert.Parse<DirectSqlScript>("select 1; insert into t values (1);");
+        Assert.Equal(Count.Two, terminated.Statements.Count);
+        new EmptyVisitor().Visit(script);
+    }
+
+    [Fact]
+    public void Parses_sql_client_module()
+    {
+        var module = SqlAssert.Parse<ModuleDefinition>("""
+            module mod1 names are latin1 language c schema sch authorization u path sch, other
+            declare c cursor for select 1;
+            procedure p (x integer);
+            select x;
+            """);
+        Assert.NotNull(module.NamesKeyword);
+        Assert.NotNull(module.SchemaKeyword);
+        Assert.NotNull(module.Authorization);
+        Assert.Equal(Count.Two, module.Path.Count);
+        Assert.Equal(Count.Two, module.Contents.Count);
+        Assert.IsType<ModuleProcedure>(module.Contents[1]);
+        new EmptyVisitor().Visit(module);
+    }
+
+    [Fact]
+    public void Parses_embedded_sql_and_declare_section()
+    {
+        var embedded = SqlAssert.Parse<EmbeddedSqlStatement>("exec sql select 1;");
+        Assert.IsType<SelectStatement>(embedded.Statement);
+        Assert.NotNull(embedded.Semicolon);
+        var endExec = SqlAssert.Parse<EmbeddedSqlStatement>("exec sql select 1 end-exec");
+        Assert.NotNull(endExec.EndExec);
+        var begin = Assert.IsType<DeclareSectionStatement>(SqlAssert.Parse<EmbeddedSqlStatement>("exec sql begin declare section;").Statement);
+        Assert.Equal(SyntaxKind.Identifier, begin.BeginOrEnd.Kind);
+        Assert.Equal(SyntaxKind.EndKeyword, SqlAssert.Parse<DeclareSectionStatement>("end declare section").BeginOrEnd.Kind);
+        var whenever = Assert.IsType<WheneverStatement>(SqlAssert.Parse<EmbeddedSqlStatement>("exec sql whenever not found go to missing;").Statement);
+        Assert.NotNull(whenever.NotKeyword);
+        Assert.NotNull(whenever.ToKeyword);
+        Assert.IsType<WheneverStatement>(SqlAssert.Parse<WheneverStatement>("whenever sqlerror continue"));
+        new EmptyVisitor().Visit(embedded);
+    }
+
+    [Fact]
+    public void Information_schema_is_ordinary_identifiers()
+    {
+        Assert.Equal(SyntaxKind.Identifier, SqlAssert.Kinds("information_schema ")[0]);
+        var table = Assert.IsType<TableReference>(SqlAssert.Select("select table_name from information_schema.tables").From);
+        Assert.Equal(Count.Two, table.NameParts.Count);
     }
 
     [Fact]

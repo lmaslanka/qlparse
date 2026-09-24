@@ -2,6 +2,8 @@ namespace QlParse.Tests;
 
 public sealed class ParsePrefixTests
 {
+    private sealed class EmptyVisitor : SqlVisitor;
+
     [Theory]
     [InlineData("1", SyntaxKind.Number)]
     [InlineData("1e10", SyntaxKind.Number)]
@@ -141,6 +143,34 @@ public sealed class ParsePrefixTests
     }
 
     [Fact]
+    public void Parses_ref_values_and_deref()
+    {
+        var deref = SqlAssert.Expr<DerefExpression>("deref( p.manager )");
+        Assert.IsType<MemberAccessExpression>(deref.Expression);
+        Assert.IsType<IdentifierExpression>(SqlAssert.Expr<RefValueExpression>("ref( p )").Expression);
+        Assert.NotNull(Sql.Parse("select deref from t").Error);
+        Assert.IsType<IdentifierExpression>(SqlAssert.Expr("ref "));
+        new EmptyVisitor().Visit(deref);
+    }
+
+    [Fact]
+    public void Parses_specifictype()
+    {
+        Assert.IsType<IdentifierExpression>(SqlAssert.Expr<SpecifictypeExpression>("specifictype( p )").Expression);
+        Assert.NotNull(Sql.Parse("select specifictype from t").Error);
+    }
+
+    [Fact]
+    public void Parses_new_specification()
+    {
+        var created = SqlAssert.Expr<NewSpecificationExpression>("new sch.person(p.first_name)");
+        Assert.Equal(Count.Two, created.TypeName.Count);
+        Assert.Single(created.Arguments);
+        Assert.IsType<IdentifierExpression>(SqlAssert.Expr("new "));
+        new EmptyVisitor().Visit(created);
+    }
+
+    [Fact]
     public void Parses_nullif()
     {
         Assert.IsType<NullIfExpression>(SqlAssert.Expr("nullif(a, b)"));
@@ -248,7 +278,7 @@ public sealed class ParsePrefixTests
     public void Parses_multiset_types()
     {
         var multiset = Assert.Single(SqlAssert.Expr<CastExpression>("cast(x as integer multiset)").Type.Collections);
-        Assert.Equal(SyntaxKind.Identifier, multiset.Keyword.Kind);
+        Assert.Equal(SyntaxKind.MultisetKeyword, multiset.Keyword.Kind);
 
         Assert.Equal(Count.Two, SqlAssert.Expr<CastExpression>("cast(x as integer array multiset)").Type.Collections.Count);
     }
@@ -312,6 +342,31 @@ public sealed class ParsePrefixTests
         Assert.Equal(Count.Two, SqlAssert.Expr<ArrayExpression>("array[1, 2]").Elements.Count);
     }
 
+    [Fact]
+    public void Parses_array_subquery()
+    {
+        var query = SqlAssert.Expr<ArrayQueryExpression>("array(select a from t order by a)");
+        Assert.NotNull(Assert.IsType<SelectStatement>(query.Query).OrderBy);
+    }
+
+    [Fact]
+    public void Parses_multiset_constructors()
+    {
+        Assert.Empty(SqlAssert.Expr<MultisetExpression>("multiset[]").Elements);
+        Assert.Equal(Count.Two, SqlAssert.Expr<MultisetExpression>("multiset[1, 2]").Elements.Count);
+        Assert.Equal(SyntaxKind.MultisetKeyword, SqlAssert.Expr<MultisetQueryExpression>("multiset(select 1)").Keyword.Kind);
+        Assert.Equal(SyntaxKind.Identifier, SqlAssert.Expr<MultisetQueryExpression>("table(select 1)").Keyword.Kind);
+        Assert.IsType<MultisetExpression>(SqlAssert.Expr<MultisetSetExpression>("set(multiset[1])").Expression);
+    }
+
+    [Fact]
+    public void Parses_cardinality_element_and_absent()
+    {
+        Assert.Equal(SyntaxKind.CardinalityKeyword, SqlAssert.Expr<SpecialFormExpression>("cardinality(array[1])").Name.Kind);
+        Assert.Equal(SyntaxKind.ElementKeyword, SqlAssert.Expr<SpecialFormExpression>("element(multiset[1])").Name.Kind);
+        Assert.Equal(SyntaxKind.NullKeyword, SqlAssert.Expr<AbsentOnNullExpression>("absent on null").NullKeyword.Kind);
+    }
+
     [Theory]
     [InlineData("date '2020-01-01'", SyntaxKind.DateKeyword)]
     [InlineData("time '12:00:00'", SyntaxKind.TimeKeyword)]
@@ -352,6 +407,43 @@ public sealed class ParsePrefixTests
         Assert.NotNull(SqlAssert.Expr<TrimExpression>("trim(' ' from x)").Characters);
     }
 
+    [Theory]
+    [InlineData("upper(x)", SyntaxKind.UpperKeyword)]
+    [InlineData("lower(x)", SyntaxKind.LowerKeyword)]
+    [InlineData("char_length(x)", SyntaxKind.CharLengthKeyword)]
+    [InlineData("octet_length(x)", SyntaxKind.OctetLengthKeyword)]
+    [InlineData("bit_length(x)", SyntaxKind.BitLengthKeyword)]
+    [InlineData("normalize(x)", SyntaxKind.NormalizeKeyword)]
+    [InlineData("floor(x)", SyntaxKind.FloorKeyword)]
+    [InlineData("ceil(x)", SyntaxKind.CeilKeyword)]
+    [InlineData("sqrt(x)", SyntaxKind.SqrtKeyword)]
+    [InlineData("ln(x)", SyntaxKind.LnKeyword)]
+    [InlineData("exp(x)", SyntaxKind.ExpKeyword)]
+    [InlineData("abs(x)", SyntaxKind.AbsKeyword)]
+    public void Parses_unary_special_forms(string sql, SyntaxKind kind)
+    {
+        var form = SqlAssert.Expr<SpecialFormExpression>(sql);
+        Assert.Equal(kind, form.Name.Kind);
+        Assert.Single(form.Arguments);
+    }
+
+    [Fact]
+    public void Parses_special_forms_with_extra_args()
+    {
+        Assert.Equal(Count.Two, SqlAssert.Expr<SpecialFormExpression>("power(x, 2)").Arguments.Count);
+        Assert.Equal(Count.Two, SqlAssert.Expr<SpecialFormExpression>("mod(x, 2)").Arguments.Count);
+        Assert.Equal(Count.Two, SqlAssert.Expr<SpecialFormExpression>("normalize(x, nfc)").Arguments.Count);
+        Assert.Equal(Count.Three, SqlAssert.Expr<SpecialFormExpression>("width_bucket(x, 0, 1)").Arguments.Count);
+        Assert.NotNull(SqlAssert.Expr<SpecialFormExpression>("char_length(x using characters)").UsingKeyword);
+    }
+
+    [Fact]
+    public void Parses_overlay()
+    {
+        Assert.Null(SqlAssert.Expr<OverlayExpression>("overlay(x placing y from 1)").ForKeyword);
+        Assert.NotNull(SqlAssert.Expr<OverlayExpression>("overlay(x placing y from 1 for 2)").Length);
+    }
+
     [Fact]
     public void Parses_extract_substring_position()
     {
@@ -376,6 +468,12 @@ public sealed class ParsePrefixTests
     [InlineData("session_user")]
     [InlineData("system_user")]
     [InlineData("current_time")]
+    [InlineData("localtime")]
+    [InlineData("localtimestamp")]
+    [InlineData("current_role")]
+    [InlineData("current_catalog")]
+    [InlineData("current_schema")]
+    [InlineData("current_path")]
     public void Parses_niladic_functions(string sql)
     {
         Assert.Null(SqlAssert.Expr<NiladicFunctionExpression>(sql).OpenParen);
@@ -384,6 +482,8 @@ public sealed class ParsePrefixTests
     [Theory]
     [InlineData("current_time(3)")]
     [InlineData("current_timestamp(6)")]
+    [InlineData("localtime(3)")]
+    [InlineData("localtimestamp(6)")]
     public void Parses_niladic_functions_with_precision(string sql)
     {
         Assert.NotNull(SqlAssert.Expr<NiladicFunctionExpression>(sql).Precision);
@@ -394,6 +494,7 @@ public sealed class ParsePrefixTests
     {
         Assert.NotNull(Sql.Parse("select user()").Error);
         Assert.NotNull(Sql.Parse("select current_date()").Error);
+        Assert.NotNull(Sql.Parse("select current_role()").Error);
     }
 
     [Fact]

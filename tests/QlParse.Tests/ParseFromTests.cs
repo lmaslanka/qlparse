@@ -55,6 +55,72 @@ public sealed class ParseFromTests
     }
 
     [Fact]
+    public void Parses_unnest()
+    {
+        var plain = Assert.IsType<UnnestTable>(SqlAssert.Select("select * from unnest(a)").From);
+        Assert.Null(plain.WithKeyword);
+        Assert.Null(plain.Alias);
+
+        var ordinal = Assert.IsType<UnnestTable>(SqlAssert.Select("select * from unnest(a, b) with ordinality as x (i, n)").From);
+        Assert.NotNull(ordinal.OrdinalityKeyword);
+        Assert.NotNull(ordinal.AsKeyword);
+        Assert.Equal(Count.Two, ordinal.Expressions.Count);
+        Assert.Equal(Count.Two, ordinal.Columns!.Count);
+    }
+
+    [Fact]
+    public void Parses_lateral()
+    {
+        var lateral = Assert.IsType<DerivedTable>(SqlAssert.Select("select * from lateral (select 1) as x (a)").From);
+        Assert.NotNull(lateral.LateralKeyword);
+        Assert.NotNull(lateral.AsKeyword);
+        Assert.Single(lateral.Columns!);
+    }
+
+    [Fact]
+    public void Parses_tablesample()
+    {
+        var sampled = Assert.IsType<SampledTable>(SqlAssert.Select("select * from t as x tablesample bernoulli (10) repeatable (1)").From);
+        Assert.IsType<TableReference>(sampled.Table);
+        Assert.NotNull(sampled.RepeatableKeyword);
+        Assert.NotNull(sampled.RepeatArgument);
+
+        var system = Assert.IsType<SampledTable>(SqlAssert.Select("select * from t tablesample system (5)").From);
+        Assert.Null(system.RepeatableKeyword);
+    }
+
+    [Fact]
+    public void Parses_only()
+    {
+        var only = Assert.IsType<OnlyTable>(SqlAssert.Select("select * from only (catalog.schema.person) as p (a, b)").From);
+        Assert.Equal(Count.Three, only.NameParts.Count);
+        Assert.NotNull(only.AsKeyword);
+        Assert.Equal(Count.Two, only.Columns!.Count);
+    }
+
+    [Fact]
+    public void Parses_table_functions()
+    {
+        var wrapped = Assert.IsType<TableFunction>(SqlAssert.Select("select * from table(gen(1, 2)) as tf (id)").From);
+        Assert.NotNull(wrapped.TableKeyword);
+        Assert.Single(wrapped.Arguments);
+        Assert.NotNull(wrapped.Alias);
+
+        var routine = Assert.IsType<TableFunction>(SqlAssert.Select("select * from schema.gen(1)").From);
+        Assert.Null(routine.TableKeyword);
+        Assert.Equal(Count.Two, routine.NameParts.Count);
+        Assert.Null(routine.Alias);
+    }
+
+    [Fact]
+    public void Parses_values_in_from()
+    {
+        var values = Assert.IsType<DerivedTable>(SqlAssert.Select("select * from (values (1, 2), (3, 4)) as v (a, b)").From);
+        Assert.IsType<ValuesQuery>(values.Query);
+        Assert.Equal(Count.Two, values.Columns!.Count);
+    }
+
+    [Fact]
     public void Parses_derived_table()
     {
         var derived = Assert.IsType<DerivedTable>(SqlAssert.Select("select * from (select 1) as x (a)").From);
@@ -189,5 +255,107 @@ public sealed class ParseFromTests
         var select = SqlAssert.Select("select * from t, u join v on true");
         Assert.Single(select.ExtraFrom);
         Assert.Single(select.ExtraFrom[0].Joins);
+    }
+
+    [Fact]
+    public void Parses_system_time()
+    {
+        var asOf = Assert.IsType<TableReference>(SqlAssert.Select("select * from emp for system_time as of date '2011-01-01' as e").From);
+        Assert.NotNull(asOf.SystemTime!.AsKeyword);
+        Assert.NotNull(asOf.Alias);
+
+        var between = Assert.IsType<TableReference>(SqlAssert.Select("select * from emp for system_time between symmetric date '2011-01-01' and date '2011-06-01'").From);
+        Assert.NotNull(between.SystemTime!.BetweenKeyword);
+        Assert.NotNull(between.SystemTime.Qualifier);
+
+        var fromTo = Assert.IsType<TableReference>(SqlAssert.Select("select * from emp for system_time from date '2011-01-01' to date '2011-06-01'").From);
+        Assert.NotNull(fromTo.SystemTime!.FromKeyword);
+        Assert.NotNull(fromTo.SystemTime.ToKeyword);
+
+        var all = Assert.IsType<TableReference>(SqlAssert.Select("select * from emp for system_time all").From);
+        Assert.NotNull(all.SystemTime!.AllKeyword);
+
+        var only = Assert.IsType<OnlyTable>(SqlAssert.Select("select * from only (emp) for system_time as of date '2011-01-01'").From);
+        Assert.NotNull(only.SystemTime);
+    }
+
+    [Fact]
+    public void Parses_xml_and_json_tables()
+    {
+        var xml = Assert.IsType<MarkupTable>(SqlAssert.Select("select * from xmltable ( '/emp' passing x columns id integer path 'id' , n for ordinality ) as e").From);
+        Assert.Equal(Count.Two, xml.Columns.Count);
+        Assert.NotNull(xml.Alias);
+        var json = Assert.IsType<MarkupTable>(SqlAssert.Select("select * from json_table ( j , '$.a' columns ( id integer path '$.id' , nested path '$.phones' columns ( n varchar ( 10 ) path '$.n' ) ) )").From);
+        Assert.NotNull(json.Columns[1].Path);
+        Assert.Single(json.Columns[1].Nested);
+    }
+
+    [Fact]
+    public void Parses_match_recognize()
+    {
+        var matched = Assert.IsType<MatchRecognizeTable>(SqlAssert.Select("""
+            select * from t match_recognize (
+              partition by a
+              order by b
+              measures running sum ( a.x ) as s , final count ( b.* ) as c
+              all rows per match omit empty matches
+              after match skip past last row
+              pattern ( ^ a b+ | c* {- d -} )
+              subset u = ( a , b )
+              define a as a.x > 1 , b as b.y > 2
+            ) as mr
+            """).From);
+        Assert.NotNull(matched.PartitionBy);
+        Assert.NotNull(matched.OrderBy);
+        Assert.Equal(Count.Two, matched.Measures.Count);
+        Assert.Equal(SyntaxKind.AllKeyword, matched.RowsKind!.Value.Kind);
+        Assert.NotNull(matched.SkipKeyword);
+        Assert.IsType<PatternAlternation>(matched.Pattern);
+        Assert.Single(matched.Subsets);
+        Assert.Equal(Count.Two, matched.Definitions.Count);
+        Assert.NotNull(matched.Alias);
+
+        var one = Assert.IsType<MatchRecognizeTable>(SqlAssert.Select("""
+            select * from t match_recognize (
+              one row per match
+              after match skip to next row
+              pattern ( a { 2 , 4 }? )
+              define a as a > 0
+            )
+            """).From);
+        Assert.Equal(SyntaxKind.Identifier, one.RowsKind!.Value.Kind);
+        Assert.NotNull(one.SkipPosition);
+        Assert.IsType<PatternQuantified>(one.Pattern);
+    }
+
+    [Fact]
+    public void Parses_ptf_and_graph_table()
+    {
+        var ptf = Assert.IsType<PtfTable>(SqlAssert.Select("""
+            select * from my_ptf (
+              table ( select a from t ) as src partition by a order by b prune when a > 0 table semantics ,
+              row ( 1 , 2 ) row semantics ,
+              copartition ( src , other )
+            ) as p
+            """).From);
+        Assert.Equal(Count.Three, ptf.Arguments.Count);
+        Assert.NotNull(ptf.Arguments[0].Query);
+        Assert.NotNull(ptf.Arguments[0].SemanticsKeyword);
+        Assert.NotNull(ptf.Arguments[1].SemanticsKeyword);
+        Assert.NotNull(ptf.Arguments[Count.Two].CopartitionKeyword);
+        Assert.NotNull(ptf.Alias);
+
+        var graph = Assert.IsType<GraphTable>(SqlAssert.Select("""
+            select * from graph_table (
+              sch.g match ( a : person { name : 'Ada' } ) -[ e : knows ]-> { 1 , 3 } ( b is person where b.name = 'Bea' ) ,
+              ( ( a ) -[ e ]-> ( b ) ) *
+              where a.name = 'Ada'
+              columns ( a.name as name )
+            ) as gt
+            """).From);
+        Assert.Equal(Count.Two, graph.GraphName.Count);
+        Assert.NotNull(graph.Where);
+        Assert.NotNull(graph.ColumnsKeyword);
+        Assert.NotNull(graph.Alias);
     }
 }

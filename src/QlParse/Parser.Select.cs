@@ -8,6 +8,14 @@ internal sealed partial class Parser
         var distinct = _current.Kind == SyntaxKind.DistinctKeyword ? Advance() : (SyntaxToken?)null;
         var all = distinct is null && _current.Kind == SyntaxKind.AllKeyword ? Advance() : (SyntaxToken?)null;
         var selectList = ParseSelectList();
+        SyntaxToken? intoKeyword = null;
+        IReadOnlyList<SyntaxToken>? intoTargets = null;
+        if (IdentifierEquals(Keyword.Into))
+        {
+            intoKeyword = Advance();
+            intoTargets = ParseIntoTargets();
+        }
+
         SyntaxToken? fromKeyword = null;
         TableSource? from = null;
         IReadOnlyList<JoinClause> joins = [];
@@ -22,9 +30,11 @@ internal sealed partial class Parser
         var where = _current.Kind == SyntaxKind.WhereKeyword ? ParseWhereClause() : null;
         var groupBy = _current.Kind == SyntaxKind.GroupKeyword ? ParseGroupBy() : null;
         var having = _current.Kind == SyntaxKind.HavingKeyword ? ParseHaving() : null;
+        var window = _current.Kind == SyntaxKind.WindowKeyword ? ParseWindowClause() : null;
         var orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
         LimitClause? limit = null;
         OffsetClause? offset = null;
+        FetchClause? fetch = null;
         while (true)
         {
             if (limit is null && _current.Kind == SyntaxKind.LimitKeyword)
@@ -39,11 +49,22 @@ internal sealed partial class Parser
                 continue;
             }
 
+            if (fetch is null && _current.Kind == SyntaxKind.FetchKeyword)
+            {
+                fetch = ParseFetch();
+                continue;
+            }
+
             break;
         }
 
         var lockClause = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
         var end = selectList[^1].Span;
+        if (intoTargets is { Count: > 0 })
+        {
+            end = intoTargets[^1].Span;
+        }
+
         if (from is not null)
         {
             end = from.Span;
@@ -74,6 +95,11 @@ internal sealed partial class Parser
             end = having.Span;
         }
 
+        if (window is not null)
+        {
+            end = window.Span;
+        }
+
         if (orderBy is not null)
         {
             end = orderBy.Span;
@@ -89,6 +115,11 @@ internal sealed partial class Parser
             end = offset.Span;
         }
 
+        if (fetch is not null)
+        {
+            end = fetch.Span;
+        }
+
         if (lockClause is not null)
         {
             end = lockClause.Span;
@@ -101,6 +132,8 @@ internal sealed partial class Parser
             DistinctKeyword = distinct,
             AllKeyword = all,
             SelectList = selectList,
+            IntoKeyword = intoKeyword,
+            IntoTargets = intoTargets,
             FromKeyword = fromKeyword,
             From = from,
             Joins = joins,
@@ -108,9 +141,11 @@ internal sealed partial class Parser
             Where = where,
             GroupBy = groupBy,
             Having = having,
+            Window = window,
             OrderBy = orderBy,
             Limit = limit,
             Offset = offset,
+            Fetch = fetch,
             Lock = lockClause,
         };
     }
@@ -131,26 +166,27 @@ internal sealed partial class Parser
             };
         }
 
+        if (IdentifierEquals(Keyword.Share))
+        {
+            var shareKeyword = Advance();
+            ParseLockColumns(out var shareOf, out var shareColumns);
+            return new LockClause
+            {
+                Span = SourceSpan.From(forKeyword, shareColumns is null ? shareKeyword : shareColumns[^1]),
+                ForKeyword = forKeyword,
+                ShareKeyword = shareKeyword,
+                OfKeyword = shareOf,
+                Columns = shareColumns,
+            };
+        }
+
         if (_current.Kind != SyntaxKind.UpdateKeyword)
         {
-            throw new SqlParseException("Expected READ or UPDATE", _current.Position);
+            throw new SqlParseException("Expected READ, UPDATE, or SHARE", _current.Position);
         }
 
         var updateKeyword = Advance();
-        SyntaxToken? ofKeyword = null;
-        IReadOnlyList<SyntaxToken>? columns = null;
-        if (_current.Kind == SyntaxKind.OfKeyword)
-        {
-            ofKeyword = Advance();
-            var names = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
-            while (_current.Kind == SyntaxKind.Comma)
-            {
-                Advance();
-                names.Add(Expect(SyntaxKind.Identifier));
-            }
-
-            columns = names;
-        }
+        ParseLockColumns(out var ofKeyword, out var columns);
 
         return new LockClause
         {
@@ -160,6 +196,26 @@ internal sealed partial class Parser
             OfKeyword = ofKeyword,
             Columns = columns,
         };
+    }
+
+    private void ParseLockColumns(out SyntaxToken? ofKeyword, out IReadOnlyList<SyntaxToken>? columns)
+    {
+        ofKeyword = null;
+        columns = null;
+        if (_current.Kind != SyntaxKind.OfKeyword)
+        {
+            return;
+        }
+
+        ofKeyword = Advance();
+        var names = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            names.Add(Expect(SyntaxKind.Identifier));
+        }
+
+        columns = names;
     }
 
     private IReadOnlyList<SelectItem> ParseSelectList()
@@ -186,7 +242,7 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
+        else if (_current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Into))
         {
             alias = Advance();
         }
@@ -200,17 +256,100 @@ internal sealed partial class Parser
         };
     }
 
+    private IReadOnlyList<SyntaxToken> ParseIntoTargets()
+    {
+        var targets = new List<SyntaxToken> { ParseIntoTarget() };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            targets.Add(ParseIntoTarget());
+        }
+
+        return targets;
+    }
+
+    private SyntaxToken ParseIntoTarget()
+    {
+        if (_current.Kind is SyntaxKind.Identifier or SyntaxKind.QuestionMark or SyntaxKind.EmbeddedHost)
+        {
+            return Advance();
+        }
+
+        throw new SqlParseException($"Expected INTO target, found {_current.Kind}", _current.Position);
+    }
+
     private GroupByClause ParseGroupBy()
     {
         var groupKeyword = Expect(SyntaxKind.GroupKeyword);
         var byKeyword = Expect(SyntaxKind.ByKeyword);
-        var keys = ParseExpressionList();
+        var keys = new List<Expression> { ParseGroupingElement() };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            keys.Add(ParseGroupingElement());
+        }
+
         return new GroupByClause
         {
             Span = SourceSpan.From(groupKeyword, keys[^1].Span),
             GroupKeyword = groupKeyword,
             ByKeyword = byKeyword,
             Keys = keys,
+        };
+    }
+
+    private Expression ParseGroupingElement()
+    {
+        if (IsGroupingOperation())
+        {
+            return ParseGroupingOperation();
+        }
+
+        if (_current.Kind == SyntaxKind.OpenParen && NextKind == SyntaxKind.CloseParen)
+        {
+            var openParen = Advance();
+            var closeParen = Advance();
+            return new EmptyGroupingSetExpression
+            {
+                Span = SourceSpan.From(openParen, closeParen),
+                OpenParen = openParen,
+                CloseParen = closeParen,
+            };
+        }
+
+        return ParseExpression();
+    }
+
+    private bool IsGroupingOperation() =>
+        (IdentifierEquals(Keyword.Rollup) || IdentifierEquals(Keyword.Cube)) && NextKind == SyntaxKind.OpenParen
+        || _current.Kind == SyntaxKind.GroupingKeyword && NextIsSets();
+
+    private bool NextIsSets() =>
+        NextKind == SyntaxKind.Identifier
+        && _index < _tokens.Count
+        && TokenEquals(_tokens[_index], Keyword.Sets);
+
+    private GroupingOperationExpression ParseGroupingOperation()
+    {
+        var keyword = Advance();
+        SyntaxToken? setsKeyword = keyword.Kind == SyntaxKind.GroupingKeyword ? Advance() : null;
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var elements = new List<Expression> { ParseGroupingElement() };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            elements.Add(ParseGroupingElement());
+        }
+
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new GroupingOperationExpression
+        {
+            Span = SourceSpan.From(keyword, closeParen),
+            Keyword = keyword,
+            SetsKeyword = setsKeyword,
+            OpenParen = openParen,
+            Elements = elements,
+            CloseParen = closeParen,
         };
     }
 
@@ -243,11 +382,27 @@ internal sealed partial class Parser
             direction = Advance();
         }
 
+        SyntaxToken? nullsKeyword = null;
+        SyntaxToken? nullOrder = null;
+        if (IdentifierEquals(Keyword.Nulls))
+        {
+            nullsKeyword = Advance();
+            if (!IdentifierEquals(Keyword.First) && !IdentifierEquals(Keyword.Last))
+            {
+                throw new SqlParseException($"Expected FIRST or LAST, found {_current.Kind}", _current.Position);
+            }
+
+            nullOrder = Advance();
+        }
+
+        var end = nullOrder ?? direction ?? (SyntaxToken?)null;
         return new OrderByItem
         {
-            Span = direction is null ? expression.Span : SourceSpan.From(expression.Span, direction.Value),
+            Span = end is null ? expression.Span : SourceSpan.From(expression.Span, end.Value),
             Expression = expression,
             Direction = direction,
+            NullsKeyword = nullsKeyword,
+            NullOrder = nullOrder,
         };
     }
 
@@ -267,13 +422,85 @@ internal sealed partial class Parser
     {
         var offsetKeyword = Expect(SyntaxKind.OffsetKeyword);
         var count = ParseExpression();
+        SyntaxToken? rowKeyword = null;
+        if (IsRowKeyword())
+        {
+            rowKeyword = Advance();
+        }
+
+        var end = rowKeyword ?? (SyntaxToken?)null;
         return new OffsetClause
         {
-            Span = SourceSpan.From(offsetKeyword, count.Span),
+            Span = end is null ? SourceSpan.From(offsetKeyword, count.Span) : SourceSpan.From(offsetKeyword, end.Value),
             OffsetKeyword = offsetKeyword,
             Count = count,
+            RowKeyword = rowKeyword,
         };
     }
+
+    private FetchClause ParseFetch()
+    {
+        var fetchKeyword = Expect(SyntaxKind.FetchKeyword);
+        if (!IdentifierEquals(Keyword.First) && !IdentifierEquals(Keyword.Next))
+        {
+            throw new SqlParseException($"Expected FIRST or NEXT, found {_current.Kind}", _current.Position);
+        }
+
+        var positionKeyword = Advance();
+        Expression? count = null;
+        SyntaxToken? percentKeyword = null;
+        if (!IsRowKeyword())
+        {
+            count = ParseExpression();
+            if (IdentifierEquals(Keyword.Percent))
+            {
+                percentKeyword = Advance();
+            }
+        }
+
+        if (!IsRowKeyword())
+        {
+            throw new SqlParseException($"Expected ROW or ROWS, found {_current.Kind}", _current.Position);
+        }
+
+        var rowKeyword = Advance();
+        SyntaxToken onlyOrWith;
+        SyntaxToken? tiesKeyword = null;
+        if (_current.Kind == SyntaxKind.OnlyKeyword)
+        {
+            onlyOrWith = Advance();
+        }
+        else if (_current.Kind == SyntaxKind.WithKeyword)
+        {
+            onlyOrWith = Advance();
+            if (!IdentifierEquals(Keyword.Ties))
+            {
+                throw new SqlParseException($"Expected TIES, found {_current.Kind}", _current.Position);
+            }
+
+            tiesKeyword = Advance();
+        }
+        else
+        {
+            throw new SqlParseException($"Expected ONLY or WITH TIES, found {_current.Kind}", _current.Position);
+        }
+
+        var end = tiesKeyword ?? onlyOrWith;
+        return new FetchClause
+        {
+            Span = SourceSpan.From(fetchKeyword, end),
+            FetchKeyword = fetchKeyword,
+            PositionKeyword = positionKeyword,
+            Count = count,
+            PercentKeyword = percentKeyword,
+            RowKeyword = rowKeyword,
+            OnlyOrWith = onlyOrWith,
+            TiesKeyword = tiesKeyword,
+        };
+    }
+
+    private bool IsRowKeyword() =>
+        IdentifierEquals(Keyword.Row) || IdentifierEquals(Keyword.Rows);
 
     private HavingClause ParseHaving()
     {

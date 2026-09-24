@@ -18,15 +18,43 @@ internal sealed partial class Parser
     public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source)
     {
         var parser = new Parser(tokens, source);
-        var query = parser.ParseQuery();
-        if (parser._current.Kind == SyntaxKind.Semicolon)
+        var statements = new List<Query> { parser.ParseQuery() };
+        var semicolons = new List<SyntaxToken>();
+        while (parser._current.Kind == SyntaxKind.Semicolon)
         {
-            parser.Advance();
+            var semicolon = parser.Advance();
+            if (parser._current.Kind == SyntaxKind.EndOfFile)
+            {
+                if (statements.Count == 1)
+                {
+                    return statements[0];
+                }
+
+                semicolons.Add(semicolon);
+                break;
+            }
+
+            if (parser._current.Kind == SyntaxKind.Semicolon)
+            {
+                throw new SqlParseException("Unexpected semicolon", parser._current.Position);
+            }
+
+            semicolons.Add(semicolon);
+            statements.Add(parser.ParseQuery());
         }
 
         parser.Expect(SyntaxKind.EndOfFile);
+        if (statements.Count == 1)
+        {
+            return statements[0];
+        }
 
-        return query;
+        return new DirectSqlScript
+        {
+            Span = SourceSpan.From(statements[0].Span, statements[^1].Span),
+            Statements = statements,
+            Semicolons = semicolons,
+        };
     }
 
     private SyntaxKind NextKind =>

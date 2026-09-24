@@ -7,8 +7,13 @@ internal static partial class Keyword
         var length = text.Length;
         if (length == Keyword.CurrentTimestamp.Length)
         {
-            return EqualsKeyword(text, Keyword.CurrentTimestamp)
-                ? SyntaxKind.CurrentTimestampKeyword
+            if (EqualsKeyword(text, Keyword.CurrentTimestamp))
+            {
+                return SyntaxKind.CurrentTimestampKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.CharacterLength)
+                ? SyntaxKind.CharacterLengthKeyword
                 : SyntaxKind.Identifier;
         }
 
@@ -29,15 +34,62 @@ internal static partial class Keyword
                 return SyntaxKind.CurrentUserKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.SessionUser)
-                ? SyntaxKind.SessionUserKeyword
+            if (EqualsKeyword(text, Keyword.SessionUser))
+            {
+                return SyntaxKind.SessionUserKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.OctetLength))
+            {
+                return SyntaxKind.OctetLengthKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.WidthBucket))
+            {
+                return SyntaxKind.WidthBucketKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Specifictype))
+            {
+                return SyntaxKind.SpecifictypeKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.CurrentRole))
+            {
+                return SyntaxKind.CurrentRoleKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.CurrentPath)
+                ? SyntaxKind.CurrentPathKeyword
                 : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.SystemUser.Length)
         {
-            return EqualsKeyword(text, Keyword.SystemUser)
-                ? SyntaxKind.SystemUserKeyword
+            if (EqualsKeyword(text, Keyword.SystemUser))
+            {
+                return SyntaxKind.SystemUserKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.CharLength))
+            {
+                return SyntaxKind.CharLengthKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Cardinality))
+            {
+                return SyntaxKind.CardinalityKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Tablesample)
+                ? SyntaxKind.TablesampleKeyword
+                : SyntaxKind.Identifier;
+        }
+
+        if (length == Keyword.BitLength.Length)
+        {
+            return EqualsKeyword(text, Keyword.BitLength)
+                ? SyntaxKind.BitLengthKeyword
                 : SyntaxKind.Identifier;
         }
 
@@ -45,6 +97,25 @@ internal static partial class Keyword
         {
             return EqualsKeyword(text, Keyword.Corresponding)
                 ? SyntaxKind.CorrespondingKeyword
+                : SyntaxKind.Identifier;
+        }
+
+        if (length == Keyword.LocalTimestamp.Length)
+        {
+            if (EqualsKeyword(text, Keyword.LocalTimestamp))
+            {
+                return SyntaxKind.LocalTimestampKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.CurrentSchema)
+                ? SyntaxKind.CurrentSchemaKeyword
+                : SyntaxKind.Identifier;
+        }
+
+        if (length == Keyword.CurrentCatalog.Length)
+        {
+            return EqualsKeyword(text, Keyword.CurrentCatalog)
+                ? SyntaxKind.CurrentCatalogKeyword
                 : SyntaxKind.Identifier;
         }
 
@@ -70,7 +141,19 @@ internal static partial class Keyword
                 return SyntaxKind.IntervalKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Position) ? SyntaxKind.PositionKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Position))
+            {
+                return SyntaxKind.PositionKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Multiset))
+            {
+                return SyntaxKind.MultisetKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Grouping)
+                ? SyntaxKind.GroupingKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.Intersect.Length)
@@ -95,7 +178,19 @@ internal static partial class Keyword
                 return SyntaxKind.SubstringKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Translate) ? SyntaxKind.TranslateKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Translate))
+            {
+                return SyntaxKind.TranslateKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Normalize))
+            {
+                return SyntaxKind.NormalizeKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.LocalTime)
+                ? SyntaxKind.LocalTimeKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.Between.Length)
@@ -130,7 +225,34 @@ internal static partial class Keyword
                 return SyntaxKind.ExtractKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Convert) ? SyntaxKind.ConvertKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Convert))
+            {
+                return SyntaxKind.ConvertKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Overlay))
+            {
+                return SyntaxKind.OverlayKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Ceiling))
+            {
+                return SyntaxKind.CeilingKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Element))
+            {
+                return SyntaxKind.ElementKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Similar))
+            {
+                return SyntaxKind.SimilarKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Lateral)
+                ? SyntaxKind.LateralKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.Select.Length)
@@ -185,7 +307,29 @@ internal static partial class Keyword
                 return SyntaxKind.ExceptKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Update) ? SyntaxKind.UpdateKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Update))
+            {
+                return SyntaxKind.UpdateKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Unnest))
+            {
+                return SyntaxKind.UnnestKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Absent))
+            {
+                return SyntaxKind.AbsentKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Search))
+            {
+                return SyntaxKind.SearchKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Window)
+                ? SyntaxKind.WindowKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.And.Length)
@@ -220,7 +364,29 @@ internal static partial class Keyword
                 return SyntaxKind.AnyKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.For) ? SyntaxKind.ForKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.For))
+            {
+                return SyntaxKind.ForKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Exp))
+            {
+                return SyntaxKind.ExpKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Mod))
+            {
+                return SyntaxKind.ModKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Abs))
+            {
+                return SyntaxKind.AbsKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Set)
+                ? SyntaxKind.SetKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.Where.Length)
@@ -248,6 +414,11 @@ internal static partial class Keyword
             if (EqualsKeyword(text, Keyword.Treat))
             {
                 return SyntaxKind.TreatKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Deref))
+            {
+                return SyntaxKind.DerefKeyword;
             }
 
             if (EqualsKeyword(text, Keyword.Inner))
@@ -290,7 +461,39 @@ internal static partial class Keyword
                 return SyntaxKind.LimitKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Union) ? SyntaxKind.UnionKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Union))
+            {
+                return SyntaxKind.UnionKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Upper))
+            {
+                return SyntaxKind.UpperKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Lower))
+            {
+                return SyntaxKind.LowerKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Floor))
+            {
+                return SyntaxKind.FloorKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Power))
+            {
+                return SyntaxKind.PowerKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Cycle))
+            {
+                return SyntaxKind.CycleKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Fetch)
+                ? SyntaxKind.FetchKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.From.Length)
@@ -395,7 +598,24 @@ internal static partial class Keyword
                 return SyntaxKind.ReadKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Only) ? SyntaxKind.OnlyKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Only))
+            {
+                return SyntaxKind.OnlyKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Ceil))
+            {
+                return SyntaxKind.CeilKeyword;
+            }
+
+            if (EqualsKeyword(text, Keyword.Sqrt))
+            {
+                return SyntaxKind.SqrtKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Over)
+                ? SyntaxKind.OverKeyword
+                : SyntaxKind.Identifier;
         }
 
         if (length == Keyword.Or.Length)
@@ -430,7 +650,14 @@ internal static partial class Keyword
                 return SyntaxKind.ByKeyword;
             }
 
-            return EqualsKeyword(text, Keyword.Of) ? SyntaxKind.OfKeyword : SyntaxKind.Identifier;
+            if (EqualsKeyword(text, Keyword.Of))
+            {
+                return SyntaxKind.OfKeyword;
+            }
+
+            return EqualsKeyword(text, Keyword.Ln)
+                ? SyntaxKind.LnKeyword
+                : SyntaxKind.Identifier;
         }
 
         return SyntaxKind.Identifier;

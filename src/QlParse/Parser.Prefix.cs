@@ -11,9 +11,15 @@ internal sealed partial class Parser
             SyntaxKind.CaseKeyword => ParseCase(),
             SyntaxKind.CastKeyword => ParseCast(),
             SyntaxKind.TreatKeyword => ParseTreat(),
+            SyntaxKind.DerefKeyword => ParseDeref(),
+            SyntaxKind.SpecifictypeKeyword => ParseSpecifictype(),
             SyntaxKind.NullIfKeyword => ParseNullIf(),
             SyntaxKind.CoalesceKeyword => ParseCoalesce(),
-            SyntaxKind.ArrayKeyword => ParseArray(),
+            SyntaxKind.ArrayKeyword => NextKind == SyntaxKind.OpenParen ? ParseArrayQuery() : ParseArray(),
+            SyntaxKind.MultisetKeyword => NextKind == SyntaxKind.OpenParen ? ParseMultisetQuery() : ParseMultiset(),
+            SyntaxKind.SetKeyword => ParseMultisetSet(),
+            SyntaxKind.CardinalityKeyword or SyntaxKind.ElementKeyword => ParseCollectionFunction(),
+            SyntaxKind.AbsentKeyword => ParseAbsentOnNull(),
             SyntaxKind.DateKeyword or SyntaxKind.TimeKeyword or SyntaxKind.TimestampKeyword
                 => ParseDatetimeLiteral(),
             SyntaxKind.IntervalKeyword => ParseIntervalLiteral(),
@@ -21,16 +27,23 @@ internal sealed partial class Parser
             SyntaxKind.ExtractKeyword => ParseExtract(),
             SyntaxKind.SubstringKeyword => ParseSubstring(),
             SyntaxKind.PositionKeyword => ParsePosition(),
+            SyntaxKind.UpperKeyword or SyntaxKind.LowerKeyword or SyntaxKind.CharLengthKeyword
+                or SyntaxKind.CharacterLengthKeyword or SyntaxKind.OctetLengthKeyword
+                or SyntaxKind.BitLengthKeyword or SyntaxKind.NormalizeKeyword
+                or SyntaxKind.FloorKeyword or SyntaxKind.CeilKeyword or SyntaxKind.CeilingKeyword
+                or SyntaxKind.PowerKeyword or SyntaxKind.SqrtKeyword or SyntaxKind.LnKeyword
+                or SyntaxKind.ExpKeyword or SyntaxKind.ModKeyword or SyntaxKind.AbsKeyword
+                or SyntaxKind.WidthBucketKeyword or SyntaxKind.GroupingKeyword => ParseSpecialForm(),
+            SyntaxKind.OverlayKeyword => ParseOverlay(),
             SyntaxKind.ConvertKeyword or SyntaxKind.TranslateKeyword => ParseUsingTransform(),
             SyntaxKind.UserKeyword or SyntaxKind.CurrentDateKeyword or SyntaxKind.CurrentTimeKeyword
                 or SyntaxKind.CurrentTimestampKeyword or SyntaxKind.CurrentUserKeyword
                 or SyntaxKind.SessionUserKeyword or SyntaxKind.SystemUserKeyword
+                or SyntaxKind.LocalTimeKeyword or SyntaxKind.LocalTimestampKeyword
+                or SyntaxKind.CurrentRoleKeyword or SyntaxKind.CurrentCatalogKeyword
+                or SyntaxKind.CurrentSchemaKeyword or SyntaxKind.CurrentPathKeyword
                 => ParseNiladicFunction(),
-            SyntaxKind.Identifier => IsNextValueFor()
-                ? ParseNextValue()
-                : NextKind == SyntaxKind.OpenParen
-                    ? ParseFunctionCall()
-                    : Identifier(),
+            SyntaxKind.Identifier => ParseIdentifierPrefix(),
             SyntaxKind.QuestionMark => HostParameter(),
             SyntaxKind.EmbeddedHost => EmbeddedHost(),
             SyntaxKind.Number or SyntaxKind.String or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword
@@ -99,7 +112,8 @@ internal sealed partial class Parser
     private NiladicFunctionExpression ParseNiladicFunction()
     {
         var name = Advance();
-        var allowsPrecision = name.Kind is SyntaxKind.CurrentTimeKeyword or SyntaxKind.CurrentTimestampKeyword;
+        var allowsPrecision = name.Kind is SyntaxKind.CurrentTimeKeyword or SyntaxKind.CurrentTimestampKeyword
+            or SyntaxKind.LocalTimeKeyword or SyntaxKind.LocalTimestampKeyword;
         if (_current.Kind != SyntaxKind.OpenParen)
         {
             return new NiladicFunctionExpression { Name = name, Span = name.Span };
@@ -132,6 +146,10 @@ internal sealed partial class Parser
         SyntaxKind.CurrentUserKeyword => Keyword.CurrentUserUpper,
         SyntaxKind.SessionUserKeyword => Keyword.SessionUserUpper,
         SyntaxKind.SystemUserKeyword => Keyword.SystemUserUpper,
+        SyntaxKind.CurrentRoleKeyword => Keyword.CurrentRoleUpper,
+        SyntaxKind.CurrentCatalogKeyword => Keyword.CurrentCatalogUpper,
+        SyntaxKind.CurrentSchemaKeyword => Keyword.CurrentSchemaUpper,
+        SyntaxKind.CurrentPathKeyword => Keyword.CurrentPathUpper,
         _ => throw new InvalidOperationException($"Unknown niladic function {kind}"),
     };
 
@@ -354,6 +372,80 @@ internal sealed partial class Parser
         };
     }
 
+    private SpecialFormExpression ParseSpecialForm()
+    {
+        var name = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var arguments = new List<Expression> { ParseExpression() };
+        SyntaxToken? usingKeyword = null;
+        SyntaxToken? usingName = null;
+        if (name.Kind is SyntaxKind.CharLengthKeyword or SyntaxKind.CharacterLengthKeyword
+            && _current.Kind == SyntaxKind.UsingKeyword)
+        {
+            usingKeyword = Advance();
+            usingName = Expect(SyntaxKind.Identifier);
+        }
+        else
+        {
+            while (_current.Kind == SyntaxKind.Comma)
+            {
+                Advance();
+                arguments.Add(ParseExpression());
+            }
+        }
+
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new SpecialFormExpression
+        {
+            Span = SourceSpan.From(name, closeParen),
+            Name = name,
+            OpenParen = openParen,
+            Arguments = arguments,
+            UsingKeyword = usingKeyword,
+            UsingName = usingName,
+            CloseParen = closeParen,
+        };
+    }
+
+    private OverlayExpression ParseOverlay()
+    {
+        var overlayKeyword = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var source = ParseExpression();
+        if (!IdentifierEquals(Keyword.Placing))
+        {
+            throw new SqlParseException($"Expected PLACING, found {_current.Kind}", _current.Position);
+        }
+
+        var placingKeyword = Advance();
+        var replacement = ParseExpression();
+        var fromKeyword = Expect(SyntaxKind.FromKeyword);
+        var start = ParseExpression();
+        SyntaxToken? forKeyword = null;
+        Expression? length = null;
+        if (_current.Kind == SyntaxKind.ForKeyword)
+        {
+            forKeyword = Advance();
+            length = ParseExpression();
+        }
+
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new OverlayExpression
+        {
+            Span = SourceSpan.From(overlayKeyword, closeParen),
+            OverlayKeyword = overlayKeyword,
+            OpenParen = openParen,
+            Source = source,
+            PlacingKeyword = placingKeyword,
+            Replacement = replacement,
+            FromKeyword = fromKeyword,
+            Start = start,
+            ForKeyword = forKeyword,
+            Length = length,
+            CloseParen = closeParen,
+        };
+    }
+
     private PositionExpression ParsePosition()
     {
         var positionKeyword = Advance();
@@ -394,6 +486,99 @@ internal sealed partial class Parser
         };
     }
 
+    private Expression ParseIdentifierPrefix()
+    {
+        if (IsNextValueFor())
+        {
+            return ParseNextValue();
+        }
+
+        if (IsRefValue())
+        {
+            return ParseRefValue();
+        }
+
+        if (IsNewSpecification())
+        {
+            return ParseNewSpecification();
+        }
+
+        if (IsPeriodValue())
+        {
+            return ParsePeriodValue();
+        }
+
+        if (IsMarkupCall())
+        {
+            return ParseMarkupCall();
+        }
+
+        if (IsMdarrayConstructor())
+        {
+            return ParseMdarrayConstructor();
+        }
+
+        if (IsMdarrayAggregate())
+        {
+            return ParseMdarrayAggregate();
+        }
+
+        if (IsTableConstructor())
+        {
+            return ParseMultisetQuery();
+        }
+
+        return NextKind == SyntaxKind.OpenParen ? ParseFunctionCall() : Identifier();
+    }
+
+    private bool IsRefValue() =>
+        IdentifierEquals(Keyword.Ref) && NextKind == SyntaxKind.OpenParen;
+
+    private bool IsNewSpecification()
+    {
+        if (!IdentifierEquals(Keyword.New) || NextKind != SyntaxKind.Identifier)
+        {
+            return false;
+        }
+
+        var index = _index + 1;
+        while (index < _tokens.Count && _tokens[index].Kind == SyntaxKind.Dot)
+        {
+            index++;
+            if (index >= _tokens.Count || _tokens[index].Kind != SyntaxKind.Identifier)
+            {
+                return false;
+            }
+
+            index++;
+        }
+
+        return index < _tokens.Count && _tokens[index].Kind == SyntaxKind.OpenParen;
+    }
+
+    private bool IsPeriodValue() =>
+        IdentifierEquals(Keyword.Period) && NextKind == SyntaxKind.OpenParen;
+
+    private PeriodExpression ParsePeriodValue()
+    {
+        var periodKeyword = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var start = ParseExpression();
+        var comma = Expect(SyntaxKind.Comma);
+        var end = ParseExpression();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new PeriodExpression
+        {
+            Span = SourceSpan.From(periodKeyword, closeParen),
+            PeriodKeyword = periodKeyword,
+            OpenParen = openParen,
+            Start = start,
+            Comma = comma,
+            End = end,
+            CloseParen = closeParen,
+        };
+    }
+
     private bool IsNextValueFor() =>
         IdentifierEquals(Keyword.Next)
         && _index + 1 < _tokens.Count
@@ -415,6 +600,80 @@ internal sealed partial class Parser
             ForKeyword = forKeyword,
             NameParts = nameParts,
         };
+    }
+
+    private DerefExpression ParseDeref()
+    {
+        var derefKeyword = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var expression = ParseExpression();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new DerefExpression
+        {
+            Span = SourceSpan.From(derefKeyword, closeParen),
+            DerefKeyword = derefKeyword,
+            OpenParen = openParen,
+            Expression = expression,
+            CloseParen = closeParen,
+        };
+    }
+
+    private RefValueExpression ParseRefValue()
+    {
+        var refKeyword = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var expression = ParseExpression();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new RefValueExpression
+        {
+            Span = SourceSpan.From(refKeyword, closeParen),
+            RefKeyword = refKeyword,
+            OpenParen = openParen,
+            Expression = expression,
+            CloseParen = closeParen,
+        };
+    }
+
+    private SpecifictypeExpression ParseSpecifictype()
+    {
+        var specifictypeKeyword = Advance();
+        var openParen = Expect(SyntaxKind.OpenParen);
+        var expression = ParseExpression();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        return new SpecifictypeExpression
+        {
+            Span = SourceSpan.From(specifictypeKeyword, closeParen),
+            SpecifictypeKeyword = specifictypeKeyword,
+            OpenParen = openParen,
+            Expression = expression,
+            CloseParen = closeParen,
+        };
+    }
+
+    private NewSpecificationExpression ParseNewSpecification()
+    {
+        var newKeyword = Advance();
+        var typeName = ParseQualifiedName();
+        ParseParenthesizedArguments(out var openParen, out var arguments, out var closeParen);
+        return new NewSpecificationExpression
+        {
+            Span = SourceSpan.From(newKeyword, closeParen),
+            NewKeyword = newKeyword,
+            TypeName = typeName,
+            OpenParen = openParen,
+            Arguments = arguments,
+            CloseParen = closeParen,
+        };
+    }
+
+    private void ParseParenthesizedArguments(
+        out SyntaxToken openParen,
+        out IReadOnlyList<Expression> arguments,
+        out SyntaxToken closeParen)
+    {
+        openParen = Expect(SyntaxKind.OpenParen);
+        arguments = _current.Kind == SyntaxKind.CloseParen ? [] : ParseExpressionList();
+        closeParen = Expect(SyntaxKind.CloseParen);
     }
 
     private TreatExpression ParseTreat()
@@ -488,6 +747,11 @@ internal sealed partial class Parser
         }
 
         var name = ParseTypeName();
+        if (TokenEquals(name, Keyword.Xml) && _current.Kind == SyntaxKind.OpenParen)
+        {
+            return ParseXmlType(name);
+        }
+
         var nameTail = _current.Kind == SyntaxKind.Dot ? ParseDottedNameTail() : ParseNameTail(name);
 
         SyntaxToken? openParen = null;
@@ -539,6 +803,31 @@ internal sealed partial class Parser
             WithKeyword = withKeyword,
             TimeKeyword = timeKeyword,
             Zone = zone,
+            Collections = collections,
+        };
+    }
+
+    private DataType ParseXmlType(SyntaxToken name)
+    {
+        var openParen = Advance();
+        if (!IdentifierEquals(Keyword.Document) && !IdentifierEquals(Keyword.Content) && !IdentifierEquals(Keyword.Sequence))
+        {
+            throw new SqlParseException($"Expected DOCUMENT, CONTENT, or SEQUENCE, found {_current.Kind}", _current.Position);
+        }
+
+        var modifier = Advance();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        var collections = ParseCollectionSuffixes();
+        var endToken = collections.Count > 0
+            ? collections[^1].CloseBracket ?? collections[^1].Keyword
+            : closeParen;
+        return new DataType
+        {
+            Span = SourceSpan.From(name, endToken),
+            Name = name,
+            OpenParen = openParen,
+            CloseParen = closeParen,
+            Modifier = modifier,
             Collections = collections,
         };
     }
@@ -634,7 +923,7 @@ internal sealed partial class Parser
             {
                 suffixes.Add(ParseArraySuffix());
             }
-            else if (IdentifierEquals(Keyword.Multiset))
+            else if (_current.Kind == SyntaxKind.MultisetKeyword)
             {
                 var keyword = Advance();
                 suffixes.Add(new CollectionSuffix { Span = keyword.Span, Keyword = keyword });
@@ -869,17 +1158,51 @@ internal sealed partial class Parser
         }
 
         var closeParen = Expect(SyntaxKind.CloseParen);
+        SyntaxToken? fromKeyword = null;
+        SyntaxToken? fromPosition = null;
+        if (_current.Kind == SyntaxKind.FromKeyword
+            && (NextIs(Keyword.First) || NextIs(Keyword.Last)))
+        {
+            fromKeyword = Advance();
+            fromPosition = Advance();
+        }
+
+        SyntaxToken? nullTreatment = null;
+        SyntaxToken? nullsKeyword = null;
+        if (IdentifierEquals(Keyword.Respect) || IdentifierEquals(Keyword.Ignore))
+        {
+            nullTreatment = Advance();
+            if (!IdentifierEquals(Keyword.Nulls))
+            {
+                throw new SqlParseException($"Expected NULLS, found {_current.Kind}", _current.Position);
+            }
+
+            nullsKeyword = Advance();
+        }
+
         FilterClause? filter = _current.Kind == SyntaxKind.FilterKeyword ? ParseFilter() : null;
+        WindowSpecification? over = _current.Kind == SyntaxKind.OverKeyword ? ParseOver() : null;
+        var end = over?.Span ?? filter?.Span ?? nullsKeyword?.Span ?? fromPosition?.Span ?? closeParen.Span;
         return new FunctionCallExpression
         {
-            Span = SourceSpan.From(name, filter?.Span ?? closeParen.Span),
+            Span = SourceSpan.From(name, end),
             Name = name,
             OpenParen = openParen,
             Arguments = arguments,
             CloseParen = closeParen,
+            FromKeyword = fromKeyword,
+            FromPosition = fromPosition,
+            NullTreatment = nullTreatment,
+            NullsKeyword = nullsKeyword,
             Filter = filter,
+            Over = over,
         };
     }
+
+    private bool NextIs(string keyword) =>
+        NextKind == SyntaxKind.Identifier
+        && _index < _tokens.Count
+        && TokenEquals(_tokens[_index], keyword);
 
     private FilterClause ParseFilter()
     {
@@ -966,6 +1289,11 @@ internal sealed partial class Parser
         }
 
         var first = ParseExpression();
+        if (_current.Kind == SyntaxKind.AsKeyword)
+        {
+            return ParseGeneralizedInvocation(openParen, first);
+        }
+
         if (_current.Kind != SyntaxKind.Comma)
         {
             var closeParen = Expect(SyntaxKind.CloseParen);
@@ -992,6 +1320,30 @@ internal sealed partial class Parser
             OpenParen = openParen,
             Elements = elements,
             CloseParen = close,
+        };
+    }
+
+    private MethodInvocationExpression ParseGeneralizedInvocation(SyntaxToken openParen, Expression target)
+    {
+        var asKeyword = Expect(SyntaxKind.AsKeyword);
+        var type = ParseDataType();
+        var closeParen = Expect(SyntaxKind.CloseParen);
+        var dot = Expect(SyntaxKind.Dot);
+        var name = Expect(SyntaxKind.Identifier);
+        ParseParenthesizedArguments(out var argumentsOpen, out var arguments, out var argumentsClose);
+        return new MethodInvocationExpression
+        {
+            Span = SourceSpan.From(openParen, argumentsClose),
+            OpenParen = openParen,
+            Target = target,
+            AsKeyword = asKeyword,
+            Type = type,
+            CloseParen = closeParen,
+            Dot = dot,
+            Name = name,
+            ArgumentsOpen = argumentsOpen,
+            Arguments = arguments,
+            ArgumentsClose = argumentsClose,
         };
     }
 
