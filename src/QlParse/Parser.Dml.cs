@@ -5,7 +5,7 @@ internal sealed partial class Parser
     private InsertStatement ParseInsert()
     {
         var insertKeyword = Advance();
-        var intoKeyword = Advance();
+        var intoKeyword = ExpectIdent(Keyword.Into);
         var tableName = ParseQualifiedName();
         if (IdentifierEquals(Keyword.Default))
         {
@@ -64,7 +64,7 @@ internal sealed partial class Parser
     private DeleteStatement ParseDelete()
     {
         var deleteKeyword = Advance();
-        var fromKeyword = Advance();
+        var fromKeyword = Expect(SyntaxKind.FromKeyword);
         var target = ParseTargetTable();
         var portion = ParsePortion();
         ParseDmlWhere(out var where, out var positioned);
@@ -84,7 +84,7 @@ internal sealed partial class Parser
     private MergeStatement ParseMerge()
     {
         var mergeKeyword = Advance();
-        var intoKeyword = Advance();
+        var intoKeyword = ExpectIdent(Keyword.Into);
         var target = ParseTargetTable();
         var usingKeyword = Expect(SyntaxKind.UsingKeyword);
         var source = ParseTableSource();
@@ -120,7 +120,7 @@ internal sealed partial class Parser
     private TruncateStatement ParseTruncate()
     {
         var truncateKeyword = Advance();
-        var tableKeyword = Advance();
+        var tableKeyword = ExpectIdent(Keyword.Table);
         var tableName = ParseQualifiedName();
         SyntaxToken? restart = null;
         SyntaxToken? identity = null;

@@ -2,9 +2,25 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsCreateTable() =>
-        IdentifierEquals(Keyword.Create)
-        && (NextEquals(Keyword.Table) || NextEquals(Keyword.Global) || NextEquals(Keyword.Local));
+    private bool IsCreateTable()
+    {
+        if (!IdentifierEquals(Keyword.Create))
+        {
+            return false;
+        }
+
+        if (NextEquals(Keyword.Table))
+        {
+            return true;
+        }
+
+        if (!NextEquals(Keyword.Global) && !NextEquals(Keyword.Local))
+        {
+            return false;
+        }
+
+        return IsTemporaryTableAfterScope();
+    }
 
     private bool NextEquals(string keyword) =>
         _index < _tokens.Count && TokenEquals(_tokens[_index], keyword);

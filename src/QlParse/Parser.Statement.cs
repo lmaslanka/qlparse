@@ -39,7 +39,7 @@ internal sealed partial class Parser
 
     private Query? ParseLabeledStatement()
     {
-        if (_current.Kind != SyntaxKind.Identifier || NextKind != SyntaxKind.ColonToken)
+        if (!IsLabeled())
         {
             return null;
         }
@@ -357,9 +357,14 @@ internal sealed partial class Parser
 
                 break;
             case Len5:
-                if (TextEquals(text, Keyword.Table) || TextEquals(text, Keyword.Local))
+                if (TextEquals(text, Keyword.Table))
                 {
                     return ParseCreateTable();
+                }
+
+                if (TextEquals(text, Keyword.Local))
+                {
+                    return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
                 }
 
                 if (TextEquals(text, Keyword.Index))
@@ -376,7 +381,7 @@ internal sealed partial class Parser
 
                 if (TextEquals(text, Keyword.Global))
                 {
-                    return ParseCreateTable();
+                    return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
                 }
 
                 if (TextEquals(text, Keyword.Domain))
@@ -784,6 +789,12 @@ internal sealed partial class Parser
         }
 
         return ParseQuery();
+    }
+
+    private bool IsTemporaryTableAfterScope()
+    {
+        var afterScope = _index + 1;
+        return IsKeywordAt(afterScope, Keyword.Temporary) && IsKeywordAt(afterScope + 1, Keyword.Table);
     }
 
     private bool IsCreateIndexTail()

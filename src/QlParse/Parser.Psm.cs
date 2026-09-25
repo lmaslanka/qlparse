@@ -487,11 +487,14 @@ internal sealed partial class Parser
         return target;
     }
 
+    private bool IsLabeled() =>
+        _current.Kind == SyntaxKind.Identifier && NextKind == SyntaxKind.ColonToken;
+
     private void ParseBeginningLabel(out SyntaxToken? label, out SyntaxToken? colon)
     {
         label = null;
         colon = null;
-        if (_current.Kind == SyntaxKind.Identifier && NextKind == SyntaxKind.ColonToken)
+        if (IsLabeled())
         {
             label = Advance();
             colon = Advance();
