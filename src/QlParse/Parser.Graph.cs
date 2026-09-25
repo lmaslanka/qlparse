@@ -446,7 +446,7 @@ internal sealed partial class Parser
             return null;
         }
 
-        var openBrace = Advance();
+        Advance();
         if (_current.Kind == SyntaxKind.Number)
         {
             Advance();
@@ -461,9 +461,7 @@ internal sealed partial class Parser
             }
         }
 
-        return Expect(SyntaxKind.CloseBrace) is var close && openBrace.Kind == SyntaxKind.OpenBrace
-            ? close
-            : close;
+        return Expect(SyntaxKind.CloseBrace);
     }
 
     private bool IsParenthesizedPath()
