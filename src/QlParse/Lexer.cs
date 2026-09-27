@@ -16,11 +16,11 @@ internal sealed class Lexer
 
     private readonly string _source;
     private readonly int _length;
-    private readonly SqlFlags _flags;
+    private readonly SqlOptions _flags;
     private readonly List<SyntaxTrivia> _trivia = [];
     private int _position;
 
-    public Lexer(string source, SqlFlags flags = SqlFlags.None)
+    public Lexer(string source, SqlOptions flags = SqlOptions.None)
     {
         _source = source;
         _length = source.Length;
@@ -29,7 +29,7 @@ internal sealed class Lexer
 
     public IReadOnlyList<SyntaxTrivia> Trivia => _trivia;
 
-    public static SqlLexResult LexAll(string source, SqlFlags flags = SqlFlags.None)
+    public static SqlLexResult LexAll(string source, SqlOptions flags = SqlOptions.None)
     {
         var lexer = new Lexer(source, flags);
         var tokens = new List<SyntaxToken>(Math.Max(1, source.Length / CharsPerTokenEstimate));
@@ -38,9 +38,10 @@ internal sealed class Lexer
             SyntaxToken token;
             do
             {
-                token = lexer.Next();
+                token = lexer.NextToken();
                 tokens.Add(token);
-            } while (token.Kind != SyntaxKind.EndOfFile);
+            }
+            while (token.Kind != SyntaxKind.EndOfFile);
 
             return new SqlLexResult
             {
@@ -62,12 +63,16 @@ internal sealed class Lexer
         }
     }
 
-    public SyntaxToken Next()
+    public SyntaxToken NextToken()
     {
         var triviaStart = _trivia.Count;
         ReadTrivia();
         var triviaCount = _trivia.Count - triviaStart;
+        return TryReadSpecialToken(triviaStart, triviaCount) ?? ReadPunctuationToken(triviaStart, triviaCount);
+    }
 
+    private SyntaxToken? TryReadSpecialToken(int triviaStart, int triviaCount)
+    {
         if (_position >= _length)
         {
             return new SyntaxToken(SyntaxKind.EndOfFile, _position, 0, triviaStart, triviaCount);
@@ -99,56 +104,77 @@ internal sealed class Lexer
             return ReadNumber(triviaStart, triviaCount);
         }
 
-        return ch switch
-        {
-            ',' => ReadSingle(SyntaxKind.Comma, triviaStart, triviaCount),
-            '=' => ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount),
-            '.' => ReadSingle(SyntaxKind.Dot, triviaStart, triviaCount),
-            ';' => ReadSingle(SyntaxKind.Semicolon, triviaStart, triviaCount),
-            ':' => Peek() == ':'
-                ? ReadTwo(SyntaxKind.DoubleColonToken, triviaStart, triviaCount)
-                : IsIdentifierStart(Peek())
-                    ? ReadEmbeddedHost(triviaStart, triviaCount)
-                    : ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount),
-            '|' => Peek() == '|'
-                ? ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount)
-                : ReadSingle(SyntaxKind.BarToken, triviaStart, triviaCount),
-            '{' => ReadSingle(SyntaxKind.OpenBrace, triviaStart, triviaCount),
-            '}' => ReadSingle(SyntaxKind.CloseBrace, triviaStart, triviaCount),
-            '^' => ReadSingle(SyntaxKind.CaretToken, triviaStart, triviaCount),
-            '$' => ReadSingle(SyntaxKind.DollarToken, triviaStart, triviaCount),
-            '(' => ReadSingle(SyntaxKind.OpenParen, triviaStart, triviaCount),
-            ')' => ReadSingle(SyntaxKind.CloseParen, triviaStart, triviaCount),
-            '[' => ReadSingle(SyntaxKind.OpenBracket, triviaStart, triviaCount),
-            ']' => ReadSingle(SyntaxKind.CloseBracket, triviaStart, triviaCount),
-            '>' => Peek() == '='
-                ? ReadTwo(SyntaxKind.GreaterOrEqual, triviaStart, triviaCount)
-                : ReadSingle(SyntaxKind.GreaterThan, triviaStart, triviaCount),
-            '<' => Peek() == '='
-                ? ReadTwo(SyntaxKind.LessOrEqual, triviaStart, triviaCount)
-                : Peek() == '>'
-                    ? ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount)
-                    : ReadSingle(SyntaxKind.LessThan, triviaStart, triviaCount),
-            '!' => Peek() == '='
-                ? ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount)
-                : throw new SqlParseException("Unexpected character '!'", _position),
-            '*' => ReadSingle(SyntaxKind.Star, triviaStart, triviaCount),
-            '+' => ReadSingle(SyntaxKind.PlusToken, triviaStart, triviaCount),
-            '-' => Peek() == '>'
-                ? PeekTwo() == '>'
-                    ? ReadThree(SyntaxKind.JsonTextArrowToken, triviaStart, triviaCount)
-                    : ReadTwo(SyntaxKind.JsonArrowToken, triviaStart, triviaCount)
-                : ReadSingle(SyntaxKind.MinusToken, triviaStart, triviaCount),
-            '/' => ReadSingle(SyntaxKind.SlashToken, triviaStart, triviaCount),
-            '?' => ReadSingle(SyntaxKind.QuestionMark, triviaStart, triviaCount),
-            AtSign => (_flags & SqlFlags.AtParameters) != 0 && IsIdentifierStart(Peek())
-                ? ReadEmbeddedHost(triviaStart, triviaCount)
-                : throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
-            StringQuote => ReadString(triviaStart, triviaCount, prefixed: false),
-            IdentifierQuote => ReadQuotedIdentifier(triviaStart, triviaCount),
-            _ => throw new SqlParseException($"Unexpected character '{ch}'", _position),
-        };
+        return null;
     }
+
+    private SyntaxToken ReadPunctuationToken(int triviaStart, int triviaCount)
+    {
+        var ch = _source[_position];
+        return TryReadPunctuationA(ch, triviaStart, triviaCount)
+            ?? TryReadPunctuationB(ch, triviaStart, triviaCount)
+            ?? TryReadPunctuationC(ch, triviaStart, triviaCount)
+            ?? TryReadPunctuationD(ch, triviaStart, triviaCount)
+            ?? TryReadPunctuationE(ch, triviaStart, triviaCount)
+            ?? throw new SqlParseException($"Unexpected character '{ch}'", _position);
+    }
+
+    private SyntaxToken? TryReadPunctuationA(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        ',' => ReadSingle(SyntaxKind.Comma, triviaStart, triviaCount),
+        '=' => ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount),
+        '.' => ReadSingle(SyntaxKind.Dot, triviaStart, triviaCount),
+        ';' => ReadSingle(SyntaxKind.Semicolon, triviaStart, triviaCount),
+        ':' => ReadColon(triviaStart, triviaCount),
+        '|' => Peek() == '|'
+            ? ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount)
+            : ReadSingle(SyntaxKind.BarToken, triviaStart, triviaCount),
+        _ => null,
+    };
+
+    private SyntaxToken? TryReadPunctuationB(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        '{' => ReadSingle(SyntaxKind.OpenBrace, triviaStart, triviaCount),
+        '}' => ReadSingle(SyntaxKind.CloseBrace, triviaStart, triviaCount),
+        '^' => ReadSingle(SyntaxKind.CaretToken, triviaStart, triviaCount),
+        '$' => ReadSingle(SyntaxKind.DollarToken, triviaStart, triviaCount),
+        '(' => ReadSingle(SyntaxKind.OpenParen, triviaStart, triviaCount),
+        ')' => ReadSingle(SyntaxKind.CloseParen, triviaStart, triviaCount),
+        _ => null,
+    };
+
+    private SyntaxToken? TryReadPunctuationC(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        '[' => ReadSingle(SyntaxKind.OpenBracket, triviaStart, triviaCount),
+        ']' => ReadSingle(SyntaxKind.CloseBracket, triviaStart, triviaCount),
+        '>' => Peek() == '='
+            ? ReadTwo(SyntaxKind.GreaterOrEqual, triviaStart, triviaCount)
+            : ReadSingle(SyntaxKind.GreaterThan, triviaStart, triviaCount),
+        '<' => ReadLessThan(triviaStart, triviaCount),
+        '!' => Peek() == '='
+            ? ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount)
+            : throw new SqlParseException("Unexpected character '!'", _position),
+        _ => null,
+    };
+
+    private SyntaxToken? TryReadPunctuationD(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        '*' => ReadSingle(SyntaxKind.Star, triviaStart, triviaCount),
+        '+' => ReadSingle(SyntaxKind.PlusToken, triviaStart, triviaCount),
+        '-' => ReadMinus(triviaStart, triviaCount),
+        '/' => ReadSingle(SyntaxKind.SlashToken, triviaStart, triviaCount),
+        '?' => ReadSingle(SyntaxKind.QuestionMark, triviaStart, triviaCount),
+        _ => null,
+    };
+
+    private SyntaxToken? TryReadPunctuationE(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        AtSign => (_flags & SqlOptions.AtParameters) != 0 && IsIdentifierStart(Peek())
+            ? ReadEmbeddedHost(triviaStart, triviaCount)
+            : throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
+        StringQuote => ReadString(triviaStart, triviaCount, prefixed: false),
+        IdentifierQuote => ReadQuotedIdentifier(triviaStart, triviaCount),
+        _ => null,
+    };
 
     private void ReadTrivia()
     {
@@ -302,6 +328,51 @@ internal sealed class Lexer
         {
             _position++;
         }
+    }
+
+    private SyntaxToken ReadColon(int triviaStart, int triviaCount)
+    {
+        if (Peek() == ':')
+        {
+            return ReadTwo(SyntaxKind.DoubleColonToken, triviaStart, triviaCount);
+        }
+
+        if (IsIdentifierStart(Peek()))
+        {
+            return ReadEmbeddedHost(triviaStart, triviaCount);
+        }
+
+        return ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount);
+    }
+
+    private SyntaxToken ReadLessThan(int triviaStart, int triviaCount)
+    {
+        if (Peek() == '=')
+        {
+            return ReadTwo(SyntaxKind.LessOrEqual, triviaStart, triviaCount);
+        }
+
+        if (Peek() == '>')
+        {
+            return ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount);
+        }
+
+        return ReadSingle(SyntaxKind.LessThan, triviaStart, triviaCount);
+    }
+
+    private SyntaxToken ReadMinus(int triviaStart, int triviaCount)
+    {
+        if (Peek() != '>')
+        {
+            return ReadSingle(SyntaxKind.MinusToken, triviaStart, triviaCount);
+        }
+
+        if (PeekTwo() == '>')
+        {
+            return ReadThree(SyntaxKind.JsonTextArrowToken, triviaStart, triviaCount);
+        }
+
+        return ReadTwo(SyntaxKind.JsonArrowToken, triviaStart, triviaCount);
     }
 
     private SyntaxToken ReadSingle(SyntaxKind kind, int triviaStart, int triviaCount)

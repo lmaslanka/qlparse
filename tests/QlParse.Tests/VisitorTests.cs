@@ -2,8 +2,6 @@ namespace QlParse.Tests;
 
 public sealed class VisitorTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
-
     private sealed class TypeRecorder : SqlVisitor
     {
         public List<Type> Types { get; } = [];
@@ -30,7 +28,7 @@ public sealed class VisitorTests
     [Fact]
     public void Default_visitor_walks_select()
     {
-        new EmptyVisitor().Visit(SqlAssert.Select("select a from t"));
+        new SqlVisitor().Visit(SqlAssert.Select("select a from t"));
     }
 
     [Fact]
@@ -55,7 +53,7 @@ public sealed class VisitorTests
     [Fact]
     public void Default_visitor_walks_dense_query()
     {
-        var visitor = new EmptyVisitor();
+        var visitor = new SqlVisitor();
         visitor.Visit(ParseQuery("with cte as (select 1) search depth first by id set seq cycle id set mark to 1 default 0 using path select distinct a, t.*, count(*) filter (where x > 1), cast(y as int), y::text, array[1], case when z then 1 else 0 end, exists (select 1), trim(both from n) from t as x (c) join (select 1) as d on true left join u using (id), v where a between 1 and 2 and a in (select 1) and a like 'x' and a is null group by a having count(*) > 1 order by a desc limit 1 offset 0 for update"));
         visitor.Visit(ParseQuery("values (1), (2)"));
         visitor.Visit(ParseQuery("select 1 union all corresponding by (a) select 2"));

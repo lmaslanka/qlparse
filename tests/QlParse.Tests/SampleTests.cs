@@ -2,8 +2,6 @@ namespace QlParse.Tests;
 
 public sealed class SampleTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
-
     [Fact]
     public void Parses_sample_sql()
     {
@@ -11,7 +9,7 @@ public sealed class SampleTests
         var result = Sql.Parse(source);
         Assert.Null(result.Error);
         Assert.NotNull(result.Root);
-        new EmptyVisitor().Visit(result.Root);
+        new SqlVisitor().Visit(result.Root);
         Assert.Equal(source.IndexOf("SELECT", StringComparison.Ordinal), result.Root.Span.Position);
     }
 }

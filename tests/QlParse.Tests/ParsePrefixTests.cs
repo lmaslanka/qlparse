@@ -2,7 +2,9 @@ namespace QlParse.Tests;
 
 public sealed class ParsePrefixTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
+    private const string EmptyMultiset = "multiset[]";
+    private const string CardinalityCall = "cardinality(array[1])";
+    private const string ElementCall = "element(multiset[1])";
 
     [Theory]
     [InlineData("1", SyntaxKind.Number)]
@@ -20,8 +22,8 @@ public sealed class ParsePrefixTests
 
     [Theory]
     [InlineData("a")]
-    [InlineData("U&\"foo\"")]
-    [InlineData("_latin1\"foo\"")]
+    [InlineData(@"U&""foo""")]
+    [InlineData(@"_latin1""foo""")]
     public void Parses_identifier(string sql)
     {
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr(sql));
@@ -52,7 +54,7 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Parses_at_parameter_with_flag()
     {
-        var result = Sql.Parse("select x = @auditEventId", SqlFlags.AtParameters);
+        var result = Sql.Parse("select x = @auditEventId", SqlOptions.AtParameters);
         Assert.Null(result.Error);
         var eq = Assert.IsType<BinaryExpression>(Assert.IsType<SelectStatement>(result.Root).SelectList[0].Expression);
         Assert.IsType<EmbeddedHostExpression>(eq.Right);
@@ -150,7 +152,7 @@ public sealed class ParsePrefixTests
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr<RefValueExpression>("ref( p )").Expression);
         Assert.NotNull(Sql.Parse("select deref from t").Error);
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr("ref "));
-        new EmptyVisitor().Visit(deref);
+        new SqlVisitor().Visit(deref);
     }
 
     [Fact]
@@ -167,7 +169,7 @@ public sealed class ParsePrefixTests
         Assert.Equal(Count.Two, created.TypeName.Count);
         Assert.Single(created.Arguments);
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr("new "));
-        new EmptyVisitor().Visit(created);
+        new SqlVisitor().Visit(created);
     }
 
     [Fact]
@@ -299,9 +301,9 @@ public sealed class ParsePrefixTests
         var refType = SqlAssert.Expr<CastExpression>("cast(x as ref(foo))").Type;
         Assert.NotNull(refType.ReferencedType);
 
-        var scoped = SqlAssert.Expr<CastExpression>("cast(x as ref(foo) scope t)").Type;
-        Assert.NotNull(scoped.ScopeKeyword);
-        Assert.NotNull(scoped.ScopeName);
+        var scopedType = SqlAssert.Expr<CastExpression>("cast(x as ref(foo) scope t)").Type;
+        Assert.NotNull(scopedType.ScopeKeyword);
+        Assert.NotNull(scopedType.ScopeName);
     }
 
     [Fact]
@@ -352,7 +354,7 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Parses_multiset_constructors()
     {
-        Assert.Empty(SqlAssert.Expr<MultisetExpression>("multiset[]").Elements);
+        Assert.Empty(SqlAssert.Expr<MultisetExpression>(EmptyMultiset).Elements);
         Assert.Equal(Count.Two, SqlAssert.Expr<MultisetExpression>("multiset[1, 2]").Elements.Count);
         Assert.Equal(SyntaxKind.MultisetKeyword, SqlAssert.Expr<MultisetQueryExpression>("multiset(select 1)").Keyword.Kind);
         Assert.Equal(SyntaxKind.Identifier, SqlAssert.Expr<MultisetQueryExpression>("table(select 1)").Keyword.Kind);
@@ -362,8 +364,8 @@ public sealed class ParsePrefixTests
     [Fact]
     public void Parses_cardinality_element_and_absent()
     {
-        Assert.Equal(SyntaxKind.CardinalityKeyword, SqlAssert.Expr<SpecialFormExpression>("cardinality(array[1])").Name.Kind);
-        Assert.Equal(SyntaxKind.ElementKeyword, SqlAssert.Expr<SpecialFormExpression>("element(multiset[1])").Name.Kind);
+        Assert.Equal(SyntaxKind.CardinalityKeyword, SqlAssert.Expr<SpecialFormExpression>(CardinalityCall).Name.Kind);
+        Assert.Equal(SyntaxKind.ElementKeyword, SqlAssert.Expr<SpecialFormExpression>(ElementCall).Name.Kind);
         Assert.Equal(SyntaxKind.NullKeyword, SqlAssert.Expr<AbsentOnNullExpression>("absent on null").NullKeyword.Kind);
     }
 

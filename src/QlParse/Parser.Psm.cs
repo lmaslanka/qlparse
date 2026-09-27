@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private CompoundStatement ParseCompound()
+    internal CompoundStatement ParseCompound()
     {
         ParseBeginningLabel(out var label, out var colon);
         var beginKeyword = ExpectIdent(Keyword.Begin);
@@ -13,9 +13,12 @@ internal sealed partial class Parser
             notKeyword = Advance();
             atomic = Advance();
         }
-        else if (IdentifierEquals(Keyword.Atomic))
+        else
         {
-            atomic = Advance();
+            if (IdentifierEquals(Keyword.Atomic))
+            {
+                atomic = Advance();
+            }
         }
 
         var statements = ParseStatementList(() => _current.Kind == SyntaxKind.EndKeyword);
@@ -36,7 +39,7 @@ internal sealed partial class Parser
         };
     }
 
-    private Query ParseDeclareVariable()
+    internal Query ParseDeclareVariable()
     {
         var declareKeyword = Advance();
         var names = ParseNameList();
@@ -100,7 +103,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DeclareHandlerStatement ParseDeclareHandler()
+    internal DeclareHandlerStatement ParseDeclareHandler()
     {
         var declareKeyword = Advance();
         var handlerType = Advance();
@@ -126,7 +129,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetAssignmentStatement ParseSetAssignment()
+    internal SetAssignmentStatement ParseSetAssignment()
     {
         var setKeyword = Advance();
         SyntaxToken? openParen = null;
@@ -164,7 +167,7 @@ internal sealed partial class Parser
         };
     }
 
-    private IfStatement ParseIf()
+    internal IfStatement ParseIf()
     {
         var ifKeyword = Advance();
         var condition = ParseExpression();
@@ -213,7 +216,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CaseStatement ParseCaseStatement()
+    internal CaseStatement ParseCaseStatement()
     {
         var caseKeyword = Advance();
         Expression? operand = null;
@@ -263,7 +266,7 @@ internal sealed partial class Parser
         };
     }
 
-    private LoopStatement ParseLoop()
+    internal LoopStatement ParseLoop()
     {
         ParseBeginningLabel(out var label, out var colon);
         var loopKeyword = ExpectIdent(Keyword.Loop);
@@ -285,7 +288,7 @@ internal sealed partial class Parser
         };
     }
 
-    private WhileStatement ParseWhile()
+    internal WhileStatement ParseWhile()
     {
         ParseBeginningLabel(out var label, out var colon);
         var whileKeyword = ExpectIdent(Keyword.While);
@@ -311,7 +314,7 @@ internal sealed partial class Parser
         };
     }
 
-    private RepeatStatement ParseRepeatStatement()
+    internal RepeatStatement ParseRepeatStatement()
     {
         ParseBeginningLabel(out var label, out var colon);
         var repeatKeyword = ExpectIdent(Keyword.Repeat);
@@ -337,7 +340,7 @@ internal sealed partial class Parser
         };
     }
 
-    private ForStatement ParseForStatement()
+    internal ForStatement ParseForStatement()
     {
         ParseBeginningLabel(out var label, out var colon);
         var forKeyword = Expect(SyntaxKind.ForKeyword);
@@ -380,7 +383,7 @@ internal sealed partial class Parser
         };
     }
 
-    private LeaveStatement ParseLeave()
+    internal LeaveStatement ParseLeave()
     {
         var leaveKeyword = Advance();
         var label = Expect(SyntaxKind.Identifier);
@@ -392,7 +395,7 @@ internal sealed partial class Parser
         };
     }
 
-    private IterateStatement ParseIterate()
+    internal IterateStatement ParseIterate()
     {
         var iterateKeyword = Advance();
         var label = Expect(SyntaxKind.Identifier);

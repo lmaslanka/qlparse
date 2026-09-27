@@ -2,8 +2,6 @@ namespace QlParse.Tests;
 
 public sealed class ParseExpressionTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
-
     [Theory]
     [InlineData("1 or 2", SyntaxKind.OrKeyword)]
     [InlineData("1 and 2", SyntaxKind.AndKeyword)]
@@ -125,7 +123,7 @@ public sealed class ParseExpressionTests
         var staticMethod = SqlAssert.Expr<StaticMethodInvocationExpression>("sch.person :: make( p.first_name )");
         Assert.IsType<MemberAccessExpression>(staticMethod.Type);
         Assert.Empty(SqlAssert.Expr<StaticMethodInvocationExpression>("person :: make( )").Arguments);
-        new EmptyVisitor().Visit(generalized);
+        new SqlVisitor().Visit(generalized);
     }
 
     [Fact]
@@ -142,7 +140,7 @@ public sealed class ParseExpressionTests
         var alias = SqlAssert.Select("select a contains from t").SelectList[0];
         Assert.IsType<IdentifierExpression>(alias.Expression);
         Assert.NotNull(alias.Alias);
-        new EmptyVisitor().Visit(contains);
+        new SqlVisitor().Visit(contains);
     }
 
     [Fact]
@@ -152,7 +150,7 @@ public sealed class ParseExpressionTests
         Assert.NotNull(parsed.Clauses);
         var serialized = SqlAssert.Expr<MarkupCallExpression>("xmlserialize ( content x as varchar ( 20 ) encoding utf8 )");
         Assert.NotNull(serialized.Returning);
-        var element = SqlAssert.Expr<MarkupCallExpression>("xmlelement ( name emp , xmlnamespaces ( default 'urn:e' ) , xmlattributes ( id as \"id\" ) , name )");
+        var element = SqlAssert.Expr<MarkupCallExpression>(@"xmlelement ( name emp , xmlnamespaces ( default 'urn:e' ) , xmlattributes ( id as ""id"" ) , name )");
         Assert.Equal(Count.Three, element.Arguments.Count);
         Assert.IsType<MarkupCallExpression>(SqlAssert.Expr("xmlforest ( name as emp_name , dept )"));
         Assert.IsType<MarkupCallExpression>(SqlAssert.Expr("xmlconcat ( a , b )"));
@@ -188,8 +186,8 @@ public sealed class ParseExpressionTests
         Assert.NotNull(predicate.KeysKeyword);
         Assert.IsType<JsonAccessorExpression>(Assert.IsType<MemberAccessExpression>(SqlAssert.Expr("j [ 0 ].name")).Target);
         Assert.IsType<IdentifierExpression>(SqlAssert.Expr("xmlparse "));
-        new EmptyVisitor().Visit(element);
-        new EmptyVisitor().Visit(value);
+        new SqlVisitor().Visit(element);
+        new SqlVisitor().Visit(value);
     }
 
     [Fact]
@@ -203,7 +201,7 @@ public sealed class ParseExpressionTests
         Assert.NotNull(slice.Axes[1].Star);
         Assert.IsType<MdarrayAggregateExpression>(SqlAssert.Expr("mdarray_sum ( a )"));
         Assert.NotNull(SqlAssert.Expr<CastExpression>("cast ( x as integer mdarray [ 0 : 4 ] )").Type.Collections);
-        new EmptyVisitor().Visit(slice);
+        new SqlVisitor().Visit(slice);
     }
 
     [Fact]

@@ -14,28 +14,27 @@ internal sealed partial class Parser
     private const int Len11 = 11;
     private const int Len12 = 12;
 
-    private Query ParseStatement()
+    internal Query ParseStatement()
     {
         var labeled = ParseLabeledStatement();
-        if (labeled is not null)
-        {
-            return labeled;
-        }
-
-        return _current.Kind switch
-        {
-            SyntaxKind.SelectKeyword or SyntaxKind.WithKeyword or SyntaxKind.ValuesKeyword or SyntaxKind.OpenParen
-                => ParseQuery(),
-            SyntaxKind.UpdateKeyword => ParseUpdate(),
-            SyntaxKind.SetKeyword => ParseSetStatement(),
-            SyntaxKind.FetchKeyword => ParseFetchStatement(),
-            SyntaxKind.CaseKeyword => ParseCaseStatement(),
-            SyntaxKind.ForKeyword => ParseForStatement(),
-            SyntaxKind.EndKeyword => IsDeclareSection() ? ParseDeclareSection() : ParseQuery(),
-            SyntaxKind.Identifier => ParseIdentifierStatement(),
-            _ => ParseQuery(),
-        };
+        return labeled ?? ParseStatementByKind();
     }
+
+    private Query ParseStatementByKind() => _current.Kind switch
+    {
+        SyntaxKind.SelectKeyword or SyntaxKind.WithKeyword or SyntaxKind.ValuesKeyword or SyntaxKind.OpenParen
+            => ParseQuery(),
+        SyntaxKind.UpdateKeyword => ParseUpdate(),
+        SyntaxKind.SetKeyword => ParseSetStatement(),
+        SyntaxKind.FetchKeyword => ParseFetchStatement(),
+        SyntaxKind.CaseKeyword => ParseCaseStatement(),
+        SyntaxKind.ForKeyword => ParseForStatement(),
+        SyntaxKind.EndKeyword => ParseEndKeywordStatement(),
+        SyntaxKind.Identifier => ParseIdentifierStatement(),
+        _ => ParseQuery(),
+    };
+
+    private Query ParseEndKeywordStatement() => IsDeclareSection() ? ParseDeclareSection() : ParseQuery();
 
     private Query? ParseLabeledStatement()
     {
@@ -88,226 +87,268 @@ internal sealed partial class Parser
     private Query ParseIdentifierStatement()
     {
         var text = _current.TextOf(_source);
-        switch (text.Length)
+        return text.Length <= Len6 ? ParseIdentLowLength(text) : ParseIdentHighLength(text);
+    }
+
+    private Query ParseIdentLowLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len2 => TryParseIdentLen2(text),
+        Len3 => TryParseIdentLen3(text),
+        Len4 => TryParseIdentLen4(text),
+        Len5 => TryParseIdentLen5(text),
+        Len6 => TryParseIdentLen6(text),
+        _ => ParseQuery(),
+    };
+
+    private Query ParseIdentHighLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len7 => TryParseIdentLen7(text),
+        Len8 => TryParseIdentLen8(text),
+        Len9 => TryParseIdentLen9(text),
+        Len10 => TryParseIdentLen10(text),
+        _ => ParseQuery(),
+    };
+
+    private Query TryParseIdentLen2(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.If))
         {
-            case Len2:
-                if (TextEquals(text, Keyword.If))
-                {
-                    return ParseIf();
-                }
+            return ParseIf();
+        }
 
-                break;
-            case Len3:
-                if (TextEquals(text, Keyword.Get))
-                {
-                    return ParseGetDiagnostics();
-                }
+        return ParseQuery();
+    }
 
-                break;
-            case Len4:
-                if (TextEquals(text, Keyword.Drop))
-                {
-                    return ParseDropStatement();
-                }
+    private Query TryParseIdentLen3(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Get))
+        {
+            return ParseGetDiagnostics();
+        }
 
-                if (TextEquals(text, Keyword.Open))
-                {
-                    return ParseOpen();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Call))
-                {
-                    return ParseCall();
-                }
+    private Query TryParseIdentLen4(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Drop))
+        {
+            return ParseDropStatement();
+        }
 
-                if (TextEquals(text, Keyword.Loop))
-                {
-                    return ParseLoop();
-                }
+        if (TextEquals(text, Keyword.Open))
+        {
+            return ParseOpen();
+        }
 
-                if (TextEquals(text, Keyword.Exec))
-                {
-                    return ParseEmbeddedSql();
-                }
+        if (TextEquals(text, Keyword.Call))
+        {
+            return ParseCall();
+        }
 
-                break;
-            case Len5:
-                if (TextEquals(text, Keyword.Alter))
-                {
-                    return ParseAlterStatement();
-                }
+        if (TextEquals(text, Keyword.Loop))
+        {
+            return ParseLoop();
+        }
 
-                if (TextEquals(text, Keyword.Merge))
-                {
-                    return ParseMerge();
-                }
+        if (TextEquals(text, Keyword.Exec))
+        {
+            return ParseEmbeddedSql();
+        }
 
-                if (TextEquals(text, Keyword.Grant))
-                {
-                    return ParseGrant();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Start))
-                {
-                    return ParseStartTransaction();
-                }
+    private Query TryParseIdentLen5(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Alter))
+        {
+            return ParseAlterStatement();
+        }
 
-                if (TextEquals(text, Keyword.Close))
-                {
-                    return ParseClose();
-                }
+        if (TextEquals(text, Keyword.Merge))
+        {
+            return ParseMerge();
+        }
 
-                if (TextEquals(text, Keyword.Begin))
-                {
-                    return IsDeclareSection() ? ParseDeclareSection() : ParseCompound();
-                }
+        if (TextEquals(text, Keyword.Grant))
+        {
+            return ParseGrant();
+        }
 
-                if (TextEquals(text, Keyword.While))
-                {
-                    return ParseWhile();
-                }
+        if (TextEquals(text, Keyword.Start))
+        {
+            return ParseStartTransaction();
+        }
 
-                if (TextEquals(text, Keyword.Leave))
-                {
-                    return ParseLeave();
-                }
+        if (TextEquals(text, Keyword.Close))
+        {
+            return ParseClose();
+        }
 
-                break;
-            case Len6:
-                if (TextEquals(text, Keyword.Create))
-                {
-                    return ParseCreateStatement();
-                }
+        if (TextEquals(text, Keyword.Begin))
+        {
+            return IsDeclareSection() ? ParseDeclareSection() : ParseCompound();
+        }
 
-                if (TextEquals(text, Keyword.Insert))
-                {
-                    return ParseInsert();
-                }
+        if (TextEquals(text, Keyword.While))
+        {
+            return ParseWhile();
+        }
 
-                if (TextEquals(text, Keyword.Delete))
-                {
-                    return ParseDelete();
-                }
+        if (TextEquals(text, Keyword.Leave))
+        {
+            return ParseLeave();
+        }
 
-                if (TextEquals(text, Keyword.Commit))
-                {
-                    return ParseCommit();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Return))
-                {
-                    return ParseReturn();
-                }
+    private Query TryParseIdentLen6(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Create))
+        {
+            return ParseCreateStatement();
+        }
 
-                if (TextEquals(text, Keyword.Module))
-                {
-                    return ParseModule();
-                }
+        if (TextEquals(text, Keyword.Insert))
+        {
+            return ParseInsert();
+        }
 
-                if (TextEquals(text, Keyword.Signal))
-                {
-                    return ParseSignal();
-                }
+        if (TextEquals(text, Keyword.Delete))
+        {
+            return ParseDelete();
+        }
 
-                if (TextEquals(text, Keyword.Repeat))
-                {
-                    return ParseRepeatStatement();
-                }
+        if (TextEquals(text, Keyword.Commit))
+        {
+            return ParseCommit();
+        }
 
-                if (TextEquals(text, Keyword.Revoke))
-                {
-                    return ParseRevoke();
-                }
+        if (TextEquals(text, Keyword.Return))
+        {
+            return ParseReturn();
+        }
 
-                break;
-            case Len7:
-                if (TextEquals(text, Keyword.Connect))
-                {
-                    return ParseConnect();
-                }
+        if (TextEquals(text, Keyword.Module))
+        {
+            return ParseModule();
+        }
 
-                if (TextEquals(text, Keyword.Declare))
-                {
-                    return ParseDeclareStatement();
-                }
+        if (TextEquals(text, Keyword.Signal))
+        {
+            return ParseSignal();
+        }
 
-                if (TextEquals(text, Keyword.Prepare))
-                {
-                    return ParsePrepare();
-                }
+        if (TextEquals(text, Keyword.Repeat))
+        {
+            return ParseRepeatStatement();
+        }
 
-                if (TextEquals(text, Keyword.Execute))
-                {
-                    return NextEquals(Keyword.Immediate) ? ParseExecuteImmediate() : ParseExecute();
-                }
+        if (TextEquals(text, Keyword.Revoke))
+        {
+            return ParseRevoke();
+        }
 
-                if (TextEquals(text, Keyword.Iterate))
-                {
-                    return ParseIterate();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Comment))
-                {
-                    return ParseComment();
-                }
+    private Query TryParseIdentLen7(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Connect))
+        {
+            return ParseConnect();
+        }
 
-                if (TextEquals(text, Keyword.Release))
-                {
-                    return ParseReleaseSavepoint();
-                }
+        if (TextEquals(text, Keyword.Declare))
+        {
+            return ParseDeclareStatement();
+        }
 
-                break;
-            case Len8:
-                if (TextEquals(text, Keyword.Truncate))
-                {
-                    return ParseTruncate();
-                }
+        if (TextEquals(text, Keyword.Prepare))
+        {
+            return ParsePrepare();
+        }
 
-                if (TextEquals(text, Keyword.Rollback))
-                {
-                    return ParseRollback();
-                }
+        if (TextEquals(text, Keyword.Execute))
+        {
+            return NextEquals(Keyword.Immediate) ? ParseExecuteImmediate() : ParseExecute();
+        }
 
-                if (TextEquals(text, Keyword.Allocate))
-                {
-                    return ParseAllocateStatement();
-                }
+        if (TextEquals(text, Keyword.Iterate))
+        {
+            return ParseIterate();
+        }
 
-                if (TextEquals(text, Keyword.Describe))
-                {
-                    return ParseDescribe();
-                }
+        if (TextEquals(text, Keyword.Comment))
+        {
+            return ParseComment();
+        }
 
-                if (TextEquals(text, Keyword.Whenever))
-                {
-                    return ParseWhenever();
-                }
+        if (TextEquals(text, Keyword.Release))
+        {
+            return ParseReleaseSavepoint();
+        }
 
-                if (TextEquals(text, Keyword.Resignal))
-                {
-                    return ParseResignal();
-                }
+        return ParseQuery();
+    }
 
-                break;
-            case Len9:
-                if (TextEquals(text, Keyword.Savepoint))
-                {
-                    return ParseSavepoint();
-                }
+    private Query TryParseIdentLen8(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Truncate))
+        {
+            return ParseTruncate();
+        }
 
-                break;
-            case Len10:
-                if (TextEquals(text, Keyword.Disconnect))
-                {
-                    return ParseDisconnect();
-                }
+        if (TextEquals(text, Keyword.Rollback))
+        {
+            return ParseRollback();
+        }
 
-                if (TextEquals(text, Keyword.Deallocate))
-                {
-                    return ParseDeallocate();
-                }
+        if (TextEquals(text, Keyword.Allocate))
+        {
+            return ParseAllocateStatement();
+        }
 
-                break;
+        if (TextEquals(text, Keyword.Describe))
+        {
+            return ParseDescribe();
+        }
+
+        if (TextEquals(text, Keyword.Whenever))
+        {
+            return ParseWhenever();
+        }
+
+        if (TextEquals(text, Keyword.Resignal))
+        {
+            return ParseResignal();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseIdentLen9(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Savepoint))
+        {
+            return ParseSavepoint();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseIdentLen10(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Disconnect))
+        {
+            return ParseDisconnect();
+        }
+
+        if (TextEquals(text, Keyword.Deallocate))
+        {
+            return ParseDeallocate();
         }
 
         return ParseQuery();
@@ -337,161 +378,203 @@ internal sealed partial class Parser
         }
 
         var text = _tokens[_index].TextOf(_source);
-        switch (text.Length)
+        return text.Length <= Len8 ? ParseCreateLowLength(text) : ParseCreateHighLength(text);
+    }
+
+    private Query ParseCreateLowLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len4 => TryParseCreateLen4(text),
+        Len5 => TryParseCreateLen5(text),
+        Len6 => TryParseCreateLen6(text),
+        Len7 => TryParseCreateLen7(text),
+        Len8 => TryParseCreateLen8(text),
+        _ => ParseQuery(),
+    };
+
+    private Query ParseCreateHighLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len9 => TryParseCreateLen9(text),
+        Len10 => TryParseCreateLen10(text),
+        Len11 => TryParseCreateLen11(text),
+        Len12 => TryParseCreateLen12(text),
+        _ => ParseQuery(),
+    };
+
+    private Query TryParseCreateLen4(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.View))
         {
-            case Len4:
-                if (TextEquals(text, Keyword.View))
-                {
-                    return ParseCreateView();
-                }
+            return ParseCreateView();
+        }
 
-                if (TextEquals(text, Keyword.Type))
-                {
-                    return ParseCreateType();
-                }
+        if (TextEquals(text, Keyword.Type))
+        {
+            return ParseCreateType();
+        }
 
-                if (TextEquals(text, Keyword.Role))
-                {
-                    return ParseCreateRole();
-                }
+        if (TextEquals(text, Keyword.Role))
+        {
+            return ParseCreateRole();
+        }
 
-                break;
-            case Len5:
-                if (TextEquals(text, Keyword.Table))
-                {
-                    return ParseCreateTable();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Local))
-                {
-                    return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
-                }
+    private Query TryParseCreateLen5(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Table))
+        {
+            return ParseCreateTable();
+        }
 
-                if (TextEquals(text, Keyword.Index))
-                {
-                    return ParseCreateIndex();
-                }
+        if (TextEquals(text, Keyword.Local))
+        {
+            return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
+        }
 
-                break;
-            case Len6:
-                if (TextEquals(text, Keyword.Schema))
-                {
-                    return ParseCreateSchema();
-                }
+        if (TextEquals(text, Keyword.Index))
+        {
+            return ParseCreateIndex();
+        }
 
-                if (TextEquals(text, Keyword.Global))
-                {
-                    return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Domain))
-                {
-                    return ParseCreateDomain();
-                }
+    private Query TryParseCreateLen6(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Schema))
+        {
+            return ParseCreateSchema();
+        }
 
-                if (TextEquals(text, Keyword.Method))
-                {
-                    return ParseCreateMethod();
-                }
+        if (TextEquals(text, Keyword.Global))
+        {
+            return IsTemporaryTableAfterScope() ? ParseCreateTable() : ParseQuery();
+        }
 
-                if (TextEquals(text, Keyword.Static) && IsKeywordAt(_index + 1, Keyword.Method))
-                {
-                    return ParseCreateMethod();
-                }
+        if (TextEquals(text, Keyword.Domain))
+        {
+            return ParseCreateDomain();
+        }
 
-                break;
-            case Len7:
-                if (TextEquals(text, Keyword.Trigger))
-                {
-                    return ParseCreateTrigger();
-                }
+        if (TextEquals(text, Keyword.Method))
+        {
+            return ParseCreateMethod();
+        }
 
-                break;
-            case Len8:
-                if (TextEquals(text, Keyword.Ordering))
-                {
-                    return ParseCreateOrdering();
-                }
+        if (TextEquals(text, Keyword.Static) && IsKeywordAt(_index + 1, Keyword.Method))
+        {
+            return ParseCreateMethod();
+        }
 
-                if (TextEquals(text, Keyword.Sequence))
-                {
-                    return ParseCreateSequence();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Function))
-                {
-                    return ParseCreateFunction();
-                }
+    private Query TryParseCreateLen7(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Trigger))
+        {
+            return ParseCreateTrigger();
+        }
 
-                if (TextEquals(text, Keyword.Instance) && IsKeywordAt(_index + 1, Keyword.Method))
-                {
-                    return ParseCreateMethod();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Property))
-                {
-                    return ParseCreatePropertyGraph();
-                }
+    private Query TryParseCreateLen8(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Ordering))
+        {
+            return ParseCreateOrdering();
+        }
 
-                break;
-            case Len9:
-                if (TextEquals(text, Keyword.Transform))
-                {
-                    return ParseCreateTransform();
-                }
+        if (TextEquals(text, Keyword.Sequence))
+        {
+            return ParseCreateSequence();
+        }
 
-                if (TextEquals(text, Keyword.Assertion))
-                {
-                    return ParseCreateAssertion();
-                }
+        if (TextEquals(text, Keyword.Function))
+        {
+            return ParseCreateFunction();
+        }
 
-                if (TextEquals(text, Keyword.Character) && NextNextIsSet())
-                {
-                    return ParseCreateCharacterSet();
-                }
+        if (TextEquals(text, Keyword.Instance) && IsKeywordAt(_index + 1, Keyword.Method))
+        {
+            return ParseCreateMethod();
+        }
 
-                if (TextEquals(text, Keyword.Collation))
-                {
-                    return ParseCreateCollation();
-                }
+        if (TextEquals(text, Keyword.Property))
+        {
+            return ParseCreatePropertyGraph();
+        }
 
-                if (TextEquals(text, Keyword.Procedure))
-                {
-                    return ParseCreateProcedure();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Clustered) && IsCreateIndexTail())
-                {
-                    return ParseCreateIndex();
-                }
+    private Query TryParseCreateLen9(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Transform))
+        {
+            return ParseCreateTransform();
+        }
 
-                break;
-            case Len10:
-                if (TextEquals(text, Keyword.Transforms))
-                {
-                    return ParseCreateTransform();
-                }
+        if (TextEquals(text, Keyword.Assertion))
+        {
+            return ParseCreateAssertion();
+        }
 
-                break;
-            case Len11:
-                if (TextEquals(text, Keyword.Translation))
-                {
-                    return ParseCreateTranslation();
-                }
+        if (TextEquals(text, Keyword.Character) && NextNextIsSet())
+        {
+            return ParseCreateCharacterSet();
+        }
 
-                if (TextEquals(text, Keyword.Constructor) && IsKeywordAt(_index + 1, Keyword.Method))
-                {
-                    return ParseCreateMethod();
-                }
+        if (TextEquals(text, Keyword.Collation))
+        {
+            return ParseCreateCollation();
+        }
 
-                break;
-            case Len12:
-                if (TextEquals(text, Keyword.Nonclustered) && IsCreateIndexTail())
-                {
-                    return ParseCreateIndex();
-                }
+        if (TextEquals(text, Keyword.Procedure))
+        {
+            return ParseCreateProcedure();
+        }
 
-                break;
+        if (TextEquals(text, Keyword.Clustered) && IsCreateIndexTail())
+        {
+            return ParseCreateIndex();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseCreateLen10(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Transforms))
+        {
+            return ParseCreateTransform();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseCreateLen11(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Translation))
+        {
+            return ParseCreateTranslation();
+        }
+
+        if (TextEquals(text, Keyword.Constructor) && IsKeywordAt(_index + 1, Keyword.Method))
+        {
+            return ParseCreateMethod();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseCreateLen12(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Nonclustered) && IsCreateIndexTail())
+        {
+            return ParseCreateIndex();
         }
 
         return ParseQuery();
@@ -510,39 +593,50 @@ internal sealed partial class Parser
         }
 
         var text = _tokens[_index].TextOf(_source);
-        switch (text.Length)
+        return text.Length switch
         {
-            case Len4:
-                if (TextEquals(text, Keyword.View))
-                {
-                    return ParseAlterView();
-                }
+            Len4 => TryParseAlterLen4(text),
+            Len5 => TryParseAlterLen5(text),
+            Len6 => TryParseAlterLen6(text),
+            _ => ParseQuery(),
+        };
+    }
 
-                break;
-            case Len5:
-                if (TextEquals(text, Keyword.Table))
-                {
-                    return ParseAlterTable();
-                }
+    private Query TryParseAlterLen4(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.View))
+        {
+            return ParseAlterView();
+        }
 
-                if (TextEquals(text, Keyword.Index))
-                {
-                    return ParseAlterIndex();
-                }
+        return ParseQuery();
+    }
 
-                break;
-            case Len6:
-                if (TextEquals(text, Keyword.Schema))
-                {
-                    return ParseAlterSchema();
-                }
+    private Query TryParseAlterLen5(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Table))
+        {
+            return ParseAlterTable();
+        }
 
-                if (TextEquals(text, Keyword.Domain))
-                {
-                    return ParseAlterDomain();
-                }
+        if (TextEquals(text, Keyword.Index))
+        {
+            return ParseAlterIndex();
+        }
 
-                break;
+        return ParseQuery();
+    }
+
+    private Query TryParseAlterLen6(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Schema))
+        {
+            return ParseAlterSchema();
+        }
+
+        if (TextEquals(text, Keyword.Domain))
+        {
+            return ParseAlterDomain();
         }
 
         return ParseQuery();
@@ -560,93 +654,121 @@ internal sealed partial class Parser
             return ParseQuery();
         }
 
-        var text = _tokens[_index].TextOf(_source);
-        switch (text.Length)
+        return ParseDropByLength(_tokens[_index].TextOf(_source));
+    }
+
+    private Query ParseDropByLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len4 => TryParseDropLen4(text),
+        Len5 => TryParseDropLen5(text),
+        Len6 => TryParseDropLen6(text),
+        Len7 => TryParseDropLen7(text),
+        Len8 => TryParseDropLen8(text),
+        Len9 => TryParseDropLen9(text),
+        Len11 => TryParseDropLen11(text),
+        _ => ParseQuery(),
+    };
+
+    private Query TryParseDropLen4(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.View))
         {
-            case Len4:
-                if (TextEquals(text, Keyword.View))
-                {
-                    return ParseDropView();
-                }
+            return ParseDropView();
+        }
 
-                if (TextEquals(text, Keyword.Type))
-                {
-                    return ParseDropType();
-                }
+        if (TextEquals(text, Keyword.Type))
+        {
+            return ParseDropType();
+        }
 
-                if (TextEquals(text, Keyword.Role))
-                {
-                    return ParseDropRole();
-                }
+        if (TextEquals(text, Keyword.Role))
+        {
+            return ParseDropRole();
+        }
 
-                break;
-            case Len5:
-                if (TextEquals(text, Keyword.Table))
-                {
-                    return ParseDropTable();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Index))
-                {
-                    return ParseDropIndex();
-                }
+    private Query TryParseDropLen5(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Table))
+        {
+            return ParseDropTable();
+        }
 
-                break;
-            case Len6:
-                if (TextEquals(text, Keyword.Schema))
-                {
-                    return ParseDropSchema();
-                }
+        if (TextEquals(text, Keyword.Index))
+        {
+            return ParseDropIndex();
+        }
 
-                if (TextEquals(text, Keyword.Domain))
-                {
-                    return ParseDropDomain();
-                }
+        return ParseQuery();
+    }
 
-                break;
-            case Len7:
-                if (TextEquals(text, Keyword.Trigger))
-                {
-                    return ParseDropTrigger();
-                }
+    private Query TryParseDropLen6(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Schema))
+        {
+            return ParseDropSchema();
+        }
 
-                break;
-            case Len8:
-                if (TextEquals(text, Keyword.Sequence))
-                {
-                    return ParseDropSequence();
-                }
+        if (TextEquals(text, Keyword.Domain))
+        {
+            return ParseDropDomain();
+        }
 
-                if (TextEquals(text, Keyword.Property))
-                {
-                    return ParseDropPropertyGraph();
-                }
+        return ParseQuery();
+    }
 
-                break;
-            case Len9:
-                if (TextEquals(text, Keyword.Assertion))
-                {
-                    return ParseDropAssertion();
-                }
+    private Query TryParseDropLen7(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Trigger))
+        {
+            return ParseDropTrigger();
+        }
 
-                if (TextEquals(text, Keyword.Character) && NextNextIsSet())
-                {
-                    return ParseDropCharacterSet();
-                }
+        return ParseQuery();
+    }
 
-                if (TextEquals(text, Keyword.Collation))
-                {
-                    return ParseDropCollation();
-                }
+    private Query TryParseDropLen8(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Sequence))
+        {
+            return ParseDropSequence();
+        }
 
-                break;
-            case Len11:
-                if (TextEquals(text, Keyword.Translation))
-                {
-                    return ParseDropTranslation();
-                }
+        if (TextEquals(text, Keyword.Property))
+        {
+            return ParseDropPropertyGraph();
+        }
 
-                break;
+        return ParseQuery();
+    }
+
+    private Query TryParseDropLen9(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Assertion))
+        {
+            return ParseDropAssertion();
+        }
+
+        if (TextEquals(text, Keyword.Character) && NextNextIsSet())
+        {
+            return ParseDropCharacterSet();
+        }
+
+        if (TextEquals(text, Keyword.Collation))
+        {
+            return ParseDropCollation();
+        }
+
+        return ParseQuery();
+    }
+
+    private Query TryParseDropLen11(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Translation))
+        {
+            return ParseDropTranslation();
         }
 
         return ParseQuery();
@@ -666,85 +788,113 @@ internal sealed partial class Parser
             return ParseSetAssignment();
         }
 
-        var text = _tokens[_index].TextOf(_source);
-        switch (text.Length)
+        return ParseSetByLength(_tokens[_index].TextOf(_source));
+    }
+
+    private Query ParseSetByLength(ReadOnlySpan<char> text) => text.Length switch
+    {
+        Len4 => TryParseSetLen4(text),
+        Len5 => TryParseSetLen5(text),
+        Len6 => TryParseSetLen6(text),
+        Len7 => TryParseSetLen7(text),
+        Len9 => TryParseSetLen9(text),
+        Len10 => TryParseSetLen10(text),
+        Len11 => TryParseSetLen11(text),
+        _ => ParseSetAssignment(),
+    };
+
+    private Query TryParseSetLen4(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Role))
         {
-            case Len4:
-                if (TextEquals(text, Keyword.Role))
-                {
-                    return ParseSetRole();
-                }
+            return ParseSetRole();
+        }
 
-                if (TextEquals(text, Keyword.Path))
-                {
-                    return ParseSetPath();
-                }
+        if (TextEquals(text, Keyword.Path))
+        {
+            return ParseSetPath();
+        }
 
-                break;
-            case Len5:
-                if (TextEquals(text, Keyword.Names))
-                {
-                    return ParseSetNames();
-                }
+        return ParseSetAssignment();
+    }
 
-                if (TextEquals(text, Keyword.Local)
-                    && _index + 1 < _tokens.Count
-                    && TokenEquals(_tokens[_index + 1], Keyword.Transaction))
-                {
-                    return ParseSetTransaction();
-                }
+    private Query TryParseSetLen5(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Names))
+        {
+            return ParseSetNames();
+        }
 
-                break;
-            case Len6:
-                if (TextEquals(text, Keyword.Schema))
-                {
-                    return ParseSetSchema();
-                }
+        if (TextEquals(text, Keyword.Local)
+            && _index + 1 < _tokens.Count
+            && TokenEquals(_tokens[_index + 1], Keyword.Transaction))
+        {
+            return ParseSetTransaction();
+        }
 
-                break;
-            case Len7:
-                if (TextEquals(text, Keyword.Session))
-                {
-                    return ParseSetSession();
-                }
+        return ParseSetAssignment();
+    }
 
-                if (TextEquals(text, Keyword.Catalog))
-                {
-                    return ParseSetCatalog();
-                }
+    private Query TryParseSetLen6(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Schema))
+        {
+            return ParseSetSchema();
+        }
 
-                break;
-            case Len9:
-                if (TextEquals(text, Keyword.Collation))
-                {
-                    return ParseSetCollation();
-                }
+        return ParseSetAssignment();
+    }
 
-                if (TextEquals(text, Keyword.Character) && NextNextIsSet())
-                {
-                    return ParseSetCharacterSet();
-                }
+    private Query TryParseSetLen7(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Session))
+        {
+            return ParseSetSession();
+        }
 
-                break;
-            case Len10:
-                if (TextEquals(text, Keyword.Connection))
-                {
-                    return ParseSetConnection();
-                }
+        if (TextEquals(text, Keyword.Catalog))
+        {
+            return ParseSetCatalog();
+        }
 
-                break;
-            case Len11:
-                if (TextEquals(text, Keyword.Transaction))
-                {
-                    return ParseSetTransaction();
-                }
+        return ParseSetAssignment();
+    }
 
-                if (TextEquals(text, Keyword.Constraints))
-                {
-                    return ParseSetConstraints();
-                }
+    private Query TryParseSetLen9(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Collation))
+        {
+            return ParseSetCollation();
+        }
 
-                break;
+        if (TextEquals(text, Keyword.Character) && NextNextIsSet())
+        {
+            return ParseSetCharacterSet();
+        }
+
+        return ParseSetAssignment();
+    }
+
+    private Query TryParseSetLen10(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Connection))
+        {
+            return ParseSetConnection();
+        }
+
+        return ParseSetAssignment();
+    }
+
+    private Query TryParseSetLen11(ReadOnlySpan<char> text)
+    {
+        if (TextEquals(text, Keyword.Transaction))
+        {
+            return ParseSetTransaction();
+        }
+
+        if (TextEquals(text, Keyword.Constraints))
+        {
+            return ParseSetConstraints();
         }
 
         return ParseSetAssignment();
@@ -757,18 +907,17 @@ internal sealed partial class Parser
             return ParseDeclareCursor();
         }
 
-        if (NextKind == SyntaxKind.Identifier)
+        if (NextKind == SyntaxKind.Identifier && IsDeclareHandlerKeyword(_tokens[_index].TextOf(_source)))
         {
-            var text = _tokens[_index].TextOf(_source);
-            if (text.Length == Len4 && (TextEquals(text, Keyword.Exit) || TextEquals(text, Keyword.Undo))
-                || text.Length == Len8 && TextEquals(text, Keyword.Continue))
-            {
-                return ParseDeclareHandler();
-            }
+            return ParseDeclareHandler();
         }
 
         return ParseDeclareVariable();
     }
+
+    private static bool IsDeclareHandlerKeyword(ReadOnlySpan<char> text) =>
+        text.Length == Len4 && (TextEquals(text, Keyword.Exit) || TextEquals(text, Keyword.Undo))
+            || text.Length == Len8 && TextEquals(text, Keyword.Continue);
 
     private Query ParseAllocateStatement()
     {
@@ -824,16 +973,20 @@ internal sealed partial class Parser
         var text = _tokens[_index].TextOf(_source);
         return text.Length switch
         {
-            Len6 => TextEquals(text, Keyword.Method) || TextEquals(text, Keyword.Static),
+            Len6 => IsMethodOrStatic(text),
             Len7 => TextEquals(text, Keyword.Routine),
-            Len8 => TextEquals(text, Keyword.Function)
-                || TextEquals(text, Keyword.Specific)
-                || TextEquals(text, Keyword.Instance),
+            Len8 => IsFunctionSpecificOrInstance(text),
             Len9 => TextEquals(text, Keyword.Procedure),
             Len11 => TextEquals(text, Keyword.Constructor),
             _ => false,
         };
     }
+
+    private static bool IsMethodOrStatic(ReadOnlySpan<char> text) =>
+        TextEquals(text, Keyword.Method) || TextEquals(text, Keyword.Static);
+
+    private static bool IsFunctionSpecificOrInstance(ReadOnlySpan<char> text) =>
+        TextEquals(text, Keyword.Function) || TextEquals(text, Keyword.Specific) || TextEquals(text, Keyword.Instance);
 
     private static bool TextEquals(ReadOnlySpan<char> text, string keyword) =>
         text.Equals(keyword.AsSpan(), StringComparison.OrdinalIgnoreCase);

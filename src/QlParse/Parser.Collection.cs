@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private ArrayQueryExpression ParseArrayQuery()
+    internal ArrayQueryExpression ParseArrayQuery()
     {
         var arrayKeyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -18,7 +18,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MultisetExpression ParseMultiset()
+    internal MultisetExpression ParseMultiset()
     {
         var multisetKeyword = Advance();
         var openBracket = Expect(SyntaxKind.OpenBracket);
@@ -36,7 +36,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MultisetQueryExpression ParseMultisetQuery()
+    internal MultisetQueryExpression ParseMultisetQuery()
     {
         var keyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -62,13 +62,13 @@ internal sealed partial class Parser
         return ParseQuery();
     }
 
-    private bool IsTableConstructor() =>
+    internal bool IsTableConstructor() =>
         IdentifierEquals(Keyword.Table)
         && NextKind == SyntaxKind.OpenParen
         && _index + 1 < _tokens.Count
         && IsQueryStart(_tokens[_index + 1].Kind);
 
-    private MultisetSetExpression ParseMultisetSet()
+    internal MultisetSetExpression ParseMultisetSet()
     {
         var setKeyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -84,7 +84,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SpecialFormExpression ParseCollectionFunction()
+    internal SpecialFormExpression ParseCollectionFunction()
     {
         var name = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -100,7 +100,7 @@ internal sealed partial class Parser
         };
     }
 
-    private AbsentOnNullExpression ParseAbsentOnNull()
+    internal AbsentOnNullExpression ParseAbsentOnNull()
     {
         var absentKeyword = Advance();
         var onKeyword = Expect(SyntaxKind.OnKeyword);
@@ -114,7 +114,7 @@ internal sealed partial class Parser
         };
     }
 
-    private int MultisetOpBindingPower()
+    internal int MultisetOpBindingPower()
     {
         if (_current.Kind != SyntaxKind.MultisetKeyword)
         {
@@ -129,7 +129,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MultisetOperationExpression ParseMultisetOp(Expression left, int bindingPower)
+    internal MultisetOperationExpression ParseMultisetOp(Expression left, int bindingPower)
     {
         var multisetKeyword = Advance();
         var op = Advance();
@@ -148,7 +148,7 @@ internal sealed partial class Parser
         };
     }
 
-    private UnnestTable ParseUnnest()
+    internal UnnestTable ParseUnnest()
     {
         var unnestKeyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -169,9 +169,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                alias = Advance();
+            }
         }
 
         SyntaxToken? columnOpen = null;
@@ -179,7 +182,10 @@ internal sealed partial class Parser
         SyntaxToken? columnClose = null;
         if (alias is not null)
         {
-            ParseOptionalColumnList(out columnOpen, out columns, out columnClose);
+            ParseOptionalColumnList(out var open, out var cols, out var close);
+            columnOpen = open;
+            columns = cols;
+            columnClose = close;
         }
 
         var end = columnClose ?? alias ?? ordinality ?? closeParen;

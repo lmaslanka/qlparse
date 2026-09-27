@@ -2,13 +2,17 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsMarkupCall() => IsMarkupName(_current) && NextKind == SyntaxKind.OpenParen;
+    internal bool IsMarkupCall() => IsMarkupName(_current) && NextKind == SyntaxKind.OpenParen;
 
-    private bool IsMarkupTable() =>
+    internal bool IsMarkupTable() =>
         (TokenEquals(_current, Keyword.XmlTable) || TokenEquals(_current, Keyword.JsonTable))
         && NextKind == SyntaxKind.OpenParen;
 
-    private bool IsMarkupName(SyntaxToken token) =>
+    private bool IsMarkupName(SyntaxToken token) => IsXmlMarkupName(token) || IsJsonMarkupName(token);
+
+    private bool IsXmlMarkupName(SyntaxToken token) => IsXmlConstructorName(token) || IsXmlQueryName(token);
+
+    private bool IsXmlConstructorName(SyntaxToken token) =>
         TokenEquals(token, Keyword.XmlParse)
         || TokenEquals(token, Keyword.XmlSerialize)
         || TokenEquals(token, Keyword.XmlElement)
@@ -16,16 +20,20 @@ internal sealed partial class Parser
         || TokenEquals(token, Keyword.XmlForest)
         || TokenEquals(token, Keyword.XmlConcat)
         || TokenEquals(token, Keyword.XmlAgg)
-        || TokenEquals(token, Keyword.XmlComment)
-        || TokenEquals(token, Keyword.XmlPi)
+        || TokenEquals(token, Keyword.XmlComment);
+
+    private bool IsXmlQueryName(SyntaxToken token) =>
+        TokenEquals(token, Keyword.XmlPi)
         || TokenEquals(token, Keyword.XmlDocument)
         || TokenEquals(token, Keyword.XmlQuery)
         || TokenEquals(token, Keyword.XmlExists)
         || TokenEquals(token, Keyword.XmlTable)
         || TokenEquals(token, Keyword.XmlCast)
         || TokenEquals(token, Keyword.XmlValidate)
-        || TokenEquals(token, Keyword.XmlNamespaces)
-        || TokenEquals(token, Keyword.JsonObject)
+        || TokenEquals(token, Keyword.XmlNamespaces);
+
+    private bool IsJsonMarkupName(SyntaxToken token) =>
+        TokenEquals(token, Keyword.JsonObject)
         || TokenEquals(token, Keyword.JsonArray)
         || TokenEquals(token, Keyword.JsonObjectAgg)
         || TokenEquals(token, Keyword.JsonArrayAgg)
@@ -36,7 +44,7 @@ internal sealed partial class Parser
         || TokenEquals(token, Keyword.JsonSerialize)
         || TokenEquals(token, Keyword.JsonScalar);
 
-    private MarkupCallExpression ParseMarkupCall()
+    internal MarkupCallExpression ParseMarkupCall()
     {
         var name = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -62,7 +70,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MarkupTable ParseMarkupTable()
+    internal MarkupTable ParseMarkupTable()
     {
         var name = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -75,9 +83,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                alias = Advance();
+            }
         }
 
         var end = alias?.Span ?? closeParen.Span;
@@ -111,9 +122,12 @@ internal sealed partial class Parser
                 Advance();
                 needComma = false;
             }
-            else if (needComma && !IsMarkupClause())
+            else
             {
-                throw new SqlParseException($"Expected comma, found {_current.Kind}", _current.Position);
+                if (needComma && !IsMarkupClause())
+                {
+                    throw new SqlParseException($"Expected comma, found {_current.Kind}", _current.Position);
+                }
             }
 
             if (query is null && arguments.Count == 0 && IsQueryStart(_current.Kind))
@@ -125,7 +139,9 @@ internal sealed partial class Parser
 
             if (IsMarkupClause())
             {
-                ParseMarkupClause(clauses, arguments, ref returning, ref orderBy, columns);
+                var clauseResult = ParseMarkupClause(clauses, arguments, returning, orderBy, columns);
+                returning = clauseResult.Returning;
+                orderBy = clauseResult.OrderBy;
                 needComma = false;
                 continue;
             }
@@ -166,30 +182,30 @@ internal sealed partial class Parser
         ParseFormatJson(clauses);
     }
 
-    private void ParseMarkupClause(
+    private (DataType? Returning, OrderByClause? OrderBy) ParseMarkupClause(
         List<SyntaxToken> clauses,
         List<Expression> arguments,
-        ref DataType? returning,
-        ref OrderByClause? orderBy,
+        DataType? returning,
+        OrderByClause? orderBy,
         List<MarkupColumn> columns)
     {
         if (_current.Kind == SyntaxKind.OrderKeyword)
         {
             orderBy = ParseOrderBy();
-            return;
+            return (returning, orderBy);
         }
 
         if (IdentifierEquals(Keyword.Columns))
         {
             clauses.Add(Advance());
             columns.AddRange(ParseMarkupColumns());
-            return;
+            return (returning, orderBy);
         }
 
         if (IdentifierEquals(Keyword.Passing))
         {
             ParsePassing(clauses, arguments);
-            return;
+            return (returning, orderBy);
         }
 
         if (IdentifierEquals(Keyword.Returning) || _current.Kind == SyntaxKind.AsKeyword)
@@ -198,15 +214,21 @@ internal sealed partial class Parser
             returning = ParseDataType();
             ParseFormatJson(clauses);
             ParseByRef(clauses);
-            return;
+            return (returning, orderBy);
         }
 
         if (IdentifierEquals(Keyword.Default) || IdentifierEquals(Keyword.No))
         {
             ParseDefaultOrNo(clauses, arguments);
-            return;
+            return (returning, orderBy);
         }
 
+        ParseMarkupClauseTail(clauses, arguments);
+        return (returning, orderBy);
+    }
+
+    private void ParseMarkupClauseTail(List<SyntaxToken> clauses, List<Expression> arguments)
+    {
         if (IsOnBehavior())
         {
             ParseOnBehavior(clauses);
@@ -225,6 +247,11 @@ internal sealed partial class Parser
             return;
         }
 
+        ParseMarkupClauseTail2(clauses);
+    }
+
+    private void ParseMarkupClauseTail2(List<SyntaxToken> clauses)
+    {
         if (IdentifierEquals(Keyword.Preserve) || IdentifierEquals(Keyword.Strip))
         {
             clauses.Add(Advance());
@@ -342,7 +369,7 @@ internal sealed partial class Parser
         clauses.Add(Advance());
     }
 
-    private IsExpression ParseMarkupPredicate(Expression target, SyntaxToken isKeyword, SyntaxToken? notKeyword)
+    internal IsExpression ParseMarkupPredicate(Expression target, SyntaxToken isKeyword, SyntaxToken? notKeyword)
     {
         var value = Advance();
         SyntaxToken? kind = null;
@@ -432,33 +459,37 @@ internal sealed partial class Parser
         clauses.Add(Advance());
         clauses.Add(ExpectIdent(Keyword.XmlSchema));
         arguments.Add(ParseExpression(ComparisonBindingPower + 1));
-        if (IdentifierEquals(Keyword.Namespace) || (IdentifierEquals(Keyword.No) && NextEquals(Keyword.Namespace)))
+        if (TryConsumeOptionalNoKeyword(clauses, Keyword.Namespace))
         {
-            if (IdentifierEquals(Keyword.No))
-            {
-                clauses.Add(Advance());
-            }
-
-            clauses.Add(Advance());
             if (_current.Kind != SyntaxKind.CloseParen && !IsMarkupClause())
             {
                 arguments.Add(ParseExpression(ComparisonBindingPower + 1));
             }
         }
 
-        if (IdentifierEquals(Keyword.Element) || (IdentifierEquals(Keyword.No) && NextEquals(Keyword.Element)))
+        if (TryConsumeOptionalNoKeyword(clauses, Keyword.Element))
         {
-            if (IdentifierEquals(Keyword.No))
-            {
-                clauses.Add(Advance());
-            }
-
-            clauses.Add(Advance());
             if (_current.Kind == SyntaxKind.Identifier)
             {
                 clauses.Add(Advance());
             }
         }
+    }
+
+    private bool TryConsumeOptionalNoKeyword(List<SyntaxToken> clauses, string keyword)
+    {
+        if (!IdentifierEquals(keyword) && !(IdentifierEquals(Keyword.No) && NextEquals(keyword)))
+        {
+            return false;
+        }
+
+        if (IdentifierEquals(Keyword.No))
+        {
+            clauses.Add(Advance());
+        }
+
+        clauses.Add(Advance());
+        return true;
     }
 
     private List<MarkupColumn> ParseMarkupColumns()
@@ -476,7 +507,7 @@ internal sealed partial class Parser
             columns.Add(ParseMarkupColumn());
         }
 
-        if (parenthesized)
+        if (parenthesized is true)
         {
             Expect(SyntaxKind.CloseParen);
         }
@@ -488,30 +519,7 @@ internal sealed partial class Parser
     {
         if (IdentifierEquals(Keyword.Nested))
         {
-            var nested = Advance();
-            if (IdentifierEquals(Keyword.Path))
-            {
-                Advance();
-            }
-
-            var nestedPath = ParseExpression(ComparisonBindingPower + 1);
-            SyntaxToken? alias = null;
-            if (_current.Kind == SyntaxKind.AsKeyword)
-            {
-                Advance();
-                alias = Expect(SyntaxKind.Identifier);
-            }
-
-            ExpectIdent(Keyword.Columns);
-            var children = ParseMarkupColumns();
-            var name = alias ?? nested;
-            return new MarkupColumn
-            {
-                Span = SourceSpan.From(nested, children.Count > 0 ? children[^1].Span : nestedPath.Span),
-                Name = name,
-                Path = nestedPath,
-                Nested = children,
-            };
+            return ParseNestedMarkupColumn();
         }
 
         var columnName = Expect(SyntaxKind.Identifier);
@@ -534,7 +542,7 @@ internal sealed partial class Parser
         var end = type.Span;
         while (IdentifierEquals(Keyword.Path) || IdentifierEquals(Keyword.Default) || IsOnBehavior())
         {
-            if (IdentifierEquals(Keyword.Path))
+            if (IdentifierEquals(Keyword.Path) is true)
             {
                 Advance();
                 path = ParseExpression(ComparisonBindingPower + 1);
@@ -566,24 +574,62 @@ internal sealed partial class Parser
         };
     }
 
-    private bool IsMarkupClause() =>
+    private MarkupColumn ParseNestedMarkupColumn()
+    {
+        var nested = Advance();
+        if (IdentifierEquals(Keyword.Path))
+        {
+            Advance();
+        }
+
+        var nestedPath = ParseExpression(ComparisonBindingPower + 1);
+        SyntaxToken? alias = null;
+        if (_current.Kind == SyntaxKind.AsKeyword)
+        {
+            Advance();
+            alias = Expect(SyntaxKind.Identifier);
+        }
+
+        ExpectIdent(Keyword.Columns);
+        var children = ParseMarkupColumns();
+        var name = alias ?? nested;
+        return new MarkupColumn
+        {
+            Span = SourceSpan.From(nested, children.Count > 0 ? children[^1].Span : nestedPath.Span),
+            Name = name,
+            Path = nestedPath,
+            Nested = children,
+        };
+    }
+
+    private bool IsMarkupClause() => IsMarkupClauseKeyword() || IsMarkupClauseTokenKind() || IsMarkupClauseTail();
+
+    private bool IsMarkupClauseKeyword() => IsMarkupClauseKeywordHead() || IsMarkupClauseKeywordRest();
+
+    private bool IsMarkupClauseKeywordHead() =>
         IdentifierEquals(Keyword.Document)
         || IdentifierEquals(Keyword.Content)
         || IdentifierEquals(Keyword.Sequence)
         || IdentifierEquals(Keyword.Passing)
         || IdentifierEquals(Keyword.Returning)
-        || IdentifierEquals(Keyword.Preserve)
-        || IdentifierEquals(Keyword.Strip)
+        || IdentifierEquals(Keyword.Preserve);
+
+    private bool IsMarkupClauseKeywordRest() =>
+        IdentifierEquals(Keyword.Strip)
         || IdentifierEquals(Keyword.Encoding)
         || IdentifierEquals(Keyword.According)
         || IdentifierEquals(Keyword.Columns)
         || IdentifierEquals(Keyword.Format)
-        || (IdentifierEquals(Keyword.Name) && NextKind == SyntaxKind.Identifier)
-        || _current.Kind == SyntaxKind.OrderKeyword
+        || (IdentifierEquals(Keyword.Name) && NextKind == SyntaxKind.Identifier);
+
+    private bool IsMarkupClauseTokenKind() =>
+        _current.Kind == SyntaxKind.OrderKeyword
         || _current.Kind == SyntaxKind.WithKeyword
         || _current.Kind == SyntaxKind.AsKeyword
-        || _current.Kind == SyntaxKind.ByKeyword
-        || IdentifierEquals(Keyword.Without)
+        || _current.Kind == SyntaxKind.ByKeyword;
+
+    private bool IsMarkupClauseTail() =>
+        IdentifierEquals(Keyword.Without)
         || IdentifierEquals(Keyword.No)
         || (IdentifierEquals(Keyword.Default) && NextKind != SyntaxKind.CloseParen)
         || IsOnBehavior();

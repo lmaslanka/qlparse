@@ -2,9 +2,9 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private Query ParseGrant() => NextIsPrivilege() ? ParseGrantPrivilege() : ParseGrantRole();
+    internal Query ParseGrant() => NextIsPrivilege() ? ParseGrantPrivilege() : ParseGrantRole();
 
-    private Query ParseRevoke()
+    internal Query ParseRevoke()
     {
         if (NextEquals(Keyword.Admin))
         {
@@ -152,7 +152,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateRoleStatement ParseCreateRole()
+    internal CreateRoleStatement ParseCreateRole()
     {
         var createKeyword = Advance();
         var roleKeyword = ExpectIdent(Keyword.Role);
@@ -182,7 +182,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropRoleStatement ParseDropRole()
+    internal DropRoleStatement ParseDropRole()
     {
         var dropKeyword = Advance();
         var roleKeyword = ExpectIdent(Keyword.Role);
@@ -196,7 +196,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetRoleStatement ParseSetRole()
+    internal SetRoleStatement ParseSetRole()
     {
         var setKeyword = Advance();
         var roleKeyword = ExpectIdent(Keyword.Role);
@@ -268,42 +268,66 @@ internal sealed partial class Parser
         };
     }
 
-    private PrivilegeObject ParsePrivilegeObject()
-    {
-        if (IdentifierEquals(Keyword.Domain) || IdentifierEquals(Keyword.Collation)
+    private PrivilegeObject ParsePrivilegeObject() =>
+        TryParseSimpleNamedPrivilegeObject()
+        ?? TryParseCharacterSetPrivilegeObject()
+        ?? TryParseRoutinePrivilegeObject()
+        ?? ParseTablePrivilegeObject();
+
+    private bool IsSimpleNamedPrivilegeObjectKeyword() =>
+        IdentifierEquals(Keyword.Domain) || IdentifierEquals(Keyword.Collation)
             || IdentifierEquals(Keyword.Translation) || IdentifierEquals(Keyword.Type)
-            || IdentifierEquals(Keyword.Sequence))
+            || IdentifierEquals(Keyword.Sequence);
+
+    private PrivilegeObject? TryParseSimpleNamedPrivilegeObject()
+    {
+        if (!IsSimpleNamedPrivilegeObjectKeyword())
         {
-            var kind = Advance();
-            var name = ParseQualifiedName();
-            return new PrivilegeObject
-            {
-                Span = SourceSpan.From(kind, name[^1]),
-                Kind = kind,
-                Name = name,
-            };
+            return null;
         }
 
-        if (IdentifierEquals(Keyword.Character) && NextKind == SyntaxKind.SetKeyword)
+        var kind = Advance();
+        var name = ParseQualifiedName();
+        return new PrivilegeObject
         {
-            var character = Advance();
-            var setKeyword = Advance();
-            var name = ParseQualifiedName();
-            return new PrivilegeObject
-            {
-                Span = SourceSpan.From(character, name[^1]),
-                Kind = character,
-                SetKeyword = setKeyword,
-                Name = name,
-            };
+            Span = SourceSpan.From(kind, name[^1]),
+            Kind = kind,
+            Name = name,
+        };
+    }
+
+    private PrivilegeObject? TryParseCharacterSetPrivilegeObject()
+    {
+        if (!IdentifierEquals(Keyword.Character) || NextKind != SyntaxKind.SetKeyword)
+        {
+            return null;
         }
 
-        if (IsRoutineDesignatorStart())
+        var character = Advance();
+        var setKeyword = Advance();
+        var name = ParseQualifiedName();
+        return new PrivilegeObject
         {
-            var routine = ParseRoutineDesignator();
-            return new PrivilegeObject { Span = routine.Span, Routine = routine };
+            Span = SourceSpan.From(character, name[^1]),
+            Kind = character,
+            SetKeyword = setKeyword,
+            Name = name,
+        };
+    }
+
+    private PrivilegeObject? TryParseRoutinePrivilegeObject()
+    {
+        if (!IsRoutineDesignatorStart())
+        {
+            return null;
         }
 
+        var routine = ParseRoutineDesignator();
+        return new PrivilegeObject { Span = routine.Span, Routine = routine };
+    }
+
+    private PrivilegeObject ParseTablePrivilegeObject()
+    {
         SyntaxToken? table = null;
         if (IdentifierEquals(Keyword.Table))
         {

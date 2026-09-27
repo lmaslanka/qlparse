@@ -2,40 +2,87 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsDeclareSection() =>
+    internal bool IsDeclareSection() =>
         (IdentifierEquals(Keyword.Begin) || _current.Kind == SyntaxKind.EndKeyword)
         && NextEquals(Keyword.Declare)
         && IsKeywordAt(_index + 1, Keyword.Section);
 
-    private ModuleDefinition ParseModule()
+    private readonly record struct ModuleNamesClause(
+        SyntaxToken? NamesKeyword,
+        SyntaxToken? AreKeyword,
+        IReadOnlyList<SyntaxToken>? CharacterSet);
+
+    private readonly record struct ModuleSchemaClause(
+        SyntaxToken? SchemaKeyword,
+        IReadOnlyList<SyntaxToken>? SchemaName,
+        SyntaxToken? AuthorizationKeyword,
+        SyntaxToken? Authorization);
+
+    private readonly record struct ModulePathClause(
+        SyntaxToken? PathKeyword,
+        List<IReadOnlyList<SyntaxToken>> Path);
+
+    internal ModuleDefinition ParseModule()
     {
         var moduleKeyword = Advance();
         SyntaxToken? name = _current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Names)
             && !IdentifierEquals(Keyword.Language)
             ? Advance()
             : null;
-        SyntaxToken? namesKeyword = null;
-        SyntaxToken? areKeyword = null;
-        IReadOnlyList<SyntaxToken>? characterSet = null;
-        if (IdentifierEquals(Keyword.Names))
-        {
-            namesKeyword = Advance();
-            areKeyword = ExpectIdent(Keyword.Are);
-            characterSet = ParseQualifiedName();
-        }
-
+        var namesClause = ParseModuleNamesClause();
         var languageKeyword = ExpectIdent(Keyword.Language);
         var language = Expect(SyntaxKind.Identifier);
+        var schemaClause = ParseModuleSchemaClause();
+        var pathClause = ParseModulePathClause();
+        var contents = ParseModuleContents();
+        var end = contents.Count > 0
+            ? contents[^1].Span
+            : schemaClause.Authorization?.Span ?? schemaClause.SchemaName?[^1].Span ?? language.Span;
+        return new ModuleDefinition
+        {
+            Span = SourceSpan.From(moduleKeyword, end),
+            ModuleKeyword = moduleKeyword,
+            Name = name,
+            NamesKeyword = namesClause.NamesKeyword,
+            AreKeyword = namesClause.AreKeyword,
+            CharacterSet = namesClause.CharacterSet,
+            LanguageKeyword = languageKeyword,
+            Language = language,
+            SchemaKeyword = schemaClause.SchemaKeyword,
+            SchemaName = schemaClause.SchemaName,
+            AuthorizationKeyword = schemaClause.AuthorizationKeyword,
+            Authorization = schemaClause.Authorization,
+            PathKeyword = pathClause.PathKeyword,
+            Path = pathClause.Path,
+            Contents = contents,
+        };
+    }
+
+    private ModuleNamesClause ParseModuleNamesClause()
+    {
+        if (!IdentifierEquals(Keyword.Names))
+        {
+            return default;
+        }
+
+        var namesKeyword = Advance();
+        var areKeyword = ExpectIdent(Keyword.Are);
+        var characterSet = ParseQualifiedName();
+        return new ModuleNamesClause(namesKeyword, areKeyword, characterSet);
+    }
+
+    private ModuleSchemaClause ParseModuleSchemaClause()
+    {
         SyntaxToken? schemaKeyword = null;
         IReadOnlyList<SyntaxToken>? schemaName = null;
-        SyntaxToken? authorizationKeyword = null;
-        SyntaxToken? authorization = null;
         if (IdentifierEquals(Keyword.Schema))
         {
             schemaKeyword = Advance();
             schemaName = ParseQualifiedName();
         }
 
+        SyntaxToken? authorizationKeyword = null;
+        SyntaxToken? authorization = null;
         if (IdentifierEquals(Keyword.Authorization))
         {
             authorizationKeyword = Advance();
@@ -47,19 +94,29 @@ internal sealed partial class Parser
             throw new SqlParseException($"Expected SCHEMA or AUTHORIZATION, found {_current.Kind}", _current.Position);
         }
 
-        SyntaxToken? pathKeyword = null;
-        var path = new List<IReadOnlyList<SyntaxToken>>();
-        if (IdentifierEquals(Keyword.Path))
+        return new ModuleSchemaClause(schemaKeyword, schemaName, authorizationKeyword, authorization);
+    }
+
+    private ModulePathClause ParseModulePathClause()
+    {
+        if (!IdentifierEquals(Keyword.Path))
         {
-            pathKeyword = Advance();
-            path.Add(ParseQualifiedName());
-            while (_current.Kind == SyntaxKind.Comma)
-            {
-                Advance();
-                path.Add(ParseQualifiedName());
-            }
+            return new ModulePathClause(null, []);
         }
 
+        var pathKeyword = Advance();
+        var path = new List<IReadOnlyList<SyntaxToken>> { ParseQualifiedName() };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            path.Add(ParseQualifiedName());
+        }
+
+        return new ModulePathClause(pathKeyword, path);
+    }
+
+    private List<Query> ParseModuleContents()
+    {
         var contents = new List<Query>();
         while (IdentifierEquals(Keyword.Procedure) || IsDeclareCursor() || _current.Kind == SyntaxKind.Semicolon)
         {
@@ -70,33 +127,13 @@ internal sealed partial class Parser
             }
 
             contents.Add(IdentifierEquals(Keyword.Procedure) ? ParseModuleProcedure() : ParseStatement());
-            if (_current.Kind == SyntaxKind.Semicolon)
+            if (_current.Kind is SyntaxKind.Semicolon)
             {
                 Advance();
             }
         }
 
-        var end = contents.Count > 0
-            ? contents[^1].Span
-            : authorization?.Span ?? schemaName?[^1].Span ?? language.Span;
-        return new ModuleDefinition
-        {
-            Span = SourceSpan.From(moduleKeyword, end),
-            ModuleKeyword = moduleKeyword,
-            Name = name,
-            NamesKeyword = namesKeyword,
-            AreKeyword = areKeyword,
-            CharacterSet = characterSet,
-            LanguageKeyword = languageKeyword,
-            Language = language,
-            SchemaKeyword = schemaKeyword,
-            SchemaName = schemaName,
-            AuthorizationKeyword = authorizationKeyword,
-            Authorization = authorization,
-            PathKeyword = pathKeyword,
-            Path = path,
-            Contents = contents,
-        };
+        return contents;
     }
 
     private ModuleProcedure ParseModuleProcedure()
@@ -131,7 +168,7 @@ internal sealed partial class Parser
         };
     }
 
-    private EmbeddedSqlStatement ParseEmbeddedSql()
+    internal EmbeddedSqlStatement ParseEmbeddedSql()
     {
         var execKeyword = Advance();
         var sqlKeyword = ExpectIdent(Keyword.Sql);
@@ -144,13 +181,16 @@ internal sealed partial class Parser
         {
             semicolon = Advance();
         }
-        else if (_current.Kind == SyntaxKind.EndKeyword
+        else
+        {
+            if (_current.Kind == SyntaxKind.EndKeyword
             && NextKind == SyntaxKind.MinusToken
             && IsKeywordAt(_index + 1, Keyword.Exec))
-        {
-            endKeyword = Advance();
-            minus = Advance();
-            endExec = Advance();
+            {
+                endKeyword = Advance();
+                minus = Advance();
+                endExec = Advance();
+            }
         }
 
         var end = semicolon?.Span ?? endExec?.Span ?? statement.Span;
@@ -167,7 +207,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DeclareSectionStatement ParseDeclareSection()
+    internal DeclareSectionStatement ParseDeclareSection()
     {
         var beginOrEnd = Advance();
         var declareKeyword = ExpectIdent(Keyword.Declare);
@@ -181,7 +221,7 @@ internal sealed partial class Parser
         };
     }
 
-    private WheneverStatement ParseWhenever()
+    internal WheneverStatement ParseWhenever()
     {
         var wheneverKeyword = Advance();
         SyntaxToken? notKeyword = null;
@@ -191,13 +231,16 @@ internal sealed partial class Parser
             notKeyword = Advance();
             condition = ExpectIdent(Keyword.Found);
         }
-        else if (IdentifierEquals(Keyword.SqlError) || IdentifierEquals(Keyword.Sqlwarning))
-        {
-            condition = Advance();
-        }
         else
         {
-            throw new SqlParseException($"Expected SQLERROR, SQLWARNING, or NOT FOUND, found {_current.Kind}", _current.Position);
+            if (IdentifierEquals(Keyword.SqlError) || IdentifierEquals(Keyword.Sqlwarning))
+            {
+                condition = Advance();
+            }
+            else
+            {
+                throw new SqlParseException($"Expected SQLERROR, SQLWARNING, or NOT FOUND, found {_current.Kind}", _current.Position);
+            }
         }
 
         SyntaxToken action;
@@ -208,21 +251,27 @@ internal sealed partial class Parser
         {
             action = Advance();
         }
-        else if (IdentifierEquals(Keyword.Goto))
-        {
-            action = Advance();
-            target = Expect(SyntaxKind.Identifier);
-        }
-        else if (IdentifierEquals(Keyword.Go))
-        {
-            goKeyword = Advance();
-            action = goKeyword.Value;
-            toKeyword = ExpectIdent(Keyword.To);
-            target = Expect(SyntaxKind.Identifier);
-        }
         else
         {
-            throw new SqlParseException($"Expected CONTINUE, GOTO, or GO TO, found {_current.Kind}", _current.Position);
+            if (IdentifierEquals(Keyword.Goto))
+            {
+                action = Advance();
+                target = Expect(SyntaxKind.Identifier);
+            }
+            else
+            {
+                if (IdentifierEquals(Keyword.Go))
+                {
+                    goKeyword = Advance();
+                    action = goKeyword.Value;
+                    toKeyword = ExpectIdent(Keyword.To);
+                    target = Expect(SyntaxKind.Identifier);
+                }
+                else
+                {
+                    throw new SqlParseException($"Expected CONTINUE, GOTO, or GO TO, found {_current.Kind}", _current.Position);
+                }
+            }
         }
 
         var end = target?.Span ?? action.Span;

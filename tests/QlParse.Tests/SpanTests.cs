@@ -26,7 +26,7 @@ public sealed class SpanTests
     [Fact]
     public void Leading_comment_is_outside_span()
     {
-        var result = Sql.Parse("-- c\nselect a");
+        var result = Sql.Parse($"-- c{'\n'}select a");
         Assert.Null(result.Error);
         var select = Assert.IsType<SelectStatement>(result.Root);
         Assert.Equal("select a", Text(result.Source, select.Span));
@@ -42,5 +42,5 @@ public sealed class SpanTests
     }
 
     private static string Text(string source, SourceSpan span) =>
-        source.Substring(span.Position, span.Length);
+        source[span.Position..(span.Position + span.Length)];
 }

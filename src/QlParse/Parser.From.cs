@@ -23,7 +23,9 @@ internal sealed partial class Parser
         }
     }
 
-    private TableSource ParseTablePrimary()
+    private TableSource ParseTablePrimary() => TryParseTablePrimaryA() ?? TryParseTablePrimaryB() ?? ParseTableReference();
+
+    private TableSource? TryParseTablePrimaryA()
     {
         if (_current.Kind == SyntaxKind.OpenParen)
         {
@@ -46,6 +48,11 @@ internal sealed partial class Parser
             return ParseOnly();
         }
 
+        return null;
+    }
+
+    private TableSource? TryParseTablePrimaryB()
+    {
         if (IdentifierEquals(Keyword.Table) && NextKind == SyntaxKind.OpenParen)
         {
             return ParseTableFunction(Advance());
@@ -66,7 +73,7 @@ internal sealed partial class Parser
             return ParsePtf();
         }
 
-        return ParseTableReference();
+        return null;
     }
 
     private JoinedTable ParseJoinedTable()
@@ -102,13 +109,16 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
-        {
-            alias = Advance();
-        }
         else
         {
-            throw new SqlParseException("Expected alias after derived table", _current.Position);
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                alias = Advance();
+            }
+            else
+            {
+                throw new SqlParseException("Expected alias after derived table", _current.Position);
+            }
         }
 
         ParseOptionalColumnList(out var columnOpen, out var columns, out var columnClose);
@@ -149,9 +159,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize))
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize))
+            {
+                alias = Advance();
+            }
         }
 
         SyntaxToken? columnOpen = null;
@@ -159,7 +172,10 @@ internal sealed partial class Parser
         SyntaxToken? columnClose = null;
         if (alias is not null)
         {
-            ParseOptionalColumnList(out columnOpen, out columns, out columnClose);
+            ParseOptionalColumnList(out var open, out var cols, out var close);
+            columnOpen = open;
+            columns = cols;
+            columnClose = close;
         }
 
         var end = columnClose?.Span ?? alias?.Span ?? systemTime?.Span ?? closeParen.Span;
@@ -188,13 +204,16 @@ internal sealed partial class Parser
         {
             query = ParseQuery();
         }
-        else if (_current.Kind != SyntaxKind.CloseParen)
-        {
-            argument = ParseExpression();
-        }
         else
         {
-            throw new SqlParseException("Expected table function argument", _current.Position);
+            if (_current.Kind != SyntaxKind.CloseParen)
+            {
+                argument = ParseExpression();
+            }
+            else
+            {
+                throw new SqlParseException("Expected table function argument", _current.Position);
+            }
         }
 
         var closeParen = Expect(SyntaxKind.CloseParen);
@@ -275,17 +294,23 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
-        {
-            alias = Advance();
-        }
-        else if (required)
-        {
-            throw new SqlParseException("Expected alias", _current.Position);
-        }
         else
         {
-            return;
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                alias = Advance();
+            }
+            else
+            {
+                if (required)
+                {
+                    throw new SqlParseException("Expected alias", _current.Position);
+                }
+                else
+                {
+                    return;
+                }
+            }
         }
 
         ParseOptionalColumnList(out columnOpen, out columns, out columnClose);
@@ -313,9 +338,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize))
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize))
+            {
+                alias = Advance();
+            }
         }
 
         SyntaxToken? columnOpen = null;
@@ -323,7 +351,10 @@ internal sealed partial class Parser
         SyntaxToken? columnClose = null;
         if (alias is not null)
         {
-            ParseOptionalColumnList(out columnOpen, out columns, out columnClose);
+            ParseOptionalColumnList(out var open, out var cols, out var close);
+            columnOpen = open;
+            columns = cols;
+            columnClose = close;
         }
 
         var end = columnClose?.Span ?? alias?.Span ?? systemTime?.Span ?? nameParts[^1].Span;
@@ -349,6 +380,12 @@ internal sealed partial class Parser
 
         var forKeyword = Advance();
         var systemTimeKeyword = Advance();
+        return TryParseSystemTimeAsOrBetween(forKeyword, systemTimeKeyword)
+            ?? ParseSystemTimeFromOrAll(forKeyword, systemTimeKeyword);
+    }
+
+    private SystemTimeClause? TryParseSystemTimeAsOrBetween(SyntaxToken forKeyword, SyntaxToken systemTimeKeyword)
+    {
         if (_current.Kind == SyntaxKind.AsKeyword)
         {
             var asKeyword = Advance();
@@ -390,6 +427,11 @@ internal sealed partial class Parser
             };
         }
 
+        return null;
+    }
+
+    private SystemTimeClause ParseSystemTimeFromOrAll(SyntaxToken forKeyword, SyntaxToken systemTimeKeyword)
+    {
         if (_current.Kind == SyntaxKind.FromKeyword)
         {
             var fromKeyword = Advance();
@@ -475,7 +517,7 @@ internal sealed partial class Parser
         closeParen = Expect(SyntaxKind.CloseParen);
     }
 
-    private IReadOnlyList<CommaFrom> ParseCommaFrom()
+    internal IReadOnlyList<CommaFrom> ParseCommaFrom()
     {
         if (_current.Kind != SyntaxKind.Comma)
         {
@@ -558,33 +600,50 @@ internal sealed partial class Parser
     {
         var isCross = joinType is { Kind: SyntaxKind.CrossKeyword };
         var isUnion = joinType is { Kind: SyntaxKind.UnionKeyword };
-        if (_current.Kind == SyntaxKind.OnKeyword)
-        {
-            if (natural is not null || isCross || isUnion)
-            {
-                throw new SqlParseException("ON is not valid with NATURAL, CROSS, or UNION JOIN", _current.Position);
-            }
+        return TryParseOnConstraint(natural, isCross, isUnion)
+            ?? TryParseUsingJoinConstraint(natural, isCross, isUnion)
+            ?? ParseMissingJoinConstraint(natural, isCross, isUnion);
+    }
 
-            var onKeyword = Advance();
-            var condition = ParseExpression();
-            return new OnConstraint
-            {
-                Span = SourceSpan.From(onKeyword, condition.Span),
-                OnKeyword = onKeyword,
-                Condition = condition,
-            };
+    private JoinConstraint? TryParseOnConstraint(SyntaxToken? natural, bool isCross, bool isUnion)
+    {
+        if (_current.Kind != SyntaxKind.OnKeyword)
+        {
+            return null;
         }
 
-        if (_current.Kind == SyntaxKind.UsingKeyword)
+        if (natural is not null || isCross || isUnion)
         {
-            if (natural is not null || isCross || isUnion)
-            {
-                throw new SqlParseException("USING is not valid with NATURAL, CROSS, or UNION JOIN", _current.Position);
-            }
-
-            return ParseUsingConstraint();
+            throw new SqlParseException("ON is not valid with NATURAL, CROSS, or UNION JOIN", _current.Position);
         }
 
+        var onKeyword = Advance();
+        var condition = ParseExpression();
+        return new OnConstraint
+        {
+            Span = SourceSpan.From(onKeyword, condition.Span),
+            OnKeyword = onKeyword,
+            Condition = condition,
+        };
+    }
+
+    private JoinConstraint? TryParseUsingJoinConstraint(SyntaxToken? natural, bool isCross, bool isUnion)
+    {
+        if (_current.Kind != SyntaxKind.UsingKeyword)
+        {
+            return null;
+        }
+
+        if (natural is not null || isCross || isUnion)
+        {
+            throw new SqlParseException("USING is not valid with NATURAL, CROSS, or UNION JOIN", _current.Position);
+        }
+
+        return ParseUsingConstraint();
+    }
+
+    private JoinConstraint? ParseMissingJoinConstraint(SyntaxToken? natural, bool isCross, bool isUnion)
+    {
         if (natural is null && !isCross && !isUnion)
         {
             throw new SqlParseException("Expected ON or USING", _current.Position);

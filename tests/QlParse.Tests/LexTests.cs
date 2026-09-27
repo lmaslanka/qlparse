@@ -13,133 +13,138 @@ public sealed class LexTests
     {
         Assert.Equal(
             [SyntaxKind.SelectKeyword, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
-            SqlAssert.Kinds(" \t\r\n select\ta "));
+            SqlAssert.Kinds($" {'\t'}{'\r'}{'\n'} select{'\t'}a "));
     }
 
+    public static readonly TheoryData<string, SyntaxKind> KeywordData = new()
+    {
+        { "select", SyntaxKind.SelectKeyword },
+        { "from", SyntaxKind.FromKeyword },
+        { "where", SyntaxKind.WhereKeyword },
+        { "and", SyntaxKind.AndKeyword },
+        { "or", SyntaxKind.OrKeyword },
+        { "as", SyntaxKind.AsKeyword },
+        { "inner", SyntaxKind.InnerKeyword },
+        { "join", SyntaxKind.JoinKeyword },
+        { "left", SyntaxKind.LeftKeyword },
+        { "right", SyntaxKind.RightKeyword },
+        { "full", SyntaxKind.FullKeyword },
+        { "cross", SyntaxKind.CrossKeyword },
+        { "outer", SyntaxKind.OuterKeyword },
+        { "natural", SyntaxKind.NaturalKeyword },
+        { "on", SyntaxKind.OnKeyword },
+        { "using", SyntaxKind.UsingKeyword },
+        { "between", SyntaxKind.BetweenKeyword },
+        { "in", SyntaxKind.InKeyword },
+        { "is", SyntaxKind.IsKeyword },
+        { "null", SyntaxKind.NullKeyword },
+        { "group", SyntaxKind.GroupKeyword },
+        { "grouping", SyntaxKind.GroupingKeyword },
+        { "by", SyntaxKind.ByKeyword },
+        { "order", SyntaxKind.OrderKeyword },
+        { "limit", SyntaxKind.LimitKeyword },
+        { "offset", SyntaxKind.OffsetKeyword },
+        { "fetch", SyntaxKind.FetchKeyword },
+        { "having", SyntaxKind.HavingKeyword },
+        { "not", SyntaxKind.NotKeyword },
+        { "asc", SyntaxKind.AscKeyword },
+        { "desc", SyntaxKind.DescKeyword },
+        { "case", SyntaxKind.CaseKeyword },
+        { "when", SyntaxKind.WhenKeyword },
+        { "then", SyntaxKind.ThenKeyword },
+        { "else", SyntaxKind.ElseKeyword },
+        { "end", SyntaxKind.EndKeyword },
+        { "exists", SyntaxKind.ExistsKeyword },
+        { "all", SyntaxKind.AllKeyword },
+        { "any", SyntaxKind.AnyKeyword },
+        { "some", SyntaxKind.SomeKeyword },
+        { "union", SyntaxKind.UnionKeyword },
+        { "except", SyntaxKind.ExceptKeyword },
+        { "intersect", SyntaxKind.IntersectKeyword },
+        { "with", SyntaxKind.WithKeyword },
+        { "over", SyntaxKind.OverKeyword },
+        { "window", SyntaxKind.WindowKeyword },
+        { "lateral", SyntaxKind.LateralKeyword },
+        { "tablesample", SyntaxKind.TablesampleKeyword },
+        { "recursive", SyntaxKind.RecursiveKeyword },
+        { "search", SyntaxKind.SearchKeyword },
+        { "cycle", SyntaxKind.CycleKeyword },
+        { "distinct", SyntaxKind.DistinctKeyword },
+        { "like", SyntaxKind.LikeKeyword },
+        { "similar", SyntaxKind.SimilarKeyword },
+        { "cast", SyntaxKind.CastKeyword },
+        { "treat", SyntaxKind.TreatKeyword },
+        { "deref", SyntaxKind.DerefKeyword },
+        { "specifictype", SyntaxKind.SpecifictypeKeyword },
+        { "nullif", SyntaxKind.NullIfKeyword },
+        { "coalesce", SyntaxKind.CoalesceKeyword },
+        { "array", SyntaxKind.ArrayKeyword },
+        { "multiset", SyntaxKind.MultisetKeyword },
+        { "unnest", SyntaxKind.UnnestKeyword },
+        { "set", SyntaxKind.SetKeyword },
+        { "cardinality", SyntaxKind.CardinalityKeyword },
+        { "element", SyntaxKind.ElementKeyword },
+        { "absent", SyntaxKind.AbsentKeyword },
+        { "true", SyntaxKind.TrueKeyword },
+        { "false", SyntaxKind.FalseKeyword },
+        { "filter", SyntaxKind.FilterKeyword },
+        { "escape", SyntaxKind.EscapeKeyword },
+        { "values", SyntaxKind.ValuesKeyword },
+        { "unknown", SyntaxKind.UnknownKeyword },
+        { "collate", SyntaxKind.CollateKeyword },
+        { "overlaps", SyntaxKind.OverlapsKeyword },
+        { "unique", SyntaxKind.UniqueKeyword },
+        { "match", SyntaxKind.MatchKeyword },
+        { "partial", SyntaxKind.PartialKeyword },
+        { "corresponding", SyntaxKind.CorrespondingKeyword },
+        { "date", SyntaxKind.DateKeyword },
+        { "time", SyntaxKind.TimeKeyword },
+        { "timestamp", SyntaxKind.TimestampKeyword },
+        { "interval", SyntaxKind.IntervalKeyword },
+        { "trim", SyntaxKind.TrimKeyword },
+        { "extract", SyntaxKind.ExtractKeyword },
+        { "substring", SyntaxKind.SubstringKeyword },
+        { "position", SyntaxKind.PositionKeyword },
+        { "for", SyntaxKind.ForKeyword },
+        { "user", SyntaxKind.UserKeyword },
+        { "current_date", SyntaxKind.CurrentDateKeyword },
+        { "current_time", SyntaxKind.CurrentTimeKeyword },
+        { "current_timestamp", SyntaxKind.CurrentTimestampKeyword },
+        { "current_user", SyntaxKind.CurrentUserKeyword },
+        { "session_user", SyntaxKind.SessionUserKeyword },
+        { "system_user", SyntaxKind.SystemUserKeyword },
+        { "localtime", SyntaxKind.LocalTimeKeyword },
+        { "localtimestamp", SyntaxKind.LocalTimestampKeyword },
+        { "current_role", SyntaxKind.CurrentRoleKeyword },
+        { "current_catalog", SyntaxKind.CurrentCatalogKeyword },
+        { "current_schema", SyntaxKind.CurrentSchemaKeyword },
+        { "current_path", SyntaxKind.CurrentPathKeyword },
+        { "convert", SyntaxKind.ConvertKeyword },
+        { "translate", SyntaxKind.TranslateKeyword },
+        { "read", SyntaxKind.ReadKeyword },
+        { "only", SyntaxKind.OnlyKeyword },
+        { "update", SyntaxKind.UpdateKeyword },
+        { "of", SyntaxKind.OfKeyword },
+        { "upper", SyntaxKind.UpperKeyword },
+        { "lower", SyntaxKind.LowerKeyword },
+        { "overlay", SyntaxKind.OverlayKeyword },
+        { "char_length", SyntaxKind.CharLengthKeyword },
+        { "octet_length", SyntaxKind.OctetLengthKeyword },
+        { "bit_length", SyntaxKind.BitLengthKeyword },
+        { "normalize", SyntaxKind.NormalizeKeyword },
+        { "floor", SyntaxKind.FloorKeyword },
+        { "ceil", SyntaxKind.CeilKeyword },
+        { "power", SyntaxKind.PowerKeyword },
+        { "sqrt", SyntaxKind.SqrtKeyword },
+        { "ln", SyntaxKind.LnKeyword },
+        { "exp", SyntaxKind.ExpKeyword },
+        { "mod", SyntaxKind.ModKeyword },
+        { "abs", SyntaxKind.AbsKeyword },
+        { "width_bucket", SyntaxKind.WidthBucketKeyword },
+    };
+
     [Theory]
-    [InlineData("select", SyntaxKind.SelectKeyword)]
-    [InlineData("from", SyntaxKind.FromKeyword)]
-    [InlineData("where", SyntaxKind.WhereKeyword)]
-    [InlineData("and", SyntaxKind.AndKeyword)]
-    [InlineData("or", SyntaxKind.OrKeyword)]
-    [InlineData("as", SyntaxKind.AsKeyword)]
-    [InlineData("inner", SyntaxKind.InnerKeyword)]
-    [InlineData("join", SyntaxKind.JoinKeyword)]
-    [InlineData("left", SyntaxKind.LeftKeyword)]
-    [InlineData("right", SyntaxKind.RightKeyword)]
-    [InlineData("full", SyntaxKind.FullKeyword)]
-    [InlineData("cross", SyntaxKind.CrossKeyword)]
-    [InlineData("outer", SyntaxKind.OuterKeyword)]
-    [InlineData("natural", SyntaxKind.NaturalKeyword)]
-    [InlineData("on", SyntaxKind.OnKeyword)]
-    [InlineData("using", SyntaxKind.UsingKeyword)]
-    [InlineData("between", SyntaxKind.BetweenKeyword)]
-    [InlineData("in", SyntaxKind.InKeyword)]
-    [InlineData("is", SyntaxKind.IsKeyword)]
-    [InlineData("null", SyntaxKind.NullKeyword)]
-    [InlineData("group", SyntaxKind.GroupKeyword)]
-    [InlineData("grouping", SyntaxKind.GroupingKeyword)]
-    [InlineData("by", SyntaxKind.ByKeyword)]
-    [InlineData("order", SyntaxKind.OrderKeyword)]
-    [InlineData("limit", SyntaxKind.LimitKeyword)]
-    [InlineData("offset", SyntaxKind.OffsetKeyword)]
-    [InlineData("fetch", SyntaxKind.FetchKeyword)]
-    [InlineData("having", SyntaxKind.HavingKeyword)]
-    [InlineData("not", SyntaxKind.NotKeyword)]
-    [InlineData("asc", SyntaxKind.AscKeyword)]
-    [InlineData("desc", SyntaxKind.DescKeyword)]
-    [InlineData("case", SyntaxKind.CaseKeyword)]
-    [InlineData("when", SyntaxKind.WhenKeyword)]
-    [InlineData("then", SyntaxKind.ThenKeyword)]
-    [InlineData("else", SyntaxKind.ElseKeyword)]
-    [InlineData("end", SyntaxKind.EndKeyword)]
-    [InlineData("exists", SyntaxKind.ExistsKeyword)]
-    [InlineData("all", SyntaxKind.AllKeyword)]
-    [InlineData("any", SyntaxKind.AnyKeyword)]
-    [InlineData("some", SyntaxKind.SomeKeyword)]
-    [InlineData("union", SyntaxKind.UnionKeyword)]
-    [InlineData("except", SyntaxKind.ExceptKeyword)]
-    [InlineData("intersect", SyntaxKind.IntersectKeyword)]
-    [InlineData("with", SyntaxKind.WithKeyword)]
-    [InlineData("over", SyntaxKind.OverKeyword)]
-    [InlineData("window", SyntaxKind.WindowKeyword)]
-    [InlineData("lateral", SyntaxKind.LateralKeyword)]
-    [InlineData("tablesample", SyntaxKind.TablesampleKeyword)]
-    [InlineData("recursive", SyntaxKind.RecursiveKeyword)]
-    [InlineData("search", SyntaxKind.SearchKeyword)]
-    [InlineData("cycle", SyntaxKind.CycleKeyword)]
-    [InlineData("distinct", SyntaxKind.DistinctKeyword)]
-    [InlineData("like", SyntaxKind.LikeKeyword)]
-    [InlineData("similar", SyntaxKind.SimilarKeyword)]
-    [InlineData("cast", SyntaxKind.CastKeyword)]
-    [InlineData("treat", SyntaxKind.TreatKeyword)]
-    [InlineData("deref", SyntaxKind.DerefKeyword)]
-    [InlineData("specifictype", SyntaxKind.SpecifictypeKeyword)]
-    [InlineData("nullif", SyntaxKind.NullIfKeyword)]
-    [InlineData("coalesce", SyntaxKind.CoalesceKeyword)]
-    [InlineData("array", SyntaxKind.ArrayKeyword)]
-    [InlineData("multiset", SyntaxKind.MultisetKeyword)]
-    [InlineData("unnest", SyntaxKind.UnnestKeyword)]
-    [InlineData("set", SyntaxKind.SetKeyword)]
-    [InlineData("cardinality", SyntaxKind.CardinalityKeyword)]
-    [InlineData("element", SyntaxKind.ElementKeyword)]
-    [InlineData("absent", SyntaxKind.AbsentKeyword)]
-    [InlineData("true", SyntaxKind.TrueKeyword)]
-    [InlineData("false", SyntaxKind.FalseKeyword)]
-    [InlineData("filter", SyntaxKind.FilterKeyword)]
-    [InlineData("escape", SyntaxKind.EscapeKeyword)]
-    [InlineData("values", SyntaxKind.ValuesKeyword)]
-    [InlineData("unknown", SyntaxKind.UnknownKeyword)]
-    [InlineData("collate", SyntaxKind.CollateKeyword)]
-    [InlineData("overlaps", SyntaxKind.OverlapsKeyword)]
-    [InlineData("unique", SyntaxKind.UniqueKeyword)]
-    [InlineData("match", SyntaxKind.MatchKeyword)]
-    [InlineData("partial", SyntaxKind.PartialKeyword)]
-    [InlineData("corresponding", SyntaxKind.CorrespondingKeyword)]
-    [InlineData("date", SyntaxKind.DateKeyword)]
-    [InlineData("time", SyntaxKind.TimeKeyword)]
-    [InlineData("timestamp", SyntaxKind.TimestampKeyword)]
-    [InlineData("interval", SyntaxKind.IntervalKeyword)]
-    [InlineData("trim", SyntaxKind.TrimKeyword)]
-    [InlineData("extract", SyntaxKind.ExtractKeyword)]
-    [InlineData("substring", SyntaxKind.SubstringKeyword)]
-    [InlineData("position", SyntaxKind.PositionKeyword)]
-    [InlineData("for", SyntaxKind.ForKeyword)]
-    [InlineData("user", SyntaxKind.UserKeyword)]
-    [InlineData("current_date", SyntaxKind.CurrentDateKeyword)]
-    [InlineData("current_time", SyntaxKind.CurrentTimeKeyword)]
-    [InlineData("current_timestamp", SyntaxKind.CurrentTimestampKeyword)]
-    [InlineData("current_user", SyntaxKind.CurrentUserKeyword)]
-    [InlineData("session_user", SyntaxKind.SessionUserKeyword)]
-    [InlineData("system_user", SyntaxKind.SystemUserKeyword)]
-    [InlineData("localtime", SyntaxKind.LocalTimeKeyword)]
-    [InlineData("localtimestamp", SyntaxKind.LocalTimestampKeyword)]
-    [InlineData("current_role", SyntaxKind.CurrentRoleKeyword)]
-    [InlineData("current_catalog", SyntaxKind.CurrentCatalogKeyword)]
-    [InlineData("current_schema", SyntaxKind.CurrentSchemaKeyword)]
-    [InlineData("current_path", SyntaxKind.CurrentPathKeyword)]
-    [InlineData("convert", SyntaxKind.ConvertKeyword)]
-    [InlineData("translate", SyntaxKind.TranslateKeyword)]
-    [InlineData("read", SyntaxKind.ReadKeyword)]
-    [InlineData("only", SyntaxKind.OnlyKeyword)]
-    [InlineData("update", SyntaxKind.UpdateKeyword)]
-    [InlineData("of", SyntaxKind.OfKeyword)]
-    [InlineData("upper", SyntaxKind.UpperKeyword)]
-    [InlineData("lower", SyntaxKind.LowerKeyword)]
-    [InlineData("overlay", SyntaxKind.OverlayKeyword)]
-    [InlineData("char_length", SyntaxKind.CharLengthKeyword)]
-    [InlineData("octet_length", SyntaxKind.OctetLengthKeyword)]
-    [InlineData("bit_length", SyntaxKind.BitLengthKeyword)]
-    [InlineData("normalize", SyntaxKind.NormalizeKeyword)]
-    [InlineData("floor", SyntaxKind.FloorKeyword)]
-    [InlineData("ceil", SyntaxKind.CeilKeyword)]
-    [InlineData("power", SyntaxKind.PowerKeyword)]
-    [InlineData("sqrt", SyntaxKind.SqrtKeyword)]
-    [InlineData("ln", SyntaxKind.LnKeyword)]
-    [InlineData("exp", SyntaxKind.ExpKeyword)]
-    [InlineData("mod", SyntaxKind.ModKeyword)]
-    [InlineData("abs", SyntaxKind.AbsKeyword)]
-    [InlineData("width_bucket", SyntaxKind.WidthBucketKeyword)]
+    [MemberData("KeywordData")]
     public void Classifies_keywords(string text, SyntaxKind kind)
     {
         Assert.Equal([kind, SyntaxKind.EndOfFile], SqlAssert.Kinds(text));
@@ -183,13 +188,13 @@ public sealed class LexTests
     [Fact]
     public void Quoted_identifier()
     {
-        var result = SqlAssert.Lex("\"from\"");
+        var result = SqlAssert.Lex(@"""from""");
         Assert.Equal(SyntaxKind.Identifier, result.Tokens[0].Kind);
-        Assert.Equal("\"from\"", result.Tokens[0].TextOf(result.Source));
+        Assert.Equal(@"""from""", result.Tokens[0].TextOf(result.Source));
     }
 
     [Theory]
-    [InlineData("\"a\"\"b\"")]
+    [InlineData(@"""a""""b""")]
     public void Quoted_identifier_escapes_quotes(string sql)
     {
         var result = SqlAssert.Lex(sql);
@@ -197,8 +202,8 @@ public sealed class LexTests
     }
 
     [Theory]
-    [InlineData("_latin1\"foo\"")]
-    [InlineData("_UTF8\"a\"\"b\"")]
+    [InlineData(@"_latin1""foo""")]
+    [InlineData(@"_UTF8""a""""b""")]
     public void Character_set_introducer_identifier(string text)
     {
         var result = SqlAssert.Lex(text);
@@ -216,7 +221,7 @@ public sealed class LexTests
     }
 
     [Theory]
-    [InlineData("_latin1 \"foo\"")]
+    [InlineData(@"_latin1 ""foo""")]
     public void Character_set_introducer_requires_no_space(string sql)
     {
         Assert.Equal(
@@ -225,12 +230,20 @@ public sealed class LexTests
     }
 
     [Theory]
-    [InlineData("U&\"foo\"")]
-    [InlineData("u&\"foo\"")]
-    [InlineData("U&\"a\"\"b\"")]
-    [InlineData("U&\"\\0441\"")]
+    [InlineData(@"U&""foo""")]
+    [InlineData(@"u&""foo""")]
+    [InlineData(@"U&""a""""b""")]
     public void Unicode_delimited_identifier(string text)
     {
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.Identifier, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
+    public void Unicode_delimited_identifier_with_escape()
+    {
+        var text = $"U&{'"'}{'\\'}0441{'"'}";
         var result = SqlAssert.Lex(text);
         Assert.Equal(SyntaxKind.Identifier, result.Tokens[0].Kind);
         Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
@@ -364,7 +377,6 @@ public sealed class LexTests
     [InlineData("U&'foo'")]
     [InlineData("u&'foo'")]
     [InlineData("U&'it''s'")]
-    [InlineData("U&'\\0441'")]
     [InlineData("U&''")]
     public void Strings(string text)
     {
@@ -374,9 +386,18 @@ public sealed class LexTests
     }
 
     [Fact]
+    public void String_with_unicode_escape()
+    {
+        var text = $"U&'{'\\'}0441'";
+        var result = SqlAssert.Lex(text);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
     public void Line_comment_is_leading_trivia()
     {
-        var result = SqlAssert.Lex("-- c\nselect");
+        var result = SqlAssert.Lex($"-- c{'\n'}select");
         var token = result.Tokens[0];
         Assert.Equal(SyntaxKind.SelectKeyword, token.Kind);
         Assert.Equal(1, token.LeadingTriviaCount);
@@ -386,7 +407,7 @@ public sealed class LexTests
     [Fact]
     public void Extra_minuses_are_still_a_line_comment()
     {
-        var result = SqlAssert.Lex("--- c\nselect");
+        var result = SqlAssert.Lex($"--- c{'\n'}select");
         var token = result.Tokens[0];
         Assert.Equal(SyntaxKind.SelectKeyword, token.Kind);
         Assert.Equal(1, token.LeadingTriviaCount);
@@ -452,10 +473,16 @@ public sealed class LexTests
     [Theory]
     [InlineData("@")]
     [InlineData("!")]
-    [InlineData("# c\nselect")]
     public void Unexpected_character_sets_error(string sql)
     {
         var result = Sql.Lex(sql);
+        Assert.IsType<SqlParseException>(result.Error);
+    }
+
+    [Fact]
+    public void Unexpected_character_before_line_comment_sets_error()
+    {
+        var result = Sql.Lex($"# c{'\n'}select");
         Assert.IsType<SqlParseException>(result.Error);
     }
 
@@ -463,7 +490,7 @@ public sealed class LexTests
     [InlineData("@foo")]
     public void At_parameter_lexes_with_flag(string sql)
     {
-        var result = Sql.Lex(sql, SqlFlags.AtParameters);
+        var result = Sql.Lex(sql, SqlOptions.AtParameters);
         Assert.Null(result.Error);
         Assert.Equal(SyntaxKind.EmbeddedHost, result.Tokens[0].Kind);
         Assert.Equal(sql, result.Tokens[0].TextOf(result.Source));
@@ -479,13 +506,13 @@ public sealed class LexTests
 
     [Theory]
     [InlineData("'oops")]
-    [InlineData("\"oops")]
-    [InlineData("\"\"")]
-    [InlineData("U&\"oops")]
-    [InlineData("U&\"\"")]
+    [InlineData(@"""oops")]
+    [InlineData(@"""""")]
+    [InlineData(@"U&""oops")]
+    [InlineData(@"U&""""")]
     [InlineData("U&'oops")]
-    [InlineData("_cs\"oops")]
-    [InlineData("_cs\"\"")]
+    [InlineData(@"_cs""oops")]
+    [InlineData(@"_cs""""")]
     [InlineData("/* oops")]
     public void Unterminated_lexemes_set_error(string sql)
     {

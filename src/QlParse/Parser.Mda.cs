@@ -2,14 +2,14 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsMdarrayConstructor() =>
+    internal bool IsMdarrayConstructor() =>
         IdentifierEquals(Keyword.Mdarray)
         && (NextKind == SyntaxKind.OpenBracket
             || (NextKind == SyntaxKind.OpenParen
                 && _index + 1 < _tokens.Count
                 && IsQueryStart(_tokens[_index + 1].Kind)));
 
-    private bool IsMdarrayAggregate() =>
+    internal bool IsMdarrayAggregate() =>
         NextKind == SyntaxKind.OpenParen
         && (IdentifierEquals(Keyword.MdarrayAgg)
             || IdentifierEquals(Keyword.MdarraySum)
@@ -17,7 +17,7 @@ internal sealed partial class Parser
             || IdentifierEquals(Keyword.MdarrayMin)
             || IdentifierEquals(Keyword.MdarrayAvg));
 
-    private MdarrayConstructorExpression ParseMdarrayConstructor()
+    internal MdarrayConstructorExpression ParseMdarrayConstructor()
     {
         var keyword = Advance();
         SyntaxToken? openBracket = null;
@@ -44,9 +44,12 @@ internal sealed partial class Parser
         {
             query = ParseQuery();
         }
-        else if (_current.Kind != SyntaxKind.CloseParen)
+        else
         {
-            elements = ParseExpressionList();
+            if (_current.Kind != SyntaxKind.CloseParen)
+            {
+                elements = ParseExpressionList();
+            }
         }
 
         var closeParen = Expect(SyntaxKind.CloseParen);
@@ -64,7 +67,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MdarrayAggregateExpression ParseMdarrayAggregate()
+    internal MdarrayAggregateExpression ParseMdarrayAggregate()
     {
         var name = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -80,7 +83,7 @@ internal sealed partial class Parser
         };
     }
 
-    private bool IsMdarraySlice()
+    internal bool IsMdarraySlice()
     {
         var depth = 1;
         for (var index = _index; index < _tokens.Count; index++)
@@ -112,7 +115,7 @@ internal sealed partial class Parser
         return false;
     }
 
-    private MdarraySliceExpression ParseMdarraySlice(Expression target)
+    internal MdarraySliceExpression ParseMdarraySlice(Expression target)
     {
         var openBracket = Advance();
         var axes = new List<MdarrayAxis> { ParseMdarrayAxis() };
@@ -143,7 +146,7 @@ internal sealed partial class Parser
             if (_current.Kind == SyntaxKind.ColonToken)
             {
                 colon = Advance();
-                upper = _current.Kind == SyntaxKind.Star ? null : ParseExpression(ComparisonBindingPower + 1);
+                upper = _current.Kind is SyntaxKind.Star ? null : ParseExpression(ComparisonBindingPower + 1);
                 if (upper is null)
                 {
                     Advance();
@@ -167,7 +170,7 @@ internal sealed partial class Parser
         }
 
         var colonToken = Advance();
-        if (_current.Kind == SyntaxKind.Star)
+        if (_current.Kind is SyntaxKind.Star)
         {
             var star = Advance();
             return new MdarrayAxis

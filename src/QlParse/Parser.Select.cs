@@ -2,36 +2,145 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private SelectStatement ParseSelectStatement()
+    internal SelectStatement ParseSelectStatement()
     {
         var selectKeyword = Expect(SyntaxKind.SelectKeyword);
         var distinct = _current.Kind == SyntaxKind.DistinctKeyword ? Advance() : (SyntaxToken?)null;
         var all = distinct is null && _current.Kind == SyntaxKind.AllKeyword ? Advance() : (SyntaxToken?)null;
         var selectList = ParseSelectList();
-        SyntaxToken? intoKeyword = null;
-        IReadOnlyList<SyntaxToken>? intoTargets = null;
-        if (IdentifierEquals(Keyword.Into))
+        var into = ParseIntoClause();
+        var fromClause = ParseFromClause();
+        var tail = ParseSelectTail();
+        var end = tail.End ?? fromClause.End ?? into.End ?? selectList[^1].Span;
+
+        return new SelectStatement
         {
-            intoKeyword = Advance();
-            intoTargets = ParseIntoTargets();
+            Span = SourceSpan.From(selectKeyword, end),
+            SelectKeyword = selectKeyword,
+            DistinctKeyword = distinct,
+            AllKeyword = all,
+            SelectList = selectList,
+            IntoKeyword = into.IntoKeyword,
+            IntoTargets = into.IntoTargets,
+            FromKeyword = fromClause.FromKeyword,
+            From = fromClause.From,
+            Joins = fromClause.Joins,
+            ExtraFrom = fromClause.ExtraFrom,
+            Where = tail.Where,
+            GroupBy = tail.GroupBy,
+            Having = tail.Having,
+            Window = tail.Window,
+            OrderBy = tail.OrderBy,
+            Limit = tail.Limit,
+            Offset = tail.Offset,
+            Fetch = tail.Fetch,
+            Lock = tail.Lock,
+        };
+    }
+
+    private readonly record struct IntoClause(SyntaxToken? IntoKeyword, IReadOnlyList<SyntaxToken>? IntoTargets, SourceSpan? End);
+
+    private IntoClause ParseIntoClause()
+    {
+        if (!IdentifierEquals(Keyword.Into))
+        {
+            return new IntoClause(null, null, null);
         }
 
-        SyntaxToken? fromKeyword = null;
-        TableSource? from = null;
-        IReadOnlyList<JoinClause> joins = [];
-        IReadOnlyList<CommaFrom> extraFrom = [];
-        if (_current.Kind == SyntaxKind.FromKeyword)
+        var intoKeyword = Advance();
+        var intoTargets = ParseIntoTargets();
+        return new IntoClause(intoKeyword, intoTargets, intoTargets is { Count: > 0 } ? intoTargets[^1].Span : null);
+    }
+
+    private readonly record struct FromClause(
+        SyntaxToken? FromKeyword,
+        TableSource? From,
+        IReadOnlyList<JoinClause> Joins,
+        IReadOnlyList<CommaFrom> ExtraFrom,
+        SourceSpan? End);
+
+    private FromClause ParseFromClause()
+    {
+        if (_current.Kind != SyntaxKind.FromKeyword)
         {
-            fromKeyword = Advance();
-            from = ParseTableSource();
-            joins = ParseJoins();
-            extraFrom = ParseCommaFrom();
+            return new FromClause(null, null, [], [], null);
         }
+
+        var fromKeyword = Advance();
+        var from = ParseTableSource();
+        var joins = ParseJoins();
+        var extraFrom = ParseCommaFrom();
+        var end = (extraFrom.Count > 0 ? extraFrom[^1].Span : (SourceSpan?)null)
+            ?? (joins.Count > 0 ? joins[^1].Span : (SourceSpan?)null)
+            ?? from.Span;
+        return new FromClause(fromKeyword, from, joins, extraFrom, end);
+    }
+
+    private readonly record struct SelectTail(
+        WhereClause? Where,
+        GroupByClause? GroupBy,
+        HavingClause? Having,
+        WindowClause? Window,
+        OrderByClause? OrderBy,
+        LimitClause? Limit,
+        OffsetClause? Offset,
+        FetchClause? Fetch,
+        LockClause? Lock,
+        SourceSpan? End);
+
+    private SelectTail ParseSelectTail()
+    {
+        var filter = ParseSelectFilterClauses();
+        var rest = ParseSelectRestClauses();
+        var end = rest.End ?? filter.End;
+        return new SelectTail(
+            filter.Where, filter.GroupBy, filter.Having,
+            rest.Window, rest.OrderBy, rest.Limit, rest.Offset, rest.Fetch, rest.Lock,
+            end);
+    }
+
+    private readonly record struct SelectFilterClauses(WhereClause? Where, GroupByClause? GroupBy, HavingClause? Having, SourceSpan? End);
+
+    private SelectFilterClauses ParseSelectFilterClauses()
+    {
         var where = _current.Kind == SyntaxKind.WhereKeyword ? ParseWhereClause() : null;
         var groupBy = _current.Kind == SyntaxKind.GroupKeyword ? ParseGroupBy() : null;
         var having = _current.Kind == SyntaxKind.HavingKeyword ? ParseHaving() : null;
+        var end = having?.Span ?? groupBy?.Span ?? where?.Span;
+        return new SelectFilterClauses(where, groupBy, having, end);
+    }
+
+    private readonly record struct SelectRestClauses(
+        WindowClause? Window,
+        OrderByClause? OrderBy,
+        LimitClause? Limit,
+        OffsetClause? Offset,
+        FetchClause? Fetch,
+        LockClause? Lock,
+        SourceSpan? End);
+
+    private SelectRestClauses ParseSelectRestClauses()
+    {
         var window = _current.Kind == SyntaxKind.WindowKeyword ? ParseWindowClause() : null;
         var orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
+        var limitOffsetFetch = ParseLimitOffsetFetch();
+        var limit = limitOffsetFetch.Limit;
+        var offset = limitOffsetFetch.Offset;
+        var fetch = limitOffsetFetch.Fetch;
+        var lockClause = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
+        var end = lockClause?.Span
+            ?? fetch?.Span
+            ?? offset?.Span
+            ?? limit?.Span
+            ?? orderBy?.Span
+            ?? window?.Span;
+        return new SelectRestClauses(window, orderBy, limit, offset, fetch, lockClause, end);
+    }
+
+    private readonly record struct LimitOffsetFetch(LimitClause? Limit, OffsetClause? Offset, FetchClause? Fetch);
+
+    private LimitOffsetFetch ParseLimitOffsetFetch()
+    {
         LimitClause? limit = null;
         OffsetClause? offset = null;
         FetchClause? fetch = null;
@@ -58,96 +167,7 @@ internal sealed partial class Parser
             break;
         }
 
-        var lockClause = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
-        var end = selectList[^1].Span;
-        if (intoTargets is { Count: > 0 })
-        {
-            end = intoTargets[^1].Span;
-        }
-
-        if (from is not null)
-        {
-            end = from.Span;
-        }
-
-        if (joins.Count > 0)
-        {
-            end = joins[^1].Span;
-        }
-
-        if (extraFrom.Count > 0)
-        {
-            end = extraFrom[^1].Span;
-        }
-
-        if (where is not null)
-        {
-            end = where.Span;
-        }
-
-        if (groupBy is not null)
-        {
-            end = groupBy.Span;
-        }
-
-        if (having is not null)
-        {
-            end = having.Span;
-        }
-
-        if (window is not null)
-        {
-            end = window.Span;
-        }
-
-        if (orderBy is not null)
-        {
-            end = orderBy.Span;
-        }
-
-        if (limit is not null)
-        {
-            end = limit.Span;
-        }
-
-        if (offset is not null)
-        {
-            end = offset.Span;
-        }
-
-        if (fetch is not null)
-        {
-            end = fetch.Span;
-        }
-
-        if (lockClause is not null)
-        {
-            end = lockClause.Span;
-        }
-
-        return new SelectStatement
-        {
-            Span = SourceSpan.From(selectKeyword, end),
-            SelectKeyword = selectKeyword,
-            DistinctKeyword = distinct,
-            AllKeyword = all,
-            SelectList = selectList,
-            IntoKeyword = intoKeyword,
-            IntoTargets = intoTargets,
-            FromKeyword = fromKeyword,
-            From = from,
-            Joins = joins,
-            ExtraFrom = extraFrom,
-            Where = where,
-            GroupBy = groupBy,
-            Having = having,
-            Window = window,
-            OrderBy = orderBy,
-            Limit = limit,
-            Offset = offset,
-            Fetch = fetch,
-            Lock = lockClause,
-        };
+        return new LimitOffsetFetch(limit, offset, fetch);
     }
 
     private LockClause ParseLockClause()
@@ -242,9 +262,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Into))
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Into))
+            {
+                alias = Advance();
+            }
         }
 
         return new SelectItem
@@ -458,7 +481,7 @@ internal sealed partial class Parser
             }
         }
 
-        if (!IsRowKeyword())
+        if (IsRowKeyword() is false)
         {
             throw new SqlParseException($"Expected ROW or ROWS, found {_current.Kind}", _current.Position);
         }
@@ -470,19 +493,22 @@ internal sealed partial class Parser
         {
             onlyOrWith = Advance();
         }
-        else if (_current.Kind == SyntaxKind.WithKeyword)
-        {
-            onlyOrWith = Advance();
-            if (!IdentifierEquals(Keyword.Ties))
-            {
-                throw new SqlParseException($"Expected TIES, found {_current.Kind}", _current.Position);
-            }
-
-            tiesKeyword = Advance();
-        }
         else
         {
-            throw new SqlParseException($"Expected ONLY or WITH TIES, found {_current.Kind}", _current.Position);
+            if (_current.Kind == SyntaxKind.WithKeyword)
+            {
+                onlyOrWith = Advance();
+                if (!IdentifierEquals(Keyword.Ties))
+                {
+                    throw new SqlParseException($"Expected TIES, found {_current.Kind}", _current.Position);
+                }
+
+                tiesKeyword = Advance();
+            }
+            else
+            {
+                throw new SqlParseException($"Expected ONLY or WITH TIES, found {_current.Kind}", _current.Position);
+            }
         }
 
         var end = tiesKeyword ?? onlyOrWith;

@@ -282,7 +282,7 @@ internal sealed partial class Parser
     private const int UnionBindingPower = 1;
     private const int IntersectBindingPower = 2;
 
-    private static bool IsQueryStart(SyntaxKind kind) =>
+    internal static bool IsQueryStart(SyntaxKind kind) =>
         kind is SyntaxKind.SelectKeyword or SyntaxKind.WithKeyword or SyntaxKind.ValuesKeyword;
 
     private static int SetOpBindingPower(SyntaxKind kind) => kind switch

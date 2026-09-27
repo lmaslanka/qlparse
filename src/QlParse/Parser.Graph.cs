@@ -2,10 +2,10 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsGraphTable() =>
+    internal bool IsGraphTable() =>
         TokenEquals(_current, Keyword.GraphTable) && NextKind == SyntaxKind.OpenParen;
 
-    private CreatePropertyGraphStatement ParseCreatePropertyGraph()
+    internal CreatePropertyGraphStatement ParseCreatePropertyGraph()
     {
         var createKeyword = Advance();
         var propertyKeyword = Advance();
@@ -38,7 +38,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropPropertyGraphStatement ParseDropPropertyGraph()
+    internal DropPropertyGraphStatement ParseDropPropertyGraph()
     {
         var dropKeyword = Advance();
         var propertyKeyword = Advance();
@@ -76,6 +76,15 @@ internal sealed partial class Parser
         return elements;
     }
 
+    private readonly record struct GraphEndpointClause(
+        SyntaxToken Endpoint,
+        IReadOnlyList<SyntaxToken> Columns,
+        IReadOnlyList<SyntaxToken> Reference);
+
+    private readonly record struct GraphLabelClause(
+        IReadOnlyList<SyntaxToken> Labels,
+        IReadOnlyList<SyntaxToken> Properties);
+
     private GraphTableElement ParseGraphElement()
     {
         var name = ParseQualifiedName();
@@ -103,50 +112,28 @@ internal sealed partial class Parser
 
             if (IdentifierEquals(Keyword.Source) || IdentifierEquals(Keyword.Destination))
             {
-                var endpoint = Advance();
-                ExpectIdent(Keyword.Key);
-                var columns = ParseParenthesizedNames();
-                ExpectIdent(Keyword.References);
-                var reference = ParseQualifiedName();
-                if (_current.Kind == SyntaxKind.OpenParen)
+                var endpointClause = ParseGraphEndpointClause();
+                if (TokenEquals(endpointClause.Endpoint, Keyword.Source))
                 {
-                    reference = [.. reference, .. ParseParenthesizedNames()];
-                }
-
-                if (TokenEquals(endpoint, Keyword.Source))
-                {
-                    source = endpoint;
-                    sourceColumns = columns;
-                    sourceReference = reference;
+                    source = endpointClause.Endpoint;
+                    sourceColumns = endpointClause.Columns;
+                    sourceReference = endpointClause.Reference;
                 }
                 else
                 {
-                    destination = endpoint;
-                    destinationColumns = columns;
-                    destinationReference = reference;
+                    destination = endpointClause.Endpoint;
+                    destinationColumns = endpointClause.Columns;
+                    destinationReference = endpointClause.Reference;
                 }
 
-                end = reference[^1].Span;
+                end = endpointClause.Reference[^1].Span;
                 continue;
             }
 
-            labels.Add(Advance());
-            labels.Add(Expect(SyntaxKind.Identifier));
-            end = labels[^1].Span;
-            if (IdentifierEquals(Keyword.Properties))
-            {
-                properties.Add(Advance());
-                if (_current.Kind == SyntaxKind.AllKeyword)
-                {
-                    properties.Add(Advance());
-                }
-                else
-                {
-                    properties.AddRange(ParseParenthesizedNames());
-                }
-
-                end = properties[^1].Span;
-            }
+            var labelClause = ParseGraphLabelClause();
+            labels.AddRange(labelClause.Labels);
+            properties.AddRange(labelClause.Properties);
+            end = properties.Count > 0 ? properties[^1].Span : labels[^1].Span;
         }
 
         return new GraphTableElement
@@ -166,6 +153,41 @@ internal sealed partial class Parser
         };
     }
 
+    private GraphEndpointClause ParseGraphEndpointClause()
+    {
+        var endpoint = Advance();
+        ExpectIdent(Keyword.Key);
+        var columns = ParseParenthesizedNames();
+        ExpectIdent(Keyword.References);
+        var reference = ParseQualifiedName();
+        if (_current.Kind == SyntaxKind.OpenParen)
+        {
+            reference = [.. reference, .. ParseParenthesizedNames()];
+        }
+
+        return new GraphEndpointClause(endpoint, columns, reference);
+    }
+
+    private GraphLabelClause ParseGraphLabelClause()
+    {
+        var labels = new List<SyntaxToken> { Advance(), Expect(SyntaxKind.Identifier) };
+        var properties = new List<SyntaxToken>();
+        if (IdentifierEquals(Keyword.Properties))
+        {
+            properties.Add(Advance());
+            if (_current.Kind == SyntaxKind.AllKeyword)
+            {
+                properties.Add(Advance());
+            }
+            else
+            {
+                properties.AddRange(ParseParenthesizedNames());
+            }
+        }
+
+        return new GraphLabelClause(labels, properties);
+    }
+
     private List<SyntaxToken> ParseParenthesizedNames()
     {
         Expect(SyntaxKind.OpenParen);
@@ -180,7 +202,7 @@ internal sealed partial class Parser
         return names;
     }
 
-    private GraphTable ParseGraphTable()
+    internal GraphTable ParseGraphTable()
     {
         var keyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -239,7 +261,7 @@ internal sealed partial class Parser
         {
             Advance();
             columns.Add(ParseExpression());
-            if (_current.Kind == SyntaxKind.AsKeyword)
+            if (_current.Kind is SyntaxKind.AsKeyword)
             {
                 Advance();
                 Expect(SyntaxKind.Identifier);
@@ -341,10 +363,13 @@ internal sealed partial class Parser
                 labels.Add(Expect(SyntaxKind.Identifier));
             }
         }
-        else if (_current.Kind == SyntaxKind.IsKeyword)
+        else
         {
-            labels.Add(Advance());
-            labels.Add(Expect(SyntaxKind.Identifier));
+            if (_current.Kind == SyntaxKind.IsKeyword)
+            {
+                labels.Add(Advance());
+                labels.Add(Expect(SyntaxKind.Identifier));
+            }
         }
 
         return labels;
@@ -455,7 +480,7 @@ internal sealed partial class Parser
         if (_current.Kind == SyntaxKind.Comma)
         {
             Advance();
-            if (_current.Kind == SyntaxKind.Number)
+            if (_current.Kind is SyntaxKind.Number)
             {
                 Advance();
             }
@@ -474,37 +499,43 @@ internal sealed partial class Parser
         var depth = 1;
         for (var index = _index; index < _tokens.Count; index++)
         {
-            var kind = _tokens[index].Kind;
-            if (kind == SyntaxKind.OpenParen)
+            var (result, nextDepth) = ClassifyParenthesizedPathToken(index, depth);
+            depth = nextDepth;
+            if (result.HasValue)
             {
-                depth++;
-                continue;
-            }
-
-            if (kind == SyntaxKind.CloseParen)
-            {
-                depth--;
-                if (depth == 0)
-                {
-                    return false;
-                }
-
-                continue;
-            }
-
-            if (depth == 1 && kind is SyntaxKind.MinusToken or SyntaxKind.JsonArrowToken)
-            {
-                return true;
-            }
-
-            if (depth == 1 && kind == SyntaxKind.LessThan
-                && index + 1 < _tokens.Count
-                && _tokens[index + 1].Kind == SyntaxKind.MinusToken)
-            {
-                return true;
+                return result.Value;
             }
         }
 
         return false;
+    }
+
+    private (bool? Result, int Depth) ClassifyParenthesizedPathToken(int index, int depth)
+    {
+        var kind = _tokens[index].Kind;
+        if (kind == SyntaxKind.OpenParen)
+        {
+            return (null, depth + 1);
+        }
+
+        if (kind == SyntaxKind.CloseParen)
+        {
+            var closedDepth = depth - 1;
+            return closedDepth == 0 ? (false, closedDepth) : (null, closedDepth);
+        }
+
+        if (depth == 1 && kind is SyntaxKind.MinusToken or SyntaxKind.JsonArrowToken)
+        {
+            return (true, depth);
+        }
+
+        if (depth == 1 && kind == SyntaxKind.LessThan
+            && index + 1 < _tokens.Count
+            && _tokens[index + 1].Kind == SyntaxKind.MinusToken)
+        {
+            return (true, depth);
+        }
+
+        return (null, depth);
     }
 }

@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private InsertStatement ParseInsert()
+    internal InsertStatement ParseInsert()
     {
         var insertKeyword = Advance();
         var intoKeyword = ExpectIdent(Keyword.Into);
@@ -39,7 +39,7 @@ internal sealed partial class Parser
         };
     }
 
-    private UpdateStatement ParseUpdate()
+    internal UpdateStatement ParseUpdate()
     {
         var updateKeyword = Advance();
         var target = ParseTargetTable();
@@ -61,7 +61,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DeleteStatement ParseDelete()
+    internal DeleteStatement ParseDelete()
     {
         var deleteKeyword = Advance();
         var fromKeyword = Expect(SyntaxKind.FromKeyword);
@@ -81,7 +81,7 @@ internal sealed partial class Parser
         };
     }
 
-    private MergeStatement ParseMerge()
+    internal MergeStatement ParseMerge()
     {
         var mergeKeyword = Advance();
         var intoKeyword = ExpectIdent(Keyword.Into);
@@ -117,7 +117,7 @@ internal sealed partial class Parser
         };
     }
 
-    private TruncateStatement ParseTruncate()
+    internal TruncateStatement ParseTruncate()
     {
         var truncateKeyword = Advance();
         var tableKeyword = ExpectIdent(Keyword.Table);
@@ -222,9 +222,12 @@ internal sealed partial class Parser
             asKeyword = Advance();
             alias = Expect(SyntaxKind.Identifier);
         }
-        else if (_current.Kind == SyntaxKind.Identifier)
+        else
         {
-            alias = Advance();
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                alias = Advance();
+            }
         }
 
         var end = alias ?? close ?? name[^1];
@@ -253,13 +256,16 @@ internal sealed partial class Parser
         {
             kind = Advance();
         }
-        else if (IdentifierEquals(Keyword.System))
-        {
-            kind = Advance();
-        }
         else
         {
-            throw new SqlParseException($"Expected USER or SYSTEM, found {_current.Kind}", _current.Position);
+            if (IdentifierEquals(Keyword.System))
+            {
+                kind = Advance();
+            }
+            else
+            {
+                throw new SqlParseException($"Expected USER or SYSTEM, found {_current.Kind}", _current.Position);
+            }
         }
 
         if (!IdentifierEquals(Keyword.Value))
@@ -285,9 +291,12 @@ internal sealed partial class Parser
         {
             positioned = ParsePositionedWhere();
         }
-        else if (_current.Kind == SyntaxKind.WhereKeyword)
+        else
         {
-            where = ParseWhereClause();
+            if (_current.Kind == SyntaxKind.WhereKeyword)
+            {
+                where = ParseWhereClause();
+            }
         }
     }
 
@@ -416,19 +425,9 @@ internal sealed partial class Parser
         }
 
         var matchedKeyword = Advance();
-        SyntaxToken? byKeyword = null;
-        SyntaxToken? byKind = null;
-        if (notKeyword is not null && _current.Kind == SyntaxKind.ByKeyword)
-        {
-            byKeyword = Advance();
-            if (!IdentifierEquals(Keyword.Source) && !IdentifierEquals(Keyword.Target))
-            {
-                throw new SqlParseException($"Expected SOURCE or TARGET, found {_current.Kind}", _current.Position);
-            }
-
-            byKind = Advance();
-        }
-
+        var byClause = ParseMergeByClause(notKeyword);
+        var byKeyword = byClause.ByKeyword;
+        var byKind = byClause.ByKind;
         SyntaxToken? andKeyword = null;
         Expression? condition = null;
         if (_current.Kind == SyntaxKind.AndKeyword)
@@ -455,6 +454,24 @@ internal sealed partial class Parser
             ThenKeyword = thenKeyword,
             Action = action,
         };
+    }
+
+    private readonly record struct MergeByClause(SyntaxToken? ByKeyword, SyntaxToken? ByKind);
+
+    private MergeByClause ParseMergeByClause(SyntaxToken? notKeyword)
+    {
+        if (notKeyword is null || _current.Kind != SyntaxKind.ByKeyword)
+        {
+            return new MergeByClause(null, null);
+        }
+
+        var byKeyword = Advance();
+        if (!IdentifierEquals(Keyword.Source) && !IdentifierEquals(Keyword.Target))
+        {
+            throw new SqlParseException($"Expected SOURCE or TARGET, found {_current.Kind}", _current.Position);
+        }
+
+        return new MergeByClause(byKeyword, Advance());
     }
 
     private MergeAction ParseMergeUpdateOrDelete()

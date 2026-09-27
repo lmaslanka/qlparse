@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private MatchRecognizeTable ParseMatchRecognize(TableSource input)
+    internal MatchRecognizeTable ParseMatchRecognize(TableSource input)
     {
         var keyword = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -148,11 +148,14 @@ internal sealed partial class Parser
             ExpectIdent(Keyword.Empty);
             ExpectIdent(Keyword.Matches);
         }
-        else if (_current.Kind == SyntaxKind.WithKeyword)
+        else
         {
-            emptyHandling = Advance();
-            ExpectIdent(Keyword.Unmatched);
-            ExpectIdent(Keyword.Rows);
+            if (_current.Kind == SyntaxKind.WithKeyword)
+            {
+                emptyHandling = Advance();
+                ExpectIdent(Keyword.Unmatched);
+                ExpectIdent(Keyword.Rows);
+            }
         }
     }
 
@@ -335,7 +338,7 @@ internal sealed partial class Parser
                 comma = Advance();
             }
 
-            if (_current.Kind == SyntaxKind.Number)
+            if (_current.Kind is SyntaxKind.Number)
             {
                 high = Advance();
             }

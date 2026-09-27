@@ -2,7 +2,8 @@ namespace QlParse.Tests;
 
 public sealed class ParseDmlTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
+    private const string TruncateContinueIdentity = "truncate table t continue identity;"
+        ;
 
     [Fact]
     public void Parses_insert_values()
@@ -53,7 +54,7 @@ public sealed class ParseDmlTests
         Assert.Equal(Count.Two, update.Assignments.Count);
         Assert.NotNull(update.Where);
         Assert.Null(update.Positioned);
-        new EmptyVisitor().Visit(update);
+        new SqlVisitor().Visit(update);
     }
 
     [Fact]
@@ -77,7 +78,7 @@ public sealed class ParseDmlTests
         Assert.Equal(Count.Two, row.Targets.Count);
         Assert.IsType<RowConstructorExpression>(row.Value);
         Assert.IsType<ScalarSubqueryExpression>(update.Assignments[Count.Three].Value);
-        new EmptyVisitor().Visit(update);
+        new SqlVisitor().Visit(update);
     }
 
     [Fact]
@@ -121,7 +122,7 @@ public sealed class ParseDmlTests
         Assert.NotNull(insert.Override);
         Assert.NotNull(merge.Whens[Count.Three].ByKeyword);
         Assert.NotNull(merge.Whens[Count.Three].Condition);
-        new EmptyVisitor().Visit(merge);
+        new SqlVisitor().Visit(merge);
     }
 
     [Fact]
@@ -143,9 +144,9 @@ public sealed class ParseDmlTests
         Assert.NotNull(restart.RestartKeyword);
         Assert.NotNull(restart.IdentityKeyword);
 
-        var continued = SqlAssert.Parse<TruncateStatement>("truncate table t continue identity;");
+        var continued = SqlAssert.Parse<TruncateStatement>(TruncateContinueIdentity);
         Assert.NotNull(continued.IdentityKeyword);
-        new EmptyVisitor().Visit(continued);
+        new SqlVisitor().Visit(continued);
     }
 
     [Fact]
@@ -158,6 +159,6 @@ public sealed class ParseDmlTests
         var deleted = SqlAssert.Parse<DeleteStatement>("delete from emp for portion of dept_period from date '2011-01-01' to date '2011-06-01' where id = 1");
         Assert.NotNull(deleted.Portion);
         Assert.NotNull(deleted.Where);
-        new EmptyVisitor().Visit(update);
+        new SqlVisitor().Visit(update);
     }
 }

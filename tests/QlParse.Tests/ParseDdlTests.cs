@@ -2,9 +2,11 @@ namespace QlParse.Tests;
 
 public sealed class ParseDdlTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
+    private const string BareResignal = "resignal;"
+        ;
 
-    private const string BareResignal = "resignal;";
+    private const string CreateTableWithSemicolon = "create table s.t (a integer, b character varying(10));"
+        ;
 
     [Fact]
     public void Parses_create_schema()
@@ -38,7 +40,7 @@ public sealed class ParseDdlTests
         var schema = SqlAssert.Parse<SchemaDefinition>("create schema s create table t (a integer)");
         Assert.Single(schema.Elements);
         Assert.IsType<ColumnDefinition>(schema.Elements[0].Elements![0]);
-        new EmptyVisitor().Visit(schema);
+        new SqlVisitor().Visit(schema);
     }
 
     [Fact]
@@ -55,7 +57,7 @@ public sealed class ParseDdlTests
     [Fact]
     public void Parses_create_table()
     {
-        var table = SqlAssert.Parse<CreateTableStatement>("create table s.t (a integer, b character varying(10));");
+        var table = SqlAssert.Parse<CreateTableStatement>(CreateTableWithSemicolon);
         Assert.Equal(Count.Two, table.Name.Count);
         Assert.Equal(Count.Two, table.Elements!.Count);
         Assert.IsType<ColumnDefinition>(table.Elements[1]);
@@ -92,11 +94,11 @@ public sealed class ParseDdlTests
         Assert.NotNull(derived.UnderKeyword);
         Assert.Null(derived.Elements);
 
-        var scoped = SqlAssert.Parse<CreateTableStatement>("create table emp of person (name with options scope sch.people)");
-        var options = Assert.IsType<ColumnDefinition>(scoped.Elements![0]);
+        var scopedTable = SqlAssert.Parse<CreateTableStatement>("create table emp of person (name with options scope sch.people)");
+        var options = Assert.IsType<ColumnDefinition>(scopedTable.Elements![0]);
         Assert.NotNull(options.ScopeKeyword);
         Assert.Equal(Count.Two, options.ScopeName!.Count);
-        new EmptyVisitor().Visit(scoped);
+        new SqlVisitor().Visit(scopedTable);
     }
 
     [Fact]
@@ -146,8 +148,8 @@ public sealed class ParseDdlTests
         Assert.NotNull(Assert.IsType<AlterColumnAction>(SqlAssert.Parse<AlterTableStatement>("alter table t alter a set maxvalue 10").Action).IdentityOption!.Value);
         Assert.NotNull(Assert.IsType<AlterColumnAction>(SqlAssert.Parse<AlterTableStatement>("alter table t alter a set minvalue 1").Action).IdentityOption);
         Assert.NotNull(Assert.IsType<AlterColumnAction>(SqlAssert.Parse<AlterTableStatement>("alter table t alter a set cycle").Action).IdentityOption);
-        new EmptyVisitor().Visit(table);
-        new EmptyVisitor().Visit(increment);
+        new SqlVisitor().Visit(table);
+        new SqlVisitor().Visit(increment);
     }
 
     [Fact]
@@ -173,8 +175,8 @@ public sealed class ParseDdlTests
         Assert.IsType<DropPeriodAction>(SqlAssert.Parse<AlterTableStatement>("alter table emp drop period for dept_period cascade").Action);
         Assert.IsType<SystemVersioningAction>(SqlAssert.Parse<AlterTableStatement>("alter table emp add system versioning").Action);
         Assert.IsType<SystemVersioningAction>(SqlAssert.Parse<AlterTableStatement>("alter table emp drop system versioning").Action);
-        new EmptyVisitor().Visit(table);
-        new EmptyVisitor().Visit(added);
+        new SqlVisitor().Visit(table);
+        new SqlVisitor().Visit(added);
     }
 
     [Fact]
@@ -193,7 +195,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(graph.Vertices[0].KeyKeyword);
         Assert.NotNull(graph.Edges[0].DestinationKeyword);
         Assert.IsType<DropPropertyGraphStatement>(SqlAssert.Parse<DropPropertyGraphStatement>("drop property graph g cascade"));
-        new EmptyVisitor().Visit(graph);
+        new SqlVisitor().Visit(graph);
     }
 
     [Fact]
@@ -221,7 +223,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(Assert.IsType<AlterColumnAction>(SqlAssert.Parse<AlterTableStatement>("alter table t alter a restart with 5").Action).RestartValue);
         Assert.IsType<DropConstraintAction>(SqlAssert.Parse<AlterTableStatement>("alter table t drop constraint c restrict").Action);
         Assert.IsType<AddConstraintAction>(SqlAssert.Parse<AlterTableStatement>("alter table t add primary key (a)").Action);
-        new EmptyVisitor().Visit(SqlAssert.Parse<AlterTableStatement>("alter table t alter a set data type integer"));
+        new SqlVisitor().Visit(SqlAssert.Parse<AlterTableStatement>("alter table t alter a set data type integer"));
     }
 
     [Fact]
@@ -246,7 +248,7 @@ public sealed class ParseDdlTests
             """);
         Assert.Equal(Count.Two, Assert.IsType<ColumnDefinition>(table.Elements![0]).Constraints.Count);
         Assert.Equal(Count.Six, table.Elements.Count);
-        new EmptyVisitor().Visit(table);
+        new SqlVisitor().Visit(table);
     }
 
     [Fact]
@@ -287,7 +289,7 @@ public sealed class ParseDdlTests
         var deferred = Assert.IsType<TableConstraint>(table.Elements[Count.Eight]);
         Assert.NotNull(deferred.DeferrableKeyword);
         Assert.NotNull(deferred.InitiallyKeyword);
-        new EmptyVisitor().Visit(table);
+        new SqlVisitor().Visit(table);
     }
 
     [Fact]
@@ -308,7 +310,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(typed.UnderKeyword);
         Assert.IsType<RefIsClause>(typed.Elements![0]);
         Assert.NotNull(Assert.IsType<ColumnDefinition>(typed.Elements[1]).Default);
-        new EmptyVisitor().Visit(typed);
+        new SqlVisitor().Visit(typed);
     }
 
     [Fact]
@@ -338,7 +340,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(Assert.IsType<AlterColumnAction>(column.Column).DataType);
         var scope = Assert.IsType<AlterViewColumnAction>(SqlAssert.Parse<AlterViewStatement>("alter view v alter a add scope people").Action);
         Assert.NotNull(Assert.IsType<AlterColumnAction>(scope.Column).ScopeName);
-        new EmptyVisitor().Visit(replaced);
+        new SqlVisitor().Visit(replaced);
 
         var dropped = SqlAssert.Parse<DropViewStatement>("drop view s.v cascade");
         Assert.Equal(Count.Two, dropped.Name.Count);
@@ -365,7 +367,7 @@ public sealed class ParseDdlTests
         Assert.IsType<AddDomainConstraintAction>(SqlAssert.Parse<AlterDomainStatement>("alter domain d add check (value > 0)").Action);
         Assert.IsType<DropDomainConstraintAction>(SqlAssert.Parse<AlterDomainStatement>("alter domain d drop constraint c cascade").Action);
         Assert.IsType<DropDomainStatement>(SqlAssert.Parse<DropDomainStatement>("drop domain sch.d restrict"));
-        new EmptyVisitor().Visit(domain);
+        new SqlVisitor().Visit(domain);
     }
 
     [Fact]
@@ -415,7 +417,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(structured.Methods[1].OverridingKeyword);
         Assert.NotNull(structured.Methods[Count.Two].SpecificName);
         Assert.Equal(Count.Four, structured.Methods[Count.Two].Characteristics.Count);
-        new EmptyVisitor().Visit(structured);
+        new SqlVisitor().Visit(structured);
 
         var derived = SqlAssert.Parse<CreateTypeStatement>("create type t as (id integer) final ref from (id)");
         Assert.NotNull(derived.Reference!.FromKeyword);
@@ -454,9 +456,9 @@ public sealed class ParseDdlTests
         Assert.Equal(Count.Two, group.Elements.Count);
         var groups = SqlAssert.Parse<CreateTransformStatement>("create transforms for address g1 (to sql with function f) g2 (from sql with function g)");
         Assert.Equal(Count.Two, groups.Groups.Count);
-        new EmptyVisitor().Visit(cast);
-        new EmptyVisitor().Visit(state);
-        new EmptyVisitor().Visit(transform);
+        new SqlVisitor().Visit(cast);
+        new SqlVisitor().Visit(state);
+        new SqlVisitor().Visit(transform);
     }
 
     [Fact]
@@ -466,7 +468,7 @@ public sealed class ParseDdlTests
         Assert.Equal(Count.Two, created.Name.Count);
         Assert.NotNull(created.InitiallyWhen);
         Assert.IsType<DropAssertionStatement>(SqlAssert.Parse<DropAssertionStatement>("drop assertion a cascade"));
-        new EmptyVisitor().Visit(created);
+        new SqlVisitor().Visit(created);
     }
 
     [Fact]
@@ -491,9 +493,9 @@ public sealed class ParseDdlTests
         var routine = SqlAssert.Parse<CreateTranslationStatement>("create translation t for utf8 to latin1 from specific function sch.trans");
         Assert.NotNull(routine.Routine);
         Assert.IsType<DropTranslationStatement>(SqlAssert.Parse<DropTranslationStatement>("drop translation t"));
-        new EmptyVisitor().Visit(charset);
-        new EmptyVisitor().Visit(collation);
-        new EmptyVisitor().Visit(routine);
+        new SqlVisitor().Visit(charset);
+        new SqlVisitor().Visit(collation);
+        new SqlVisitor().Visit(routine);
     }
 
     [Fact]
@@ -523,9 +525,9 @@ public sealed class ParseDdlTests
         Assert.Equal(SyntaxKind.String, comment.Value.Kind);
         var cleared = SqlAssert.Parse<CommentStatement>("comment on table t is null");
         Assert.Equal(SyntaxKind.NullKeyword, cleared.Value.Kind);
-        new EmptyVisitor().Visit(sequence);
-        new EmptyVisitor().Visit(index);
-        new EmptyVisitor().Visit(comment);
+        new SqlVisitor().Visit(sequence);
+        new SqlVisitor().Visit(index);
+        new SqlVisitor().Visit(comment);
     }
 
     [Fact]
@@ -566,11 +568,11 @@ public sealed class ParseDdlTests
         var none = SqlAssert.Parse<SetRoleStatement>("set role none");
         Assert.Equal(SyntaxKind.Identifier, none.Value.Kind);
         Assert.IsType<SetRoleStatement>(SqlAssert.Parse<SetRoleStatement>("set role admin"));
-        new EmptyVisitor().Visit(grant);
-        new EmptyVisitor().Visit(roles);
-        new EmptyVisitor().Visit(revoked);
-        new EmptyVisitor().Visit(created);
-        new EmptyVisitor().Visit(none);
+        new SqlVisitor().Visit(grant);
+        new SqlVisitor().Visit(roles);
+        new SqlVisitor().Visit(revoked);
+        new SqlVisitor().Visit(created);
+        new SqlVisitor().Visit(none);
     }
 
     [Fact]
@@ -619,12 +621,12 @@ public sealed class ParseDdlTests
         Assert.IsType<SetSchemaStatement>(SqlAssert.Parse<SetSchemaStatement>("set schema s"));
         Assert.Equal(Count.Two, SqlAssert.Parse<SetPathStatement>("set path a, b.s").Names!.Count);
 
-        new EmptyVisitor().Visit(started);
-        new EmptyVisitor().Visit(repeatable);
-        new EmptyVisitor().Visit(commit);
-        new EmptyVisitor().Visit(toSavepoint);
-        new EmptyVisitor().Visit(characteristics);
-        new EmptyVisitor().Visit(zone);
+        new SqlVisitor().Visit(started);
+        new SqlVisitor().Visit(repeatable);
+        new SqlVisitor().Visit(commit);
+        new SqlVisitor().Visit(toSavepoint);
+        new SqlVisitor().Visit(characteristics);
+        new SqlVisitor().Visit(zone);
     }
 
     [Fact]
@@ -664,10 +666,10 @@ public sealed class ParseDdlTests
         Assert.IsType<DeallocateStatement>(SqlAssert.Parse<DeallocateStatement>("deallocate prepare stmt"));
         Assert.IsType<DeallocateStatement>(SqlAssert.Parse<DeallocateStatement>("deallocate descriptor d"));
 
-        new EmptyVisitor().Visit(connect);
-        new EmptyVisitor().Visit(cursor);
-        new EmptyVisitor().Visit(fetch);
-        new EmptyVisitor().Visit(allocated);
+        new SqlVisitor().Visit(connect);
+        new SqlVisitor().Visit(cursor);
+        new SqlVisitor().Visit(fetch);
+        new SqlVisitor().Visit(allocated);
     }
 
     [Fact]
@@ -702,12 +704,12 @@ public sealed class ParseDdlTests
         Assert.Empty(resignal.Items);
         Assert.IsType<ResignalStatement>(SqlAssert.Parse<ResignalStatement>("resignal condition_name set message_text = 'x'"));
 
-        new EmptyVisitor().Visit(prepared);
-        new EmptyVisitor().Visit(executed);
-        new EmptyVisitor().Visit(dynamic);
-        new EmptyVisitor().Visit(diagnostics);
-        new EmptyVisitor().Visit(signal);
-        new EmptyVisitor().Visit(resignal);
+        new SqlVisitor().Visit(prepared);
+        new SqlVisitor().Visit(executed);
+        new SqlVisitor().Visit(dynamic);
+        new SqlVisitor().Visit(diagnostics);
+        new SqlVisitor().Visit(signal);
+        new SqlVisitor().Visit(resignal);
     }
 
     [Fact]
@@ -745,11 +747,11 @@ public sealed class ParseDdlTests
         var returned = SqlAssert.Parse<ReturnStatement>("return null");
         Assert.NotNull(returned.Value);
 
-        new EmptyVisitor().Visit(before);
-        new EmptyVisitor().Visit(function);
-        new EmptyVisitor().Visit(method);
-        new EmptyVisitor().Visit(called);
-        new EmptyVisitor().Visit(returned);
+        new SqlVisitor().Visit(before);
+        new SqlVisitor().Visit(function);
+        new SqlVisitor().Visit(method);
+        new SqlVisitor().Visit(called);
+        new SqlVisitor().Visit(returned);
     }
 
     [Fact]
@@ -805,6 +807,6 @@ public sealed class ParseDdlTests
         Assert.Single(compound.Statements.OfType<RepeatStatement>());
         Assert.Single(compound.Statements.OfType<ForStatement>());
         Assert.Single(compound.Statements.OfType<SignalStatement>());
-        new EmptyVisitor().Visit(compound);
+        new SqlVisitor().Visit(compound);
     }
 }

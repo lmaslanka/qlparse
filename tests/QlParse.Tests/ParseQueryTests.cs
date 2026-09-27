@@ -2,8 +2,33 @@ namespace QlParse.Tests;
 
 public sealed class ParseQueryTests
 {
-    private sealed class EmptyVisitor : SqlVisitor;
+    private const string TrailingSemicolonSelect = "select 1;"
+        ;
 
+    private const string ExtraTrailingSemicolon = ";"
+        ;
+
+    private const string DoubleSemicolonSelect = TrailingSemicolonSelect
+        + ExtraTrailingSemicolon
+        ;
+
+    private const string ThreeSelectStatements = TrailingSemicolonSelect
+        + " select 2;"
+        + " select 3"
+        ;
+
+    private const string TerminatedInsertScript = TrailingSemicolonSelect
+        + " insert into t values (1);"
+        ;
+
+    private const string ExecSqlSelect = "exec sql select 1;"
+        ;
+
+    private const string ExecSqlBeginDeclareSection = "exec sql begin declare section;"
+        ;
+
+    private const string ExecSqlWheneverGoTo = "exec sql whenever not found go to missing;"
+        ;
 
     [Fact]
     public void Parses_insert_select()
@@ -23,7 +48,7 @@ public sealed class ParseQueryTests
     [Fact]
     public void Parses_insert_select_with_at_parameter()
     {
-        var sql = """
+        const string sql = """
             INSERT INTO activity_feed (
                     audit_event_id,
                     occurred_on,
@@ -53,11 +78,11 @@ public sealed class ParseQueryTests
                        FROM audit_event
                       WHERE record_id = @auditEventId;
             """;
-        var result = Sql.Parse(sql, SqlFlags.AtParameters);
+        var result = Sql.Parse(sql, SqlOptions.AtParameters);
         Assert.Null(result.Error);
         var insert = Assert.IsType<InsertStatement>(result.Root);
         Assert.IsType<SelectStatement>(insert.Query);
-        new EmptyVisitor().Visit(insert);
+        new SqlVisitor().Visit(insert);
     }
 
     [Fact]
@@ -196,7 +221,7 @@ public sealed class ParseQueryTests
     [Fact]
     public void Optional_semicolon()
     {
-        Assert.IsType<SelectStatement>(Sql.Parse("select 1;").Root);
+        Assert.IsType<SelectStatement>(Sql.Parse(TrailingSemicolonSelect).Root);
     }
 
     [Fact]
@@ -208,19 +233,19 @@ public sealed class ParseQueryTests
     [Fact]
     public void Extra_semicolon_throws()
     {
-        Assert.NotNull(Sql.Parse("select 1;;").Error);
+        Assert.NotNull(Sql.Parse(DoubleSemicolonSelect).Error);
     }
 
     [Fact]
     public void Parses_direct_sql_script()
     {
-        var script = SqlAssert.Parse<DirectSqlScript>("select 1; select 2; select 3");
+        var script = SqlAssert.Parse<DirectSqlScript>(ThreeSelectStatements);
         Assert.Equal(Count.Three, script.Statements.Count);
         Assert.Equal(Count.Two, script.Semicolons.Count);
         Assert.IsType<SelectStatement>(script.Statements[0]);
-        var terminated = SqlAssert.Parse<DirectSqlScript>("select 1; insert into t values (1);");
+        var terminated = SqlAssert.Parse<DirectSqlScript>(TerminatedInsertScript);
         Assert.Equal(Count.Two, terminated.Statements.Count);
-        new EmptyVisitor().Visit(script);
+        new SqlVisitor().Visit(script);
     }
 
     [Fact]
@@ -238,25 +263,25 @@ public sealed class ParseQueryTests
         Assert.Equal(Count.Two, module.Path.Count);
         Assert.Equal(Count.Two, module.Contents.Count);
         Assert.IsType<ModuleProcedure>(module.Contents[1]);
-        new EmptyVisitor().Visit(module);
+        new SqlVisitor().Visit(module);
     }
 
     [Fact]
     public void Parses_embedded_sql_and_declare_section()
     {
-        var embedded = SqlAssert.Parse<EmbeddedSqlStatement>("exec sql select 1;");
+        var embedded = SqlAssert.Parse<EmbeddedSqlStatement>(ExecSqlSelect);
         Assert.IsType<SelectStatement>(embedded.Statement);
         Assert.NotNull(embedded.Semicolon);
         var endExec = SqlAssert.Parse<EmbeddedSqlStatement>("exec sql select 1 end-exec");
         Assert.NotNull(endExec.EndExec);
-        var begin = Assert.IsType<DeclareSectionStatement>(SqlAssert.Parse<EmbeddedSqlStatement>("exec sql begin declare section;").Statement);
+        var begin = Assert.IsType<DeclareSectionStatement>(SqlAssert.Parse<EmbeddedSqlStatement>(ExecSqlBeginDeclareSection).Statement);
         Assert.Equal(SyntaxKind.Identifier, begin.BeginOrEnd.Kind);
         Assert.Equal(SyntaxKind.EndKeyword, SqlAssert.Parse<DeclareSectionStatement>("end declare section").BeginOrEnd.Kind);
-        var whenever = Assert.IsType<WheneverStatement>(SqlAssert.Parse<EmbeddedSqlStatement>("exec sql whenever not found go to missing;").Statement);
+        var whenever = Assert.IsType<WheneverStatement>(SqlAssert.Parse<EmbeddedSqlStatement>(ExecSqlWheneverGoTo).Statement);
         Assert.NotNull(whenever.NotKeyword);
         Assert.NotNull(whenever.ToKeyword);
         Assert.IsType<WheneverStatement>(SqlAssert.Parse<WheneverStatement>("whenever sqlerror continue"));
-        new EmptyVisitor().Visit(embedded);
+        new SqlVisitor().Visit(embedded);
     }
 
     [Fact]

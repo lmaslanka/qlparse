@@ -2,13 +2,13 @@ namespace QlParse;
 
 public static class Sql
 {
-    public static SqlLexResult Lex(string sql, SqlFlags flags = SqlFlags.None)
+    public static SqlLexResult Lex(string sql, SqlOptions flags = SqlOptions.None)
     {
         ArgumentNullException.ThrowIfNull(sql);
         return Lexer.LexAll(sql, flags);
     }
 
-    public static SqlParseResult Parse(string sql, SqlFlags flags = SqlFlags.None)
+    public static SqlParseResult Parse(string sql, SqlOptions flags = SqlOptions.None)
     {
         ArgumentNullException.ThrowIfNull(sql);
         return Parse(Lex(sql, flags));

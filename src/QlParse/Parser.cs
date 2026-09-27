@@ -7,11 +7,16 @@ internal sealed partial class Parser
     private int _index;
     private SyntaxToken _current;
 
-    private Parser(IReadOnlyList<SyntaxToken> tokens, string source)
+    internal Parser(IReadOnlyList<SyntaxToken> tokens, string source)
     {
         _tokens = tokens;
         _source = source;
-        _current = tokens[0];
+        InitializeCursor();
+    }
+
+    private void InitializeCursor()
+    {
+        _current = _tokens[0];
         _index = 1;
     }
 
@@ -25,11 +30,6 @@ internal sealed partial class Parser
             var semicolon = parser.Advance();
             if (parser._current.Kind == SyntaxKind.EndOfFile)
             {
-                if (statements.Count == 1)
-                {
-                    return statements[0];
-                }
-
                 semicolons.Add(semicolon);
                 break;
             }
@@ -82,7 +82,7 @@ internal sealed partial class Parser
         return Advance();
     }
 
-    private StarExpression ParseStar()
+    internal StarExpression ParseStar()
     {
         var star = Advance();
         return new StarExpression { Star = star, Span = star.Span };

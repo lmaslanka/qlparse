@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private IReadOnlyList<Expression> ParseExpressionList()
+    internal IReadOnlyList<Expression> ParseExpressionList()
     {
         var items = new List<Expression> { ParseExpression() };
         while (_current.Kind == SyntaxKind.Comma)
@@ -19,162 +19,11 @@ internal sealed partial class Parser
         var left = ParsePrefix();
         while (true)
         {
-            if (_current.Kind == SyntaxKind.CollateKeyword && CollateBindingPower >= minBindingPower)
+            var next = TryParsePostfix(left, minBindingPower) ?? TryParsePredicate(left, minBindingPower);
+            if (next is not null)
             {
-                var collateKeyword = Advance();
-                var name = Expect(SyntaxKind.Identifier);
-                left = new CollateExpression
-                {
-                    Span = SourceSpan.From(left.Span, name),
-                    Expression = left,
-                    CollateKeyword = collateKeyword,
-                    Name = name,
-                };
+                left = next;
                 continue;
-            }
-
-            if (_current.Kind == SyntaxKind.DoubleColonToken && ColonCastBindingPower >= minBindingPower)
-            {
-                if (IsStaticMethodInvocation())
-                {
-                    left = ParseStaticMethod(left);
-                    continue;
-                }
-
-                var doubleColon = Advance();
-                var type = ParseDataType();
-                left = new ColonCastExpression
-                {
-                    Span = SourceSpan.From(left.Span, type.Span),
-                    Expression = left,
-                    DoubleColon = doubleColon,
-                    Type = type,
-                };
-                continue;
-            }
-
-            if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower && IsMdarraySlice())
-            {
-                left = ParseMdarraySlice(left);
-                continue;
-            }
-
-            if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower)
-            {
-                var openBracket = Advance();
-                var index = ParseExpression();
-                var closeBracket = Expect(SyntaxKind.CloseBracket);
-                left = new JsonAccessorExpression
-                {
-                    Span = SourceSpan.From(left.Span, closeBracket),
-                    Target = left,
-                    OpenBracket = openBracket,
-                    Index = index,
-                    CloseBracket = closeBracket,
-                };
-                continue;
-            }
-
-            if (_current.Kind == SyntaxKind.Dot && DotBindingPower >= minBindingPower)
-            {
-                var dot = Advance();
-                if (_current.Kind == SyntaxKind.Star)
-                {
-                    var star = Advance();
-                    left = new QualifiedStarExpression
-                    {
-                        Span = SourceSpan.From(left.Span, star),
-                        Target = left,
-                        Dot = dot,
-                        Star = star,
-                    };
-                    continue;
-                }
-
-                var member = Expect(SyntaxKind.Identifier);
-                if (_current.Kind == SyntaxKind.OpenParen)
-                {
-                    left = ParseMethodInvocation(left, dot, member);
-                    continue;
-                }
-
-                left = new MemberAccessExpression
-                {
-                    Span = SourceSpan.From(left.Span, member),
-                    Target = left,
-                    Dot = dot,
-                    Member = member,
-                };
-                continue;
-            }
-
-            if (_current.Kind == SyntaxKind.JsonArrowToken
-                && ArrowBindingPower >= minBindingPower
-                && NextKind == SyntaxKind.Identifier)
-            {
-                var arrow = Advance();
-                var attribute = Expect(SyntaxKind.Identifier);
-                left = new DereferenceExpression
-                {
-                    Span = SourceSpan.From(left.Span, attribute),
-                    Reference = left,
-                    Arrow = arrow,
-                    Attribute = attribute,
-                };
-                continue;
-            }
-
-            var multisetPower = MultisetOpBindingPower();
-            if (multisetPower != 0 && multisetPower >= minBindingPower)
-            {
-                left = ParseMultisetOp(left, multisetPower);
-                continue;
-            }
-
-            if (ComparisonBindingPower >= minBindingPower && IsPeriodPredicate())
-            {
-                left = ParsePeriodPredicate(left);
-                continue;
-            }
-
-            if (ComparisonBindingPower >= minBindingPower)
-            {
-                switch (_current.Kind)
-                {
-                    case SyntaxKind.BetweenKeyword:
-                        left = ParseBetween(left);
-                        continue;
-                    case SyntaxKind.NotKeyword when NextKind == SyntaxKind.BetweenKeyword:
-                        left = ParseBetween(left);
-                        continue;
-                    case SyntaxKind.InKeyword:
-                        left = ParseIn(left);
-                        continue;
-                    case SyntaxKind.NotKeyword when NextKind == SyntaxKind.InKeyword:
-                        left = ParseIn(left);
-                        continue;
-                    case SyntaxKind.LikeKeyword:
-                        left = ParseLike(left);
-                        continue;
-                    case SyntaxKind.NotKeyword when NextKind == SyntaxKind.LikeKeyword:
-                        left = ParseLike(left);
-                        continue;
-                    case SyntaxKind.SimilarKeyword:
-                        left = ParseSimilar(left);
-                        continue;
-                    case SyntaxKind.NotKeyword when NextKind == SyntaxKind.SimilarKeyword:
-                        left = ParseSimilar(left);
-                        continue;
-                    case SyntaxKind.IsKeyword:
-                        left = ParseIs(left);
-                        continue;
-                    case SyntaxKind.OverlapsKeyword:
-                        left = ParseOverlaps(left);
-                        continue;
-                    case SyntaxKind.MatchKeyword:
-                        left = ParseMatch(left);
-                        continue;
-                }
             }
 
             var bindingPower = BindingPower(_current.Kind);
@@ -203,6 +52,160 @@ internal sealed partial class Parser
 
         return left;
     }
+
+    private Expression? TryParsePostfix(Expression left, int minBindingPower) =>
+        TryParsePostfixA(left, minBindingPower) ?? TryParsePostfixB(left, minBindingPower);
+
+    private Expression? TryParsePostfixA(Expression left, int minBindingPower)
+    {
+        if (_current.Kind == SyntaxKind.CollateKeyword && CollateBindingPower >= minBindingPower)
+        {
+            var collateKeyword = Advance();
+            var name = Expect(SyntaxKind.Identifier);
+            return new CollateExpression
+            {
+                Span = SourceSpan.From(left.Span, name),
+                Expression = left,
+                CollateKeyword = collateKeyword,
+                Name = name,
+            };
+        }
+
+        if (_current.Kind == SyntaxKind.DoubleColonToken && ColonCastBindingPower >= minBindingPower)
+        {
+            if (IsStaticMethodInvocation())
+            {
+                return ParseStaticMethod(left);
+            }
+
+            var doubleColon = Advance();
+            var type = ParseDataType();
+            return new ColonCastExpression
+            {
+                Span = SourceSpan.From(left.Span, type.Span),
+                Expression = left,
+                DoubleColon = doubleColon,
+                Type = type,
+            };
+        }
+
+        if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower && IsMdarraySlice())
+        {
+            return ParseMdarraySlice(left);
+        }
+
+        return null;
+    }
+
+    private Expression? TryParsePostfixB(Expression left, int minBindingPower)
+    {
+        if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower)
+        {
+            var openBracket = Advance();
+            var index = ParseExpression();
+            var closeBracket = Expect(SyntaxKind.CloseBracket);
+            return new JsonAccessorExpression
+            {
+                Span = SourceSpan.From(left.Span, closeBracket),
+                Target = left,
+                OpenBracket = openBracket,
+                Index = index,
+                CloseBracket = closeBracket,
+            };
+        }
+
+        if (_current.Kind == SyntaxKind.Dot && DotBindingPower >= minBindingPower)
+        {
+            var dot = Advance();
+            if (_current.Kind == SyntaxKind.Star)
+            {
+                var star = Advance();
+                return new QualifiedStarExpression
+                {
+                    Span = SourceSpan.From(left.Span, star),
+                    Target = left,
+                    Dot = dot,
+                    Star = star,
+                };
+            }
+
+            var member = Expect(SyntaxKind.Identifier);
+            if (_current.Kind == SyntaxKind.OpenParen)
+            {
+                return ParseMethodInvocation(left, dot, member);
+            }
+
+            return new MemberAccessExpression
+            {
+                Span = SourceSpan.From(left.Span, member),
+                Target = left,
+                Dot = dot,
+                Member = member,
+            };
+        }
+
+        if (_current.Kind == SyntaxKind.JsonArrowToken
+            && ArrowBindingPower >= minBindingPower
+            && NextKind == SyntaxKind.Identifier)
+        {
+            var arrow = Advance();
+            var attribute = Expect(SyntaxKind.Identifier);
+            return new DereferenceExpression
+            {
+                Span = SourceSpan.From(left.Span, attribute),
+                Reference = left,
+                Arrow = arrow,
+                Attribute = attribute,
+            };
+        }
+
+        return null;
+    }
+
+    private Expression? TryParsePredicate(Expression left, int minBindingPower)
+    {
+        var multisetPower = MultisetOpBindingPower();
+        if (multisetPower != 0 && multisetPower >= minBindingPower)
+        {
+            return ParseMultisetOp(left, multisetPower);
+        }
+
+        if (ComparisonBindingPower >= minBindingPower && IsPeriodPredicate())
+        {
+            return ParsePeriodPredicate(left);
+        }
+
+        if (ComparisonBindingPower < minBindingPower)
+        {
+            return null;
+        }
+
+        return TryParseComparisonPredicate(left);
+    }
+
+    private Expression? TryParseComparisonPredicate(Expression left) =>
+        TryParseComparisonPredicateA(left) ?? TryParseComparisonPredicateB(left);
+
+    private Expression? TryParseComparisonPredicateA(Expression left) => _current.Kind switch
+    {
+        SyntaxKind.BetweenKeyword => ParseBetween(left),
+        SyntaxKind.NotKeyword when NextKind == SyntaxKind.BetweenKeyword => ParseBetween(left),
+        SyntaxKind.InKeyword => ParseIn(left),
+        SyntaxKind.NotKeyword when NextKind == SyntaxKind.InKeyword => ParseIn(left),
+        SyntaxKind.LikeKeyword => ParseLike(left),
+        SyntaxKind.NotKeyword when NextKind == SyntaxKind.LikeKeyword => ParseLike(left),
+        _ => null,
+    };
+
+    private Expression? TryParseComparisonPredicateB(Expression left) => _current.Kind switch
+    {
+        SyntaxKind.SimilarKeyword => ParseSimilar(left),
+        SyntaxKind.NotKeyword when NextKind == SyntaxKind.SimilarKeyword => ParseSimilar(left),
+        SyntaxKind.IsKeyword => ParseIs(left),
+        SyntaxKind.OverlapsKeyword => ParseOverlaps(left),
+        SyntaxKind.MatchKeyword => ParseMatch(left),
+        _ => null,
+    };
 
     private MethodInvocationExpression ParseMethodInvocation(Expression target, SyntaxToken dot, SyntaxToken name)
     {
@@ -256,33 +259,38 @@ internal sealed partial class Parser
             return true;
         }
 
+        return !IsPrecisionScaleArgumentList(first);
+    }
+
+    private bool IsPrecisionScaleArgumentList(int first)
+    {
         if (_tokens[first].Kind != SyntaxKind.Number)
         {
-            return true;
+            return false;
         }
 
         var afterNumber = first + 1;
         if (afterNumber >= _tokens.Count)
         {
-            return true;
+            return false;
         }
 
         if (_tokens[afterNumber].Kind == SyntaxKind.CloseParen)
         {
-            return false;
+            return true;
         }
 
         if (_tokens[afterNumber].Kind != SyntaxKind.Comma)
         {
-            return true;
+            return false;
         }
 
         var scale = afterNumber + 1;
         var close = scale + 1;
-        return scale >= _tokens.Count
-            || _tokens[scale].Kind != SyntaxKind.Number
-            || close >= _tokens.Count
-            || _tokens[close].Kind != SyntaxKind.CloseParen;
+        return scale < _tokens.Count
+            && _tokens[scale].Kind == SyntaxKind.Number
+            && close < _tokens.Count
+            && _tokens[close].Kind == SyntaxKind.CloseParen;
     }
 
     private bool IsPeriodPredicate()
@@ -297,16 +305,19 @@ internal sealed partial class Parser
 
             rightIndex = _index + 1;
         }
-        else if (IdentifierEquals(Keyword.Equals)
+        else
+        {
+            if (IdentifierEquals(Keyword.Equals)
             || IdentifierEquals(Keyword.Contains)
             || IdentifierEquals(Keyword.Precedes)
             || IdentifierEquals(Keyword.Succeeds))
-        {
-            rightIndex = _index;
-        }
-        else
-        {
-            return false;
+            {
+                rightIndex = _index;
+            }
+            else
+            {
+                return false;
+            }
         }
 
         return rightIndex < _tokens.Count && IsExpressionStart(_tokens[rightIndex]);

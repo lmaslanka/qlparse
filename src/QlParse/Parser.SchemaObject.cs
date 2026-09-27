@@ -2,10 +2,10 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool NextNextIsSet() =>
+    internal bool NextNextIsSet() =>
         _index + 1 < _tokens.Count && _tokens[_index + 1].Kind == SyntaxKind.SetKeyword;
 
-    private CreateAssertionStatement ParseCreateAssertion()
+    internal CreateAssertionStatement ParseCreateAssertion()
     {
         var createKeyword = Advance();
         var assertionKeyword = ExpectIdent(Keyword.Assertion);
@@ -33,7 +33,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropAssertionStatement ParseDropAssertion()
+    internal DropAssertionStatement ParseDropAssertion()
     {
         var dropKeyword = Advance();
         var assertionKeyword = ExpectIdent(Keyword.Assertion);
@@ -49,7 +49,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateCharacterSetStatement ParseCreateCharacterSet()
+    internal CreateCharacterSetStatement ParseCreateCharacterSet()
     {
         var createKeyword = Advance();
         var characterKeyword = ExpectIdent(Keyword.Character);
@@ -83,7 +83,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropCharacterSetStatement ParseDropCharacterSet()
+    internal DropCharacterSetStatement ParseDropCharacterSet()
     {
         var dropKeyword = Advance();
         var characterKeyword = ExpectIdent(Keyword.Character);
@@ -99,7 +99,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateCollationStatement ParseCreateCollation()
+    internal CreateCollationStatement ParseCreateCollation()
     {
         var createKeyword = Advance();
         var collationKeyword = ExpectIdent(Keyword.Collation);
@@ -149,7 +149,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropCollationStatement ParseDropCollation()
+    internal DropCollationStatement ParseDropCollation()
     {
         var dropKeyword = Advance();
         var collationKeyword = ExpectIdent(Keyword.Collation);
@@ -165,7 +165,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateTranslationStatement ParseCreateTranslation()
+    internal CreateTranslationStatement ParseCreateTranslation()
     {
         var createKeyword = Advance();
         var translationKeyword = ExpectIdent(Keyword.Translation);
@@ -205,7 +205,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropTranslationStatement ParseDropTranslation()
+    internal DropTranslationStatement ParseDropTranslation()
     {
         var dropKeyword = Advance();
         var translationKeyword = ExpectIdent(Keyword.Translation);
@@ -219,7 +219,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateSequenceStatement ParseCreateSequence()
+    internal CreateSequenceStatement ParseCreateSequence()
     {
         var createKeyword = Advance();
         var sequenceKeyword = ExpectIdent(Keyword.Sequence);
@@ -261,7 +261,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropSequenceStatement ParseDropSequence()
+    internal DropSequenceStatement ParseDropSequence()
     {
         var dropKeyword = Advance();
         var sequenceKeyword = ExpectIdent(Keyword.Sequence);
@@ -277,7 +277,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CreateIndexStatement ParseCreateIndex()
+    internal CreateIndexStatement ParseCreateIndex()
     {
         var createKeyword = Advance();
         var unique = _current.Kind == SyntaxKind.UniqueKeyword ? Advance() : (SyntaxToken?)null;
@@ -328,7 +328,7 @@ internal sealed partial class Parser
         };
     }
 
-    private AlterIndexStatement ParseAlterIndex()
+    internal AlterIndexStatement ParseAlterIndex()
     {
         var alterKeyword = Advance();
         var indexKeyword = ExpectIdent(Keyword.Index);
@@ -375,7 +375,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DropIndexStatement ParseDropIndex()
+    internal DropIndexStatement ParseDropIndex()
     {
         var dropKeyword = Advance();
         var indexKeyword = ExpectIdent(Keyword.Index);
@@ -410,7 +410,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CommentStatement ParseComment()
+    internal CommentStatement ParseComment()
     {
         var commentKeyword = Advance();
         var onKeyword = Expect(SyntaxKind.OnKeyword);

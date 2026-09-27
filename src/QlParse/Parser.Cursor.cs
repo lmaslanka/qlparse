@@ -2,9 +2,9 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsDeclareCursor() => LooksLikeCursor(Keyword.Declare);
+    internal bool IsDeclareCursor() => LooksLikeCursor(Keyword.Declare);
 
-    private ConnectStatement ParseConnect()
+    internal ConnectStatement ParseConnect()
     {
         var connectKeyword = Advance();
         var toKeyword = ExpectIdent(Keyword.To);
@@ -43,7 +43,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DisconnectStatement ParseDisconnect()
+    internal DisconnectStatement ParseDisconnect()
     {
         var disconnectKeyword = Advance();
         var target = ParseConnectionObject(allowAll: true, allowCurrent: true);
@@ -55,7 +55,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetConnectionStatement ParseSetConnection()
+    internal SetConnectionStatement ParseSetConnection()
     {
         var setKeyword = Advance();
         var connectionKeyword = ExpectIdent(Keyword.Connection);
@@ -69,7 +69,7 @@ internal sealed partial class Parser
         };
     }
 
-    private Query ParseDeclareCursor()
+    internal Query ParseDeclareCursor()
     {
         var declareKeyword = Advance();
         var name = ParseCursorName();
@@ -118,7 +118,7 @@ internal sealed partial class Parser
         };
     }
 
-    private OpenStatement ParseOpen()
+    internal OpenStatement ParseOpen()
     {
         var openKeyword = Advance();
         var cursor = ParseCursorName();
@@ -130,7 +130,7 @@ internal sealed partial class Parser
         };
     }
 
-    private FetchStatement ParseFetchStatement()
+    internal FetchStatement ParseFetchStatement()
     {
         var fetchKeyword = Advance();
         SyntaxToken? orientation = null;
@@ -147,9 +147,12 @@ internal sealed partial class Parser
 
             fromKeyword = Expect(SyntaxKind.FromKeyword);
         }
-        else if (_current.Kind == SyntaxKind.FromKeyword)
+        else
         {
-            fromKeyword = Advance();
+            if (_current.Kind == SyntaxKind.FromKeyword)
+            {
+                fromKeyword = Advance();
+            }
         }
 
         var cursor = ParseCursorName();
@@ -168,7 +171,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CloseStatement ParseClose()
+    internal CloseStatement ParseClose()
     {
         var closeKeyword = Advance();
         var cursor = ParseCursorName();
@@ -180,7 +183,7 @@ internal sealed partial class Parser
         };
     }
 
-    private AllocateCursorStatement ParseAllocateCursor()
+    internal AllocateCursorStatement ParseAllocateCursor()
     {
         var allocateKeyword = Advance();
         var name = ParseCursorName();
@@ -202,7 +205,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DeallocateStatement ParseDeallocate()
+    internal DeallocateStatement ParseDeallocate()
     {
         var deallocateKeyword = Advance();
         if (!IdentifierEquals(Keyword.Prepare) && !IdentifierEquals(Keyword.Descriptor))
@@ -280,16 +283,19 @@ internal sealed partial class Parser
 
     private SyntaxToken ParseConnectionObject(bool allowAll, bool allowCurrent)
     {
-        if ((allowAll && _current.Kind == SyntaxKind.AllKeyword)
-            || (allowCurrent && IdentifierEquals(Keyword.Current))
-            || IdentifierEquals(Keyword.Default)
-            || IsSessionValue())
+        if (IsConnectionObjectStart(allowAll, allowCurrent))
         {
             return Advance();
         }
 
         throw new SqlParseException($"Expected connection, found {_current.Kind}", _current.Position);
     }
+
+    private bool IsConnectionObjectStart(bool allowAll, bool allowCurrent) =>
+        (allowAll && _current.Kind == SyntaxKind.AllKeyword)
+        || (allowCurrent && IdentifierEquals(Keyword.Current))
+        || IdentifierEquals(Keyword.Default)
+        || IsSessionValue();
 
     private SyntaxToken ParseCursorName()
     {
@@ -325,9 +331,12 @@ internal sealed partial class Parser
             index++;
             index++;
         }
-        else if (IsKeywordAt(index, Keyword.Scroll))
+        else
         {
-            index++;
+            if (IsKeywordAt(index, Keyword.Scroll))
+            {
+                index++;
+            }
         }
 
         return IsKeywordAt(index, Keyword.Cursor);

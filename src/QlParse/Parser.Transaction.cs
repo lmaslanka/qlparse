@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private StartTransactionStatement ParseStartTransaction()
+    internal StartTransactionStatement ParseStartTransaction()
     {
         var startKeyword = Advance();
         var transactionKeyword = ExpectIdent(Keyword.Transaction);
@@ -23,7 +23,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetTransactionStatement ParseSetTransaction()
+    internal SetTransactionStatement ParseSetTransaction()
     {
         var setKeyword = Advance();
         SyntaxToken? localKeyword = null;
@@ -44,7 +44,7 @@ internal sealed partial class Parser
         };
     }
 
-    private CommitStatement ParseCommit()
+    internal CommitStatement ParseCommit()
     {
         var commitKeyword = Advance();
         ParseWorkAndChain(out var work, out var andKeyword, out var noKeyword, out var chain);
@@ -60,7 +60,7 @@ internal sealed partial class Parser
         };
     }
 
-    private RollbackStatement ParseRollback()
+    internal RollbackStatement ParseRollback()
     {
         var rollbackKeyword = Advance();
         var work = IdentifierEquals(Keyword.Work) ? Advance() : (SyntaxToken?)null;
@@ -106,7 +106,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SavepointStatement ParseSavepoint()
+    internal SavepointStatement ParseSavepoint()
     {
         var savepointKeyword = Advance();
         var name = ParseSavepointName();
@@ -118,7 +118,7 @@ internal sealed partial class Parser
         };
     }
 
-    private ReleaseSavepointStatement ParseReleaseSavepoint()
+    internal ReleaseSavepointStatement ParseReleaseSavepoint()
     {
         var releaseKeyword = Advance();
         var savepointKeyword = ExpectIdent(Keyword.Savepoint);
@@ -132,7 +132,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetConstraintsStatement ParseSetConstraints()
+    internal SetConstraintsStatement ParseSetConstraints()
     {
         var setKeyword = Advance();
         var constraintsKeyword = ExpectIdent(Keyword.Constraints);
@@ -164,7 +164,7 @@ internal sealed partial class Parser
         };
     }
 
-    private Query ParseSetSession()
+    internal Query ParseSetSession()
     {
         var setKeyword = Advance();
         var sessionKeyword = Advance();
@@ -196,7 +196,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetNamesStatement ParseSetNames()
+    internal SetNamesStatement ParseSetNames()
     {
         var setKeyword = Advance();
         var namesKeyword = ExpectIdent(Keyword.Names);
@@ -222,7 +222,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetCharacterSetStatement ParseSetCharacterSet()
+    internal SetCharacterSetStatement ParseSetCharacterSet()
     {
         var setKeyword = Advance();
         var characterKeyword = ExpectIdent(Keyword.Character);
@@ -238,7 +238,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetCollationStatement ParseSetCollation()
+    internal SetCollationStatement ParseSetCollation()
     {
         var setKeyword = Advance();
         var collationKeyword = ExpectIdent(Keyword.Collation);
@@ -253,7 +253,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetTimeZoneStatement ParseSetTimeZone()
+    internal SetTimeZoneStatement ParseSetTimeZone()
     {
         var setKeyword = Advance();
         var timeKeyword = Expect(SyntaxKind.TimeKeyword);
@@ -282,7 +282,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetCatalogStatement ParseSetCatalog()
+    internal SetCatalogStatement ParseSetCatalog()
     {
         var setKeyword = Advance();
         var catalogKeyword = ExpectIdent(Keyword.Catalog);
@@ -297,7 +297,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetSchemaStatement ParseSetSchema()
+    internal SetSchemaStatement ParseSetSchema()
     {
         var setKeyword = Advance();
         var schemaKeyword = ExpectIdent(Keyword.Schema);
@@ -312,7 +312,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SetPathStatement ParseSetPath()
+    internal SetPathStatement ParseSetPath()
     {
         var setKeyword = Advance();
         var pathKeyword = ExpectIdent(Keyword.Path);

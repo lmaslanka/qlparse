@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private PrepareStatement ParsePrepare()
+    internal PrepareStatement ParsePrepare()
     {
         var prepareKeyword = Advance();
         var name = ParseScopedName(out var scope);
@@ -19,52 +19,24 @@ internal sealed partial class Parser
         };
     }
 
-    private ExecuteStatement ParseExecute()
+    internal ExecuteStatement ParseExecute()
     {
         var executeKeyword = Advance();
         var name = ParseScopedName(out var scope);
-        SyntaxToken? intoKeyword = null;
-        SyntaxToken? intoSql = null;
-        SyntaxToken? intoDescriptorKeyword = null;
-        SyntaxToken? intoDescriptorScope = null;
-        SyntaxToken? intoDescriptor = null;
-        IReadOnlyList<SyntaxToken>? targets = null;
-        if (IdentifierEquals(Keyword.Into))
-        {
-            intoKeyword = Advance();
-            if (IsDescriptorStart())
-            {
-                ParseDescriptorName(out intoSql, out var intoDescriptorKeywordToken, out intoDescriptorScope, out var intoDescriptorName);
-                intoDescriptorKeyword = intoDescriptorKeywordToken;
-                intoDescriptor = intoDescriptorName;
-            }
-            else
-            {
-                targets = ParseIntoTargets();
-            }
-        }
-
-        SyntaxToken? usingKeyword = null;
-        SyntaxToken? usingSql = null;
-        SyntaxToken? usingDescriptorKeyword = null;
-        SyntaxToken? usingDescriptorScope = null;
-        SyntaxToken? usingDescriptor = null;
-        IReadOnlyList<SyntaxToken>? arguments = null;
-        if (_current.Kind == SyntaxKind.UsingKeyword)
-        {
-            usingKeyword = Advance();
-            if (IsDescriptorStart())
-            {
-                ParseDescriptorName(out usingSql, out var usingDescriptorKeywordToken, out usingDescriptorScope, out var usingDescriptorName);
-                usingDescriptorKeyword = usingDescriptorKeywordToken;
-                usingDescriptor = usingDescriptorName;
-            }
-            else
-            {
-                arguments = ParseUsingArguments();
-            }
-        }
-
+        var into = ParseExecuteIntoClause();
+        var intoKeyword = into.IntoKeyword;
+        var intoSql = into.IntoSqlKeyword;
+        var intoDescriptorKeyword = into.IntoDescriptorKeyword;
+        var intoDescriptorScope = into.IntoDescriptorScope;
+        var intoDescriptor = into.IntoDescriptor;
+        var targets = into.Targets;
+        var usingClause = ParseExecuteUsingClause();
+        var usingKeyword = usingClause.UsingKeyword;
+        var usingSql = usingClause.UsingSqlKeyword;
+        var usingDescriptorKeyword = usingClause.UsingDescriptorKeyword;
+        var usingDescriptorScope = usingClause.UsingDescriptorScope;
+        var usingDescriptor = usingClause.UsingDescriptor;
+        var arguments = usingClause.Arguments;
         var end = name.Span;
         if (targets is { Count: > 0 })
         {
@@ -107,7 +79,57 @@ internal sealed partial class Parser
         };
     }
 
-    private ExecuteImmediateStatement ParseExecuteImmediate()
+    private readonly record struct ExecuteIntoClause(
+        SyntaxToken? IntoKeyword,
+        SyntaxToken? IntoSqlKeyword,
+        SyntaxToken? IntoDescriptorKeyword,
+        SyntaxToken? IntoDescriptorScope,
+        SyntaxToken? IntoDescriptor,
+        IReadOnlyList<SyntaxToken>? Targets);
+
+    private ExecuteIntoClause ParseExecuteIntoClause()
+    {
+        if (!IdentifierEquals(Keyword.Into))
+        {
+            return new ExecuteIntoClause(null, null, null, null, null, null);
+        }
+
+        var intoKeyword = Advance();
+        if (!IsDescriptorStart())
+        {
+            return new ExecuteIntoClause(intoKeyword, null, null, null, null, ParseIntoTargets());
+        }
+
+        ParseDescriptorName(out var intoSql, out var intoDescriptorKeyword, out var intoDescriptorScope, out var intoDescriptor);
+        return new ExecuteIntoClause(intoKeyword, intoSql, intoDescriptorKeyword, intoDescriptorScope, intoDescriptor, null);
+    }
+
+    private readonly record struct ExecuteUsingClause(
+        SyntaxToken? UsingKeyword,
+        SyntaxToken? UsingSqlKeyword,
+        SyntaxToken? UsingDescriptorKeyword,
+        SyntaxToken? UsingDescriptorScope,
+        SyntaxToken? UsingDescriptor,
+        IReadOnlyList<SyntaxToken>? Arguments);
+
+    private ExecuteUsingClause ParseExecuteUsingClause()
+    {
+        if (_current.Kind != SyntaxKind.UsingKeyword)
+        {
+            return new ExecuteUsingClause(null, null, null, null, null, null);
+        }
+
+        var usingKeyword = Advance();
+        if (!IsDescriptorStart())
+        {
+            return new ExecuteUsingClause(usingKeyword, null, null, null, null, ParseUsingArguments());
+        }
+
+        ParseDescriptorName(out var usingSql, out var usingDescriptorKeyword, out var usingDescriptorScope, out var usingDescriptor);
+        return new ExecuteUsingClause(usingKeyword, usingSql, usingDescriptorKeyword, usingDescriptorScope, usingDescriptor, null);
+    }
+
+    internal ExecuteImmediateStatement ParseExecuteImmediate()
     {
         var executeKeyword = Advance();
         var immediateKeyword = ExpectIdent(Keyword.Immediate);
@@ -121,7 +143,7 @@ internal sealed partial class Parser
         };
     }
 
-    private DescribeStatement ParseDescribe()
+    internal DescribeStatement ParseDescribe()
     {
         var describeKeyword = Advance();
         SyntaxToken? inputOrOutput = null;
@@ -157,7 +179,7 @@ internal sealed partial class Parser
         };
     }
 
-    private AllocateDescriptorStatement ParseAllocateDescriptor()
+    internal AllocateDescriptorStatement ParseAllocateDescriptor()
     {
         var allocateKeyword = Advance();
         SyntaxToken? sql = null;
@@ -200,7 +222,7 @@ internal sealed partial class Parser
         };
     }
 
-    private GetDiagnosticsStatement ParseGetDiagnostics()
+    internal GetDiagnosticsStatement ParseGetDiagnostics()
     {
         var getKeyword = Advance();
         var diagnosticsKeyword = ExpectIdent(Keyword.Diagnostics);
@@ -224,7 +246,7 @@ internal sealed partial class Parser
         };
     }
 
-    private SignalStatement ParseSignal()
+    internal SignalStatement ParseSignal()
     {
         var signalKeyword = Advance();
         ParseSignalValue(required: true, out var sqlState, out var valueKeyword, out var state, out var condition);
@@ -244,7 +266,7 @@ internal sealed partial class Parser
         };
     }
 
-    private ResignalStatement ParseResignal()
+    internal ResignalStatement ParseResignal()
     {
         var resignalKeyword = Advance();
         ParseSignalValue(required: false, out var sqlState, out var valueKeyword, out var state, out var condition);

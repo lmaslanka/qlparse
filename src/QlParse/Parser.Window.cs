@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private WindowSpecification ParseOver()
+    internal WindowSpecification ParseOver()
     {
         var overKeyword = Expect(SyntaxKind.OverKeyword);
         if (_current.Kind != SyntaxKind.OpenParen)
@@ -99,7 +99,9 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Exclude))
         {
             exclude = Advance();
-            (exclusion, exclusionTail) = ParseFrameExclusion();
+            var (exclusionToken, exclusionTailToken) = ParseFrameExclusion();
+            exclusion = exclusionToken;
+            exclusionTail = exclusionTailToken;
         }
 
         var endToken = exclusionTail ?? exclusion ?? end?.Endpoint ?? start.Endpoint;
@@ -200,7 +202,7 @@ internal sealed partial class Parser
         return Advance();
     }
 
-    private WindowClause ParseWindowClause()
+    internal WindowClause ParseWindowClause()
     {
         var windowKeyword = Expect(SyntaxKind.WindowKeyword);
         var windows = new List<WindowDefinition> { ParseWindowDefinition() };

@@ -2,7 +2,7 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private bool IsPtfInvocation()
+    internal bool IsPtfInvocation()
     {
         if (_current.Kind != SyntaxKind.Identifier || NextKind != SyntaxKind.OpenParen)
         {
@@ -47,7 +47,7 @@ internal sealed partial class Parser
         || TokenEquals(token, Keyword.Prune)
         || TokenEquals(token, Keyword.Semantics);
 
-    private PtfTable ParsePtf()
+    internal PtfTable ParsePtf()
     {
         var name = Advance();
         var openParen = Expect(SyntaxKind.OpenParen);
@@ -82,7 +82,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Copartition))
         {
             var copartition = Advance();
-            var openParen = Expect(SyntaxKind.OpenParen);
+            Expect(SyntaxKind.OpenParen);
             var names = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
             while (_current.Kind == SyntaxKind.Comma)
             {
@@ -116,72 +116,102 @@ internal sealed partial class Parser
         };
     }
 
+    private readonly record struct PtfAliasClause(SyntaxToken? AsKeyword, SyntaxToken? Alias);
+
+    private readonly record struct PtfPartitionClause(
+        SyntaxToken? PartitionKeyword,
+        SyntaxToken? PartitionByKeyword,
+        IReadOnlyList<Expression> PartitionList);
+
+    private readonly record struct PtfPruneClause(SyntaxToken? PruneKeyword, Expression? PruneWhen);
+
     private PtfArgument ParsePtfTableOrRow()
     {
         var kind = Advance();
-        var openParen = Expect(SyntaxKind.OpenParen);
-        Query? query = null;
-        IReadOnlyList<Expression> values = [];
-        if (TokenEquals(kind, Keyword.Table))
-        {
-            query = ParseQuery();
-        }
-        else if (_current.Kind != SyntaxKind.CloseParen)
-        {
-            values = ParseExpressionList();
-        }
-
+        Expect(SyntaxKind.OpenParen);
+        var (query, values) = ParsePtfTableOrRowBody(kind);
         var closeParen = Expect(SyntaxKind.CloseParen);
-        SyntaxToken? asKeyword = null;
-        SyntaxToken? alias = null;
-        if (_current.Kind == SyntaxKind.AsKeyword)
-        {
-            asKeyword = Advance();
-            alias = Expect(SyntaxKind.Identifier);
-        }
-
-        SyntaxToken? partition = null;
-        SyntaxToken? partitionBy = null;
-        IReadOnlyList<Expression> partitionList = [];
-        if (IdentifierEquals(Keyword.Partition))
-        {
-            partition = Advance();
-            partitionBy = Expect(SyntaxKind.ByKeyword);
-            partitionList = ParseExpressionList();
-        }
-
-        OrderByClause? orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
-        SyntaxToken? prune = null;
-        Expression? pruneWhen = null;
-        if (IdentifierEquals(Keyword.Prune))
-        {
-            prune = Advance();
-            Expect(SyntaxKind.WhenKeyword);
-            pruneWhen = ParseExpression();
-        }
-
+        var aliasClause = ParsePtfAliasClause();
+        var partitionClause = ParsePtfPartitionClause();
+        var orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
+        var pruneClause = ParsePtfPruneClause();
         var semantics = ParseSemantics(out var semanticsKeyword);
         var end = semanticsKeyword?.Span
-            ?? pruneWhen?.Span
+            ?? pruneClause.PruneWhen?.Span
             ?? orderBy?.Span
-            ?? (partitionList.Count > 0 ? partitionList[^1].Span : alias?.Span ?? closeParen.Span);
+            ?? (partitionClause.PartitionList.Count > 0
+                ? partitionClause.PartitionList[^1].Span
+                : aliasClause.Alias?.Span ?? closeParen.Span);
         return new PtfArgument
         {
             Span = SourceSpan.From(kind.Span, end),
             KindKeyword = kind,
             Query = query,
             Values = values,
-            AsKeyword = asKeyword,
-            Alias = alias,
-            PartitionKeyword = partition,
-            PartitionBy = partitionBy,
-            PartitionByList = partitionList,
+            AsKeyword = aliasClause.AsKeyword,
+            Alias = aliasClause.Alias,
+            PartitionKeyword = partitionClause.PartitionKeyword,
+            PartitionBy = partitionClause.PartitionByKeyword,
+            PartitionByList = partitionClause.PartitionList,
             OrderBy = orderBy,
-            PruneKeyword = prune,
-            Prune = pruneWhen,
+            PruneKeyword = pruneClause.PruneKeyword,
+            Prune = pruneClause.PruneWhen,
             SemanticsKeyword = semanticsKeyword,
             Names = semantics is SyntaxToken semanticsToken ? [semanticsToken] : [],
         };
+    }
+
+    private (Query? Query, IReadOnlyList<Expression> Values) ParsePtfTableOrRowBody(SyntaxToken kind)
+    {
+        if (TokenEquals(kind, Keyword.Table))
+        {
+            return (ParseQuery(), []);
+        }
+
+        if (_current.Kind != SyntaxKind.CloseParen)
+        {
+            return (null, ParseExpressionList());
+        }
+
+        return (null, []);
+    }
+
+    private PtfAliasClause ParsePtfAliasClause()
+    {
+        if (_current.Kind != SyntaxKind.AsKeyword)
+        {
+            return default;
+        }
+
+        var asKeyword = Advance();
+        var alias = Expect(SyntaxKind.Identifier);
+        return new PtfAliasClause(asKeyword, alias);
+    }
+
+    private PtfPartitionClause ParsePtfPartitionClause()
+    {
+        if (!IdentifierEquals(Keyword.Partition))
+        {
+            return new PtfPartitionClause(null, null, []);
+        }
+
+        var partition = Advance();
+        var partitionBy = Expect(SyntaxKind.ByKeyword);
+        var partitionList = ParseExpressionList();
+        return new PtfPartitionClause(partition, partitionBy, partitionList);
+    }
+
+    private PtfPruneClause ParsePtfPruneClause()
+    {
+        if (!IdentifierEquals(Keyword.Prune))
+        {
+            return default;
+        }
+
+        var prune = Advance();
+        Expect(SyntaxKind.WhenKeyword);
+        var pruneWhen = ParseExpression();
+        return new PtfPruneClause(prune, pruneWhen);
     }
 
     private SyntaxToken? ParseSemantics(out SyntaxToken? semanticsKeyword)

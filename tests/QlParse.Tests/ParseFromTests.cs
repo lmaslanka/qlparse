@@ -33,14 +33,14 @@ public sealed class ParseFromTests
     [Fact]
     public void Parses_quoted_table_name()
     {
-        var table = Assert.IsType<TableReference>(SqlAssert.Select("select * from \"from\"").From);
+        var table = Assert.IsType<TableReference>(SqlAssert.Select(@"select * from ""from""").From);
         Assert.Equal(SyntaxKind.Identifier, table.NameParts[0].Kind);
     }
 
     [Fact]
     public void Parses_unicode_delimited_table_name()
     {
-        var table = Assert.IsType<TableReference>(SqlAssert.Select("select * from U&\"from\"").From);
+        var table = Assert.IsType<TableReference>(SqlAssert.Select(@"select * from U&""from""").From);
         Assert.Equal(SyntaxKind.Identifier, table.NameParts[0].Kind);
         Assert.Null(table.Alias);
     }
@@ -48,7 +48,7 @@ public sealed class ParseFromTests
     [Fact]
     public void Parses_character_set_introducer_table_name()
     {
-        var table = Assert.IsType<TableReference>(SqlAssert.Select("select * from _latin1\"from\"").From);
+        var table = Assert.IsType<TableReference>(SqlAssert.Select(@"select * from _latin1""from""").From);
         Assert.Single(table.NameParts);
         Assert.Equal(SyntaxKind.Identifier, table.NameParts[0].Kind);
         Assert.Null(table.Alias);
