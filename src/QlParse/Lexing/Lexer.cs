@@ -79,6 +79,11 @@ internal sealed class Lexer
         }
 
         var ch = _source[_position];
+        if (IsEscapeStringStart(ch))
+        {
+            return ReadEscapeString(triviaStart, triviaCount);
+        }
+
         if (IsPrefixedStringStart(ch))
         {
             return ReadString(triviaStart, triviaCount, prefixed: true);
@@ -92,6 +97,15 @@ internal sealed class Lexer
         if (IsUnicodeStringStart(ch))
         {
             return ReadUnicodeString(triviaStart, triviaCount);
+        }
+
+        if (ch == '$' && (_flags & SqlOptions.Postgres) != 0)
+        {
+            var dollarQuoted = TryReadDollarQuotedString(triviaStart, triviaCount);
+            if (dollarQuoted is not null)
+            {
+                return dollarQuoted;
+            }
         }
 
         if (IsIdentifierStart(ch))
@@ -421,14 +435,164 @@ internal sealed class Lexer
     {
         var start = _position;
         _position += UnicodeDelimitedPrefixLength;
-        return ReadQuotedIdentifier(triviaStart, triviaCount, start);
+        var token = ReadQuotedIdentifier(triviaStart, triviaCount, start);
+        return ExtendWithUescapeClause(token, start);
     }
 
     private SyntaxToken ReadUnicodeString(int triviaStart, int triviaCount)
     {
         var start = _position;
         _position += UnicodeDelimitedPrefixLength;
-        return ReadString(triviaStart, triviaCount, start);
+        var token = ReadString(triviaStart, triviaCount, start);
+        return ExtendWithUescapeClause(token, start);
+    }
+
+    private bool IsEscapeStringStart(char ch) =>
+        (_flags & SqlOptions.Postgres) != 0 && ch is 'E' or 'e' && Peek() == StringQuote;
+
+    private SyntaxToken ReadEscapeString(int triviaStart, int triviaCount)
+    {
+        var start = _position;
+        _position += TwoCharTokenLength;
+        while (_position < _length)
+        {
+            if (_source[_position] == '\\' && _position + 1 < _length)
+            {
+                _position += TwoCharTokenLength;
+                continue;
+            }
+
+            if (_source[_position] != StringQuote)
+            {
+                _position++;
+                continue;
+            }
+
+            if (Peek() == StringQuote)
+            {
+                _position += TwoCharTokenLength;
+                continue;
+            }
+
+            _position++;
+            return new SyntaxToken(SyntaxKind.String, start, _position - start, triviaStart, triviaCount);
+        }
+
+        throw new SqlParseException("Unterminated string", start);
+    }
+
+    private SyntaxToken? TryReadDollarQuotedString(int triviaStart, int triviaCount)
+    {
+        var start = _position;
+        var tagEnd = FindDollarQuoteTagEnd(start);
+        if (tagEnd is null)
+        {
+            return null;
+        }
+
+        var tag = _source[start..(tagEnd.Value + 1)];
+        var contentStart = tagEnd.Value + 1;
+        var closeIndex = _source.IndexOf(tag, contentStart, StringComparison.Ordinal);
+        if (closeIndex < 0)
+        {
+            throw new SqlParseException("Unterminated dollar-quoted string", start);
+        }
+
+        _position = closeIndex + tag.Length;
+        return new SyntaxToken(SyntaxKind.String, start, _position - start, triviaStart, triviaCount);
+    }
+
+    private int? FindDollarQuoteTagEnd(int dollarPosition)
+    {
+        var index = dollarPosition + 1;
+        if (index >= _length)
+        {
+            return null;
+        }
+
+        if (_source[index] == '$')
+        {
+            return index;
+        }
+
+        if (!IsIdentifierStart(_source[index]))
+        {
+            return null;
+        }
+
+        index++;
+        while (index < _length && _source[index] != '$' && IsIdentifierPart(_source[index]))
+        {
+            index++;
+        }
+
+        return index < _length && _source[index] == '$' ? index : null;
+    }
+
+    private SyntaxToken ExtendWithUescapeClause(SyntaxToken token, int start)
+    {
+        TryConsumeUescapeClause();
+        var length = _position - start;
+        return length == token.Length ? token : token with { Length = length };
+    }
+
+    private void TryConsumeUescapeClause()
+    {
+        if ((_flags & SqlOptions.Postgres) == 0)
+        {
+            return;
+        }
+
+        var resume = _position;
+        SkipWhitespace();
+        if (!TryMatchWordAhead("UESCAPE"))
+        {
+            _position = resume;
+            return;
+        }
+
+        SkipWhitespace();
+        if (!TryReadEscapeCharLiteralLength(out var length))
+        {
+            _position = resume;
+            return;
+        }
+
+        _position += length;
+    }
+
+    private bool TryMatchWordAhead(string word)
+    {
+        if (_position + word.Length > _length
+            || !_source.AsSpan(_position, word.Length).Equals(word, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var afterPosition = _position + word.Length;
+        if (afterPosition < _length && IsIdentifierPart(_source[afterPosition]))
+        {
+            return false;
+        }
+
+        _position = afterPosition;
+        return true;
+    }
+
+    private bool TryReadEscapeCharLiteralLength(out int length)
+    {
+        length = 0;
+        const int EscapeCharLiteralLength = 3;
+        if (_position + EscapeCharLiteralLength > _length
+            || _source[_position] != StringQuote
+            || _source[_position + 1] == StringQuote
+            || _source[_position + 2] != StringQuote)
+        {
+            return false;
+        }
+
+        length = EscapeCharLiteralLength;
+        return true;
     }
 
     private SyntaxToken ReadString(int triviaStart, int triviaCount, bool prefixed)

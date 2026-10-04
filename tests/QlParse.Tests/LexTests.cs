@@ -394,6 +394,118 @@ public sealed class LexTests
         Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
     }
 
+    [Theory]
+    [InlineData("$$hello$$")]
+    [InlineData("$tag$hello$tag$")]
+    [InlineData("$tag$it's $notclosing$ still open$tag$")]
+    [InlineData("$$line1\nline2$$")]
+    public void Postgres_dollar_quoted_string(string text)
+    {
+        var result = Sql.Lex(text, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
+    public void Dollar_quoted_string_requires_postgres_flag()
+    {
+        Assert.Equal(
+            [SyntaxKind.DollarToken, SyntaxKind.DollarToken, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds("$$hello$$"));
+    }
+
+    [Fact]
+    public void Unterminated_dollar_quoted_string_sets_error()
+    {
+        var result = Sql.Lex("$$oops", SqlOptions.Postgres);
+        Assert.IsType<SqlParseException>(result.Error);
+    }
+
+    [Fact]
+    public void Dollar_sign_without_matching_tag_is_not_a_dollar_quote()
+    {
+        var result = Sql.Lex("$1", SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(
+            [SyntaxKind.DollarToken, SyntaxKind.Number, SyntaxKind.EndOfFile],
+            result.Tokens.Select(t => t.Kind));
+    }
+
+    [Theory]
+    [InlineData(@"E'plain'")]
+    [InlineData(@"e'plain'")]
+    [InlineData(@"E'it\'s here'")]
+    [InlineData(@"E'a\\b'")]
+    [InlineData(@"E'tab\tnewline\n'")]
+    [InlineData(@"E'A'")]
+    public void Postgres_escape_string(string text)
+    {
+        var result = Sql.Lex(text, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
+    public void Escape_string_requires_postgres_flag()
+    {
+        Assert.Equal(
+            [SyntaxKind.Identifier, SyntaxKind.String, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds("E'plain'"));
+    }
+
+    [Fact]
+    public void Unterminated_escape_string_sets_error()
+    {
+        var result = Sql.Lex(@"E'oops", SqlOptions.Postgres);
+        Assert.IsType<SqlParseException>(result.Error);
+    }
+
+    [Fact]
+    public void Plain_string_backslash_is_not_an_escape()
+    {
+        var text = @"'plain \n string'";
+        var result = Sql.Lex(text, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(SyntaxKind.String, result.Tokens[0].Kind);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Theory]
+    [InlineData(@"U&'d\0061ta' UESCAPE '!'")]
+    [InlineData(@"U&""d\0061ta"" UESCAPE '!'")]
+    public void Uescape_clause_extends_unicode_literal(string text)
+    {
+        var result = Sql.Lex(text, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(2, result.Tokens.Count);
+        Assert.Equal(text, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
+    public void Uescape_clause_requires_postgres_flag()
+    {
+        var text = @"U&'foo' UESCAPE '!'";
+        var result = Sql.Lex(text);
+        Assert.Null(result.Error);
+        Assert.Equal(
+            [SyntaxKind.String, SyntaxKind.Identifier, SyntaxKind.String, SyntaxKind.EndOfFile],
+            result.Tokens.Select(t => t.Kind));
+    }
+
+    [Theory]
+    [InlineData("U&'foo' UESCAPE")]
+    [InlineData("U&'foo' UESCAPEX '!'")]
+    [InlineData("U&'foo' UESCAPE 'xy'")]
+    [InlineData("U&'foo' UESCAPE ''''")]
+    public void Malformed_uescape_clause_is_not_consumed(string text)
+    {
+        var result = Sql.Lex(text, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal("U&'foo'", result.Tokens[0].TextOf(result.Source).ToString());
+    }
+
     [Fact]
     public void Line_comment_is_leading_trivia()
     {

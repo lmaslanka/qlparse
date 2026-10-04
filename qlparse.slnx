@@ -3,6 +3,7 @@
     <Project Path="src/QlParse/QlParse.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/QlParse.ArchitectureTests/QlParse.ArchitectureTests.csproj" />
     <Project Path="tests/QlParse.Tests/QlParse.Tests.csproj" />
   </Folder>
 </Solution>
