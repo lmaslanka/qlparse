@@ -14,10 +14,10 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 
 ### Operators and parameters
 - [x] `::` cast operator
-- [ ] Positional parameters (`$1` `$2` …)
-- [ ] Named function argument notation (`=>`)
-- [ ] Array subscript and slice syntax (`arr[2]` `arr[1:3]`)
-- [ ] Custom/user-defined operator tokens (arbitrary operator-character sequences)
+- [x] Positional parameters (`$1` `$2` …)
+- [x] Named function argument notation (`=>`)
+- [x] Array subscript and slice syntax (`arr[2]` `arr[1:3]`)
+- [x] Custom/user-defined operator tokens (arbitrary operator-character sequences)
 
 ## Data types
 - [x] `SERIAL` `SMALLSERIAL` `BIGSERIAL` (implicit sequence + default)
@@ -39,19 +39,19 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `TXID_SNAPSHOT` / `PG_SNAPSHOT`
 
 ## Operators
-- [ ] Array operators (`@>` `<@` `&&` `||` concatenation)
-- [ ] JSON/JSONB operators (`->` `->>` `#>` `#>>` `@>` `<@` `?` `?|` `?&` `-` `#-` `@?` `@@`)
-- [ ] Regular expression match operators (`~` `~*` `!~` `!~*`)
-- [ ] `ILIKE` / `NOT ILIKE`
-- [ ] Range operators (`@>` `<@` `&&` `<<` `>>` `&<` `&>` `-|-`)
-- [ ] Network/inet operators (`<<` `<<=` `>>` `>>=` `&&` `~` `&` `|`)
-- [ ] Geometric operators (`<->` `&&` `<<` `>>` `<^` `>^` `?#` `@>` `<@` `~=`)
+- [x] Array operators (`@>` `<@` `&&` `||` concatenation)
+- [x] JSON/JSONB operators (`->` `->>` `#>` `#>>` `@>` `<@` `?` `?|` `?&` `-` `#-` `@?` `@@`)
+- [x] Regular expression match operators (`~` `~*` `!~` `!~*`)
+- [x] `ILIKE` / `NOT ILIKE`
+- [x] Range operators (`@>` `<@` `&&` `<<` `>>` `&<` `&>` `-|-`)
+- [x] Network/inet operators (`<<` `<<=` `>>` `>>=` `&&` `~` `&` `|`)
+- [x] Geometric operators (`<->` `&&` `<<` `>>` `<^` `>^` `?#` `@>` `<@` `~=`)
 - [ ] `CREATE OPERATOR` custom infix/prefix operator definitions
 
 ## Functions
 
 ### Array
-- [ ] `unnest()`
+- [x] `unnest()`
 - [x] `array_agg()`
 - [x] `array_length()` `array_upper()` `array_lower()` `array_ndims()`
 - [x] `array_append()` `array_prepend()` `array_cat()` `array_remove()` `array_replace()`
@@ -78,7 +78,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `regexp_matches()` `regexp_replace()` `regexp_split_to_array()` `regexp_split_to_table()` `regexp_count()`
 - [x] `to_char()` `to_number()` `to_date()` `to_timestamp()`
 - [x] `quote_ident()` `quote_literal()` `quote_nullable()`
-- [ ] `left()` `right()` `lpad()` `rpad()`
+- [x] `left()` `right()` `lpad()` `rpad()`
 - [x] `starts_with()`
 
 ### Date / time
@@ -94,7 +94,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [ ] `ROWS FROM (...)` combining multiple function calls column-wise
 
 ### Aggregates
-- [ ] `string_agg()`
+- [x] `string_agg()`
 - [x] `array_agg()` / `jsonb_agg()` / `jsonb_object_agg()` as built-ins
 - [ ] `CREATE AGGREGATE` custom aggregate definitions
 
@@ -265,12 +265,12 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [ ] `ALTER SYSTEM SET parameter = value`
 
 ## Full text search
-- [ ] `@@` tsvector/tsquery match operator
+- [x] `@@` tsvector/tsquery match operator
 - [x] `to_tsvector()` `to_tsquery()` `plainto_tsquery()` `phraseto_tsquery()` `websearch_to_tsquery()`
 - [x] `ts_rank()` / `ts_rank_cd()`
 - [x] `ts_headline()`
 - [x] `setweight()`
-- [ ] tsquery combinators (`&&` AND, `||` OR, `!!` NOT, `<->` FOLLOWED BY)
+- [x] tsquery combinators (`&&` AND, `||` OR, `!!` NOT, `<->` FOLLOWED BY)
 - [ ] `CREATE TEXT SEARCH CONFIGURATION`
 - [ ] `CREATE TEXT SEARCH DICTIONARY`
 - [ ] `CREATE TEXT SEARCH PARSER`
