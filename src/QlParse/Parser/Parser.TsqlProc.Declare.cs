@@ -91,14 +91,14 @@ internal sealed partial class Parser
     internal TsqlTableDefinition ParseTsqlTableDefinition()
     {
         var tableKeyword = ExpectIdent(Keyword.Table);
-        ParseTableElements(out var openParen, out var elements, out var closeParen);
+        var body = ParseTsqlTableElements();
         return new TsqlTableDefinition
         {
-            Span = SourceSpan.From(tableKeyword, closeParen),
+            Span = SourceSpan.From(tableKeyword, body.CloseParen),
             TableKeyword = tableKeyword,
-            OpenParen = openParen,
-            Elements = elements,
-            CloseParen = closeParen,
+            OpenParen = body.OpenParen,
+            Elements = body.Elements,
+            CloseParen = body.CloseParen,
         };
     }
 

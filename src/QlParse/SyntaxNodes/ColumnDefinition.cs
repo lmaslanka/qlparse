@@ -15,5 +15,11 @@ public sealed class ColumnDefinition : TableElement
     public IReadOnlyList<SyntaxToken>? ScopeName { get; init; }
     public IReadOnlyList<TableConstraint> Constraints { get; init; } = [];
 
-    public PgColumnExtras? Postgres { get; init; }
+    // Postgres and SQL Server extras share one slot (no node carries both), so the T-SQL holder adds nothing
+    // to ISO instances.
+    private readonly object? _dialect;
+
+    public PgColumnExtras? Postgres { get => _dialect as PgColumnExtras; init => _dialect ??= value; }
+
+    public TsqlColumnExtras? SqlServer { get => _dialect as TsqlColumnExtras; init => _dialect ??= value; }
 }

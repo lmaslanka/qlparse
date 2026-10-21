@@ -343,9 +343,9 @@ internal sealed partial class Parser
             }
             else
             {
-                if (IsPgTableReferenceTail())
+                if (TryParseDialectTableReferenceTail(nameParts, systemTime) is { } tail)
                 {
-                    return ParsePgTableReferenceTail(nameParts, systemTime);
+                    return tail;
                 }
             }
         }
@@ -388,10 +388,20 @@ internal sealed partial class Parser
     private bool IsBareTableAlias() =>
         _current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize) && !IsPgReservedClauseWord();
 
-    // Postgres: `name *` (explicit descendant inclusion) or `ROWS FROM (...)`.
+    // Postgres: `name *` (explicit descendant inclusion) or `ROWS FROM (...)`; SQL Server: `name FOR PATH [AS] alias`.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private bool IsPgTableReferenceTail() =>
-        IsPostgres && _current.Kind is SyntaxKind.Star or SyntaxKind.FromKeyword;
+    private TableSource? TryParseDialectTableReferenceTail(IReadOnlyList<SyntaxToken> nameParts, SystemTimeClause? systemTime) =>
+        IsPostgresOrSqlServer ? ParseDialectTableReferenceTail(nameParts, systemTime) : null;
+
+    private TableSource? ParseDialectTableReferenceTail(IReadOnlyList<SyntaxToken> nameParts, SystemTimeClause? systemTime)
+    {
+        if (IsPostgres)
+        {
+            return _current.Kind is SyntaxKind.Star or SyntaxKind.FromKeyword ? ParsePgTableReferenceTail(nameParts, systemTime) : null;
+        }
+
+        return _current.Kind == SyntaxKind.ForKeyword && NextEquals(Keyword.Path) ? ParseTsqlGraphPathTable(nameParts) : null;
+    }
 
     private SystemTimeClause? ParseSystemTime()
     {

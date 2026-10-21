@@ -20,5 +20,12 @@ public sealed class CreateViewStatement : Query
     public SyntaxToken? Levels { get; init; }
     public SyntaxToken? CheckKeyword { get; init; }
     public SyntaxToken? OptionKeyword { get; init; }
-    public PgCreateViewExtras? Postgres { get; init; }
+
+    // Postgres and SQL Server extras share one slot (no node carries both), so the T-SQL holder adds nothing
+    // to ISO instances.
+    private readonly object? _dialect;
+
+    public PgCreateViewExtras? Postgres { get => _dialect as PgCreateViewExtras; init => _dialect ??= value; }
+
+    public TsqlCreateViewExtras? SqlServer { get => _dialect as TsqlCreateViewExtras; init => _dialect ??= value; }
 }

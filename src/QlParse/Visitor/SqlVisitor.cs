@@ -478,7 +478,8 @@ public partial class SqlVisitor
             return;
         }
 
-        if (TryVisitTsqlLexicalExpression(expression) || TryVisitTsqlExpression(expression) || TryVisitTsqlDmlExpression(expression))
+        if (TryVisitTsqlLexicalExpression(expression) || TryVisitTsqlExpression(expression)
+            || TryVisitTsqlDmlExpression(expression) || TryVisitTsqlDdlExpression(expression))
         {
             return;
         }

@@ -28,5 +28,12 @@ public sealed class CreateTableStatement : Query
     public SyntaxToken? RowsKeyword { get; init; }
     public SyntaxToken? SystemKeyword { get; init; }
     public SyntaxToken? VersioningKeyword { get; init; }
-    public PgCreateTableExtras? Postgres { get; init; }
+
+    // Postgres and SQL Server extras share one slot (no node carries both), so the T-SQL holder adds nothing
+    // to ISO instances.
+    private readonly object? _dialect;
+
+    public PgCreateTableExtras? Postgres { get => _dialect as PgCreateTableExtras; init => _dialect ??= value; }
+
+    public TsqlCreateTableExtras? SqlServer { get => _dialect as TsqlCreateTableExtras; init => _dialect ??= value; }
 }
