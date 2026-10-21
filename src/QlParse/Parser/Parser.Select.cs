@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace QlParse;
 
 internal sealed partial class Parser
@@ -19,12 +21,10 @@ internal sealed partial class Parser
             Span = SourceSpan.From(selectKeyword, end),
             SelectKeyword = selectKeyword,
             DistinctKeyword = distinct,
-            DistinctOn = distinctOn,
             AllKeyword = all,
             SelectList = selectList,
             IntoKeyword = into.IntoKeyword,
             IntoTargets = into.IntoTargets,
-            IntoTable = into.IntoTable,
             FromKeyword = fromClause.FromKeyword,
             From = fromClause.From,
             Joins = fromClause.Joins,
@@ -38,8 +38,13 @@ internal sealed partial class Parser
             Offset = tail.Offset,
             Fetch = tail.Fetch,
             Lock = tail.Lock,
+            Postgres = BuildPgSelectExtras(distinctOn, into.IntoTable),
         };
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static PgSelectExtras? BuildPgSelectExtras(DistinctOnClause? distinctOn, SelectIntoTable? intoTable) =>
+        distinctOn is null && intoTable is null ? null : new PgSelectExtras { DistinctOn = distinctOn, IntoTable = intoTable };
 
     private readonly record struct IntoClause(
         SyntaxToken? IntoKeyword,
@@ -470,7 +475,7 @@ internal sealed partial class Parser
             {
                 Span = SourceSpan.From(limitKeyword, allKeyword),
                 LimitKeyword = limitKeyword,
-                AllKeyword = allKeyword,
+                Postgres = new PgLimitExtras { AllKeyword = allKeyword },
             };
         }
 

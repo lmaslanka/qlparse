@@ -30,16 +30,11 @@ internal sealed partial class Parser
         && _index + 1 < _tokens.Count
         && _tokens[_index + 1].Kind is SyntaxKind.Identifier or SyntaxKind.OnlyKeyword;
 
-    internal MaterializationClause ParseCteMaterialization()
+    internal PgCteExtras ParseCteMaterialization()
     {
         var notKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : (SyntaxToken?)null;
         var materializedKeyword = ExpectIdent(Keyword.Materialized);
-        return new MaterializationClause
-        {
-            Span = SourceSpan.From(notKeyword ?? materializedKeyword, materializedKeyword),
-            NotKeyword = notKeyword,
-            MaterializedKeyword = materializedKeyword,
-        };
+        return new PgCteExtras { NotKeyword = notKeyword, MaterializedKeyword = materializedKeyword };
     }
 
     // PG14: CYCLE columns SET mark USING path, with the TO/DEFAULT mark values omitted.
@@ -101,9 +96,9 @@ internal sealed partial class Parser
     internal LockClauses ParsePgLockTail(LockClause first, LimitOffsetFetch leading)
     {
         var last = first;
-        while (last.NextLock is not null)
+        while (last.Postgres?.NextLock is { } next)
         {
-            last = last.NextLock;
+            last = next;
         }
 
         if (leading.End is not null)
@@ -134,24 +129,41 @@ internal sealed partial class Parser
         var strength = ParsePgLockStrength();
         ParseLockColumns(out var ofKeyword, out var columns);
         var wait = ParsePgLockWait();
-        var end = wait?.Span ?? (columns is null ? strength.Last.Span : columns[^1].Span);
+        var end = wait.End ?? (columns is null ? strength.Last : columns[^1]);
         var next = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
         return new LockClause
         {
             Span = SourceSpan.From(forKeyword, end),
             ForKeyword = forKeyword,
-            Modifier = strength.Modifier,
             UpdateKeyword = strength.UpdateKeyword,
             ShareKeyword = strength.ShareKeyword,
             OfKeyword = ofKeyword,
             Columns = columns,
-            WaitPolicy = wait,
+            Postgres = BuildPgLockExtras(strength, wait, next),
+        };
+    }
+
+    private static PgLockExtras? BuildPgLockExtras(PgLockStrength strength, PgLockWait wait, LockClause? next)
+    {
+        if (strength.KeyKeyword is null && wait.End is null && next is null)
+        {
+            return null;
+        }
+
+        return new PgLockExtras
+        {
+            NoKeyword = strength.NoKeyword,
+            KeyKeyword = strength.KeyKeyword,
+            NowaitKeyword = wait.NowaitKeyword,
+            SkipKeyword = wait.SkipKeyword,
+            LockedKeyword = wait.LockedKeyword,
             NextLock = next,
         };
     }
 
     private readonly record struct PgLockStrength(
-        LockStrengthModifier? Modifier,
+        SyntaxToken? NoKeyword,
+        SyntaxToken? KeyKeyword,
         SyntaxToken? UpdateKeyword,
         SyntaxToken? ShareKeyword,
         SyntaxToken Last);
@@ -161,13 +173,13 @@ internal sealed partial class Parser
         if (_current.Kind == SyntaxKind.UpdateKeyword)
         {
             var updateKeyword = Advance();
-            return new PgLockStrength(null, updateKeyword, null, updateKeyword);
+            return new PgLockStrength(null, null, updateKeyword, null, updateKeyword);
         }
 
         if (IdentifierEquals(Keyword.Share))
         {
             var shareKeyword = Advance();
-            return new PgLockStrength(null, null, shareKeyword, shareKeyword);
+            return new PgLockStrength(null, null, null, shareKeyword, shareKeyword);
         }
 
         if (IdentifierEquals(Keyword.No))
@@ -175,41 +187,36 @@ internal sealed partial class Parser
             var noKeyword = Advance();
             var keyKeyword = ExpectIdent(Keyword.Key);
             var updateKeyword = Expect(SyntaxKind.UpdateKeyword);
-            var modifier = new LockStrengthModifier { Span = SourceSpan.From(noKeyword, keyKeyword), NoKeyword = noKeyword, KeyKeyword = keyKeyword };
-            return new PgLockStrength(modifier, updateKeyword, null, updateKeyword);
+            return new PgLockStrength(noKeyword, keyKeyword, updateKeyword, null, updateKeyword);
         }
 
         if (IdentifierEquals(Keyword.Key))
         {
             var keyKeyword = Advance();
             var shareKeyword = ExpectIdent(Keyword.Share);
-            var modifier = new LockStrengthModifier { Span = keyKeyword.Span, KeyKeyword = keyKeyword };
-            return new PgLockStrength(modifier, null, shareKeyword, shareKeyword);
+            return new PgLockStrength(null, keyKeyword, null, shareKeyword, shareKeyword);
         }
 
         throw new SqlParseException("Expected READ, UPDATE, NO KEY UPDATE, SHARE, or KEY SHARE", _current.Position);
     }
 
-    private LockWaitPolicy? ParsePgLockWait()
+    private readonly record struct PgLockWait(SyntaxToken? NowaitKeyword, SyntaxToken? SkipKeyword, SyntaxToken? LockedKeyword, SyntaxToken? End);
+
+    private PgLockWait ParsePgLockWait()
     {
         if (IdentifierEquals(Keyword.Nowait))
         {
             var nowaitKeyword = Advance();
-            return new LockWaitPolicy { Span = nowaitKeyword.Span, NowaitKeyword = nowaitKeyword };
+            return new PgLockWait(nowaitKeyword, null, null, nowaitKeyword);
         }
 
         if (!IdentifierEquals(Keyword.Skip))
         {
-            return null;
+            return default;
         }
 
         var skipKeyword = Advance();
         var lockedKeyword = ExpectIdent(Keyword.Locked);
-        return new LockWaitPolicy
-        {
-            Span = SourceSpan.From(skipKeyword, lockedKeyword),
-            SkipKeyword = skipKeyword,
-            LockedKeyword = lockedKeyword,
-        };
+        return new PgLockWait(null, skipKeyword, lockedKeyword, lockedKeyword);
     }
 }

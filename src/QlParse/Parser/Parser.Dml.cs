@@ -11,15 +11,13 @@ internal sealed partial class Parser
         var tableName = ParseQualifiedName();
         var alias = _current.Kind == SyntaxKind.AsKeyword && IsPostgres ? ParseInsertAlias() : default;
         var source = ParseInsertSource();
-        var pg = IsPostgres ? ParsePgInsertTail() : default;
+        var pg = IsPostgres ? ParsePgInsertTail(alias) : default;
         return new InsertStatement
         {
             Span = SourceSpan.From(insertKeyword.Span, pg.End ?? source.End),
             InsertKeyword = insertKeyword,
             IntoKeyword = intoKeyword,
             TableName = tableName,
-            AsKeyword = alias.AsKeyword,
-            Alias = alias.Alias,
             ColumnOpenParen = source.ColumnOpenParen,
             Columns = source.Columns,
             ColumnCloseParen = source.ColumnCloseParen,
@@ -27,8 +25,7 @@ internal sealed partial class Parser
             DefaultKeyword = source.DefaultKeyword,
             ValuesKeyword = source.ValuesKeyword,
             Query = source.Query,
-            OnConflict = pg.OnConflict,
-            Returning = pg.Returning,
+            Postgres = pg.Extras,
         };
     }
 
@@ -72,17 +69,13 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(updateKeyword, end),
             UpdateKeyword = updateKeyword,
-            Target = target,
+            Target = target.Table,
             Portion = portion,
             SetKeyword = setKeyword,
             Assignments = assignments,
-            FromKeyword = from.FromKeyword,
-            From = from.From,
-            Joins = from.Joins,
-            ExtraFrom = from.ExtraFrom,
             Where = where,
             Positioned = positioned,
-            Returning = returning,
+            Postgres = IsPostgres ? BuildPgUpdateExtras(target.DescendantStar, from, returning) : null,
         };
     }
 
@@ -97,21 +90,17 @@ internal sealed partial class Parser
         var usingClause = _current.Kind == SyntaxKind.UsingKeyword && IsPostgres ? ParsePgUsingClause() : EmptyFromClause;
         ParseDmlWhere(out var where, out var positioned);
         var returning = IsPostgres ? ParseOptionalReturning() : null;
-        var end = returning?.Span ?? positioned?.Span ?? where?.Span ?? usingClause.End ?? target.Span;
+        var end = returning?.Span ?? positioned?.Span ?? where?.Span ?? usingClause.End ?? target.Table.Span;
         return new DeleteStatement
         {
             Span = SourceSpan.From(deleteKeyword, end),
             DeleteKeyword = deleteKeyword,
             FromKeyword = fromKeyword,
-            Target = target,
+            Target = target.Table,
             Portion = portion,
-            UsingKeyword = usingClause.FromKeyword,
-            Using = usingClause.From,
-            UsingJoins = usingClause.Joins,
-            ExtraUsing = usingClause.ExtraFrom,
             Where = where,
             Positioned = positioned,
-            Returning = returning,
+            Postgres = IsPostgres ? BuildPgDeleteExtras(target.DescendantStar, usingClause, returning) : null,
         };
     }
 
@@ -142,14 +131,16 @@ internal sealed partial class Parser
             Span = SourceSpan.From(mergeKeyword.Span, returning?.Span ?? whens[^1].Span),
             MergeKeyword = mergeKeyword,
             IntoKeyword = intoKeyword,
-            Target = target,
+            Target = target.Table,
             UsingKeyword = usingKeyword,
             Source = source,
             SourceJoins = joins,
             OnKeyword = onKeyword,
             Condition = condition,
             Whens = whens,
-            Returning = returning,
+            Postgres = target.DescendantStar is null && returning is null
+                ? null
+                : new PgMergeExtras { TargetDescendantStar = target.DescendantStar, Returning = returning },
         };
     }
 
@@ -240,7 +231,9 @@ internal sealed partial class Parser
         return name;
     }
 
-    private TargetTable ParseTargetTable()
+    internal readonly record struct ParsedTargetTable(TargetTable Table, SyntaxToken? DescendantStar);
+
+    private ParsedTargetTable ParseTargetTable()
     {
         var targetName = _current.Kind == SyntaxKind.OnlyKeyword ? ParseOnlyTargetName() : new TargetName(null, null, ParseQualifiedName(), null);
         var only = targetName.OnlyKeyword;
@@ -266,17 +259,17 @@ internal sealed partial class Parser
         }
 
         var end = alias ?? star ?? close ?? name[^1];
-        return new TargetTable
+        var table = new TargetTable
         {
             Span = SourceSpan.From(start, end),
             OnlyKeyword = only,
             OpenParen = open,
             NameParts = name,
             CloseParen = close,
-            DescendantStar = star,
             AsKeyword = asKeyword,
             Alias = alias,
         };
+        return new ParsedTargetTable(table, star);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

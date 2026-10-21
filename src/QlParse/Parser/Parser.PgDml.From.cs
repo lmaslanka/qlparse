@@ -103,13 +103,14 @@ internal sealed partial class Parser
         var alias = ParsePgAliasClause();
         return new RowsFromTable
         {
-            Span = SourceSpan.From(rowsKeyword.Span, alias.End?.Span ?? ordinality?.Span ?? closeParen.Span),
+            Span = SourceSpan.From(rowsKeyword, alias.End ?? ordinality.OrdinalityKeyword ?? closeParen),
             RowsKeyword = rowsKeyword,
             FromKeyword = fromKeyword,
             OpenParen = openParen,
             Functions = functions,
             CloseParen = closeParen,
-            Ordinality = ordinality,
+            WithKeyword = ordinality.WithKeyword,
+            OrdinalityKeyword = ordinality.OrdinalityKeyword,
             AsKeyword = alias.AsKeyword,
             Alias = alias.Alias,
             ColumnOpenParen = alias.ColumnOpenParen,
@@ -155,21 +156,18 @@ internal sealed partial class Parser
         return new FieldDefinition { Span = SourceSpan.From(name, type.Span), Name = name, Type = type };
     }
 
-    private OrdinalityClause? ParsePgOrdinality()
+    private readonly record struct PgOrdinality(SyntaxToken? WithKeyword, SyntaxToken? OrdinalityKeyword);
+
+    private PgOrdinality ParsePgOrdinality()
     {
         if (_current.Kind != SyntaxKind.WithKeyword || !NextIsOrdinality())
         {
-            return null;
+            return default;
         }
 
         var withKeyword = Advance();
         var ordinalityKeyword = Advance();
-        return new OrdinalityClause
-        {
-            Span = SourceSpan.From(withKeyword, ordinalityKeyword),
-            WithKeyword = withKeyword,
-            OrdinalityKeyword = ordinalityKeyword,
-        };
+        return new PgOrdinality(withKeyword, ordinalityKeyword);
     }
 
     // A function in FROM: [WITH ORDINALITY] then [AS] alias [(columns | column definitions)] or AS (column definitions).
@@ -183,18 +181,24 @@ internal sealed partial class Parser
         var correlation = ParsePgFunctionCorrelation();
         return new TableFunction
         {
-            Span = SourceSpan.From(nameParts[0].Span, correlation.End?.Span ?? ordinality?.Span ?? closeParen.Span),
+            Span = SourceSpan.From(nameParts[0], correlation.End ?? ordinality.OrdinalityKeyword ?? closeParen),
             NameParts = nameParts,
             OpenParen = openParen,
             Arguments = arguments,
             CloseParen = closeParen,
-            Ordinality = ordinality,
             AsKeyword = correlation.AsKeyword,
             Alias = correlation.Alias,
             ColumnOpenParen = correlation.ColumnOpenParen,
             Columns = correlation.Columns,
-            ColumnDefinitions = correlation.Definitions ?? [],
             ColumnCloseParen = correlation.ColumnCloseParen,
+            Postgres = ordinality.WithKeyword is null && correlation.Definitions is null
+                ? null
+                : new PgTableFunctionExtras
+                {
+                    WithKeyword = ordinality.WithKeyword,
+                    OrdinalityKeyword = ordinality.OrdinalityKeyword,
+                    ColumnDefinitions = correlation.Definitions ?? [],
+                },
         };
     }
 

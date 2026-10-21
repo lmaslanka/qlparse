@@ -77,12 +77,12 @@ internal sealed partial class Parser
             Columns = columns,
             CloseParen = closeParen,
             AsKeyword = asKeyword,
-            Materialization = materialization,
             OpenQuery = openQuery,
             Query = query,
             CloseQuery = closeQuery,
             Search = search,
             Cycle = cycle,
+            Postgres = materialization,
         };
     }
 

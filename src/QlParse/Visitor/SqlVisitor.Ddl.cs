@@ -96,9 +96,9 @@ public partial class SqlVisitor
 
     public virtual void VisitCommonTableExpression(CommonTableExpression node)
     {
-        if (node.Materialization is not null)
+        if (node.Postgres is not null)
         {
-            VisitMaterializationClause(node.Materialization);
+            VisitPgCteExtras(node.Postgres);
         }
 
         Visit(node.Query);
@@ -128,12 +128,10 @@ public partial class SqlVisitor
             Visit(node.Query);
         }
 
-        if (node.OnConflict is not null)
+        if (node.Postgres is not null)
         {
-            VisitOnConflictClause(node.OnConflict);
+            VisitPgInsertExtras(node.Postgres);
         }
-
-        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitUpdateStatement(UpdateStatement node)
@@ -144,13 +142,15 @@ public partial class SqlVisitor
         }
 
         VisitSetClauses(node.Assignments);
-        VisitOptionalFrom(node.From, node.Joins, node.ExtraFrom);
+        if (node.Postgres is not null)
+        {
+            VisitPgUpdateExtras(node.Postgres);
+        }
+
         if (node.Where is not null)
         {
             VisitWhereClause(node.Where);
         }
-
-        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitDeleteStatement(DeleteStatement node)
@@ -160,13 +160,15 @@ public partial class SqlVisitor
             VisitPortionClause(node.Portion);
         }
 
-        VisitOptionalFrom(node.Using, node.UsingJoins, node.ExtraUsing);
+        if (node.Postgres is not null)
+        {
+            VisitPgDeleteExtras(node.Postgres);
+        }
+
         if (node.Where is not null)
         {
             VisitWhereClause(node.Where);
         }
-
-        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitMergeStatement(MergeStatement node)
@@ -179,12 +181,18 @@ public partial class SqlVisitor
             VisitMergeWhenClause(when);
         }
 
-        VisitOptionalReturning(node.Returning);
+        if (node.Postgres is not null)
+        {
+            VisitPgMergeExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitTruncateStatement(TruncateStatement node)
     {
-        return;
+        if (node.Postgres is not null)
+        {
+            VisitPgTruncateExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitSchemaDefinition(SchemaDefinition node)

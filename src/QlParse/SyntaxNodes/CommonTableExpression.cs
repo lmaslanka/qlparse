@@ -8,10 +8,10 @@ public sealed class CommonTableExpression
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
     public SyntaxToken? CloseParen { get; init; }
     public required SyntaxToken AsKeyword { get; init; }
-    public MaterializationClause? Materialization { get; init; }
     public required SyntaxToken OpenQuery { get; init; }
     public required Query Query { get; init; }
     public required SyntaxToken CloseQuery { get; init; }
     public SearchClause? Search { get; init; }
     public CycleClause? Cycle { get; init; }
+    public PgCteExtras? Postgres { get; init; }
 }

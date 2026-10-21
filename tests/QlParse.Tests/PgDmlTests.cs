@@ -17,7 +17,7 @@ public sealed class PgDmlTests
         const string sql = "select distinct on (a, b) a, b from t order by a";
         var select = SqlAssert.SelectPg(sql);
         Assert.NotNull(select.DistinctKeyword);
-        var distinctOn = Assert.IsType<DistinctOnClause>(select.DistinctOn);
+        var distinctOn = Assert.IsType<DistinctOnClause>(select.Postgres?.DistinctOn);
         Assert.Equal(Count.Two, distinctOn.Expressions.Count);
         Assert.Equal(new SourceSpan(16, 9), distinctOn.Span);
         Assert.Equal(Count.Two, select.SelectList.Count);
@@ -29,7 +29,7 @@ public sealed class PgDmlTests
     {
         var select = SqlAssert.SelectPg("select distinct a from t");
         Assert.NotNull(select.DistinctKeyword);
-        Assert.Null(select.DistinctOn);
+        Assert.Null(select.Postgres);
     }
 
     // ---- LIMIT ALL, OFFSET ROWS ----
@@ -39,7 +39,7 @@ public sealed class PgDmlTests
     {
         const string sql = "select a from t limit all";
         var limit = Assert.IsType<LimitClause>(SqlAssert.SelectPg(sql).Limit);
-        Assert.NotNull(limit.AllKeyword);
+        Assert.NotNull(limit.Postgres?.AllKeyword);
         Assert.Null(limit.Count);
         AssertSpan(sql, limit.Span, "limit all");
         SqlAssert.ParseFails(sql);
@@ -73,8 +73,8 @@ public sealed class PgDmlTests
     {
         const string sql = "with x as materialized (select 1) select * from x";
         var cte = SqlAssert.ParsePg<WithQuery>(sql).Ctes[0];
-        Assert.Null(cte.Materialization!.NotKeyword);
-        AssertSpan(sql, cte.Materialization.Span, "materialized");
+        Assert.Null(cte.Postgres!.NotKeyword);
+        AssertSpan(sql, cte.Postgres.MaterializedKeyword.Span, "materialized");
         AssertSpan(sql, cte.Span, "x as materialized (select 1)");
         SqlAssert.ParseFails(sql);
     }
@@ -83,7 +83,7 @@ public sealed class PgDmlTests
     public void Parses_not_materialized_cte()
     {
         var cte = SqlAssert.ParsePg<WithQuery>("with x as not materialized (select 1) select * from x").Ctes[0];
-        var materialization = Assert.IsType<MaterializationClause>(cte.Materialization);
+        var materialization = Assert.IsType<PgCteExtras>(cte.Postgres);
         Assert.NotNull(materialization.NotKeyword);
         Assert.IsType<SelectStatement>(cte.Query);
     }
@@ -154,8 +154,8 @@ public sealed class PgDmlTests
     {
         const string sql = "select * from generate_series(1, 3) with ordinality as g(v, n)";
         var function = Assert.IsType<TableFunction>(SqlAssert.SelectPg(sql).From);
-        var ordinality = Assert.IsType<OrdinalityClause>(function.Ordinality);
-        AssertSpan(sql, ordinality.Span, "with ordinality");
+        var ordinality = Assert.IsType<PgTableFunctionExtras>(function.Postgres);
+        AssertSpan(sql, SourceSpan.From(ordinality.WithKeyword!.Value, ordinality.OrdinalityKeyword!.Value), "with ordinality");
         Assert.Equal(Count.Two, Assert.IsType<IReadOnlyList<SyntaxToken>>(function.Columns, exactMatch: false).Count);
         AssertSpan(sql, function.Span, "generate_series(1, 3) with ordinality as g(v, n)");
         SqlAssert.ParseFails(sql);
@@ -174,8 +174,9 @@ public sealed class PgDmlTests
         const string sql = "select * from json_to_record(j) as t(a int, b text)";
         var function = Assert.IsType<TableFunction>(SqlAssert.SelectPg(sql).From);
         Assert.Null(function.Columns);
-        Assert.Equal(Count.Two, function.ColumnDefinitions.Count);
-        AssertSpan(sql, function.ColumnDefinitions[1].Span, "b text");
+        var definitions = function.Postgres!.ColumnDefinitions;
+        Assert.Equal(Count.Two, definitions.Count);
+        AssertSpan(sql, definitions[1].Span, "b text");
         AssertSpan(sql, function.Span, "json_to_record(j) as t(a int, b text)");
         SqlAssert.ParseFails(sql);
     }
@@ -185,7 +186,7 @@ public sealed class PgDmlTests
     {
         var function = Assert.IsType<TableFunction>(SqlAssert.SelectPg("select * from f(x) as (a int, b varchar(10)) where a > 1").From);
         Assert.Null(function.Alias);
-        Assert.Equal(Count.Two, function.ColumnDefinitions.Count);
+        Assert.Equal(Count.Two, function.Postgres!.ColumnDefinitions.Count);
     }
 
     // ---- ROWS FROM ----
@@ -209,7 +210,7 @@ public sealed class PgDmlTests
         Assert.Single(rows.Functions[0].ColumnDefinitions);
         Assert.Equal(Count.Two, rows.Functions[1].ColumnDefinitions.Count);
         AssertSpan(sql, rows.Functions[1].Span, "g(2) as (b text, c int)");
-        Assert.NotNull(rows.Ordinality);
+        Assert.NotNull(rows.OrdinalityKeyword);
         Assert.Equal(Count.Four, Assert.IsType<IReadOnlyList<SyntaxToken>>(rows.Columns, exactMatch: false).Count);
     }
 
@@ -226,7 +227,7 @@ public sealed class PgDmlTests
     {
         const string sql = "insert into t values (1) returning id";
         var insert = SqlAssert.ParsePg<InsertStatement>(sql);
-        var returning = Assert.IsType<ReturningClause>(insert.Returning);
+        var returning = Assert.IsType<ReturningClause>(insert.Postgres?.Returning);
         Assert.Single(returning.Items);
         AssertSpan(sql, returning.Span, "returning id");
         AssertWhole(sql, insert);
@@ -244,7 +245,7 @@ public sealed class PgDmlTests
     [Fact]
     public void Parses_returning_star_and_aliases()
     {
-        var returning = SqlAssert.ParsePg<InsertStatement>("insert into t select a from s returning *, id as x, id + 1 y").Returning!;
+        var returning = SqlAssert.ParsePg<InsertStatement>("insert into t select a from s returning *, id as x, id + 1 y").Postgres!.Returning!;
         Assert.Equal(Count.Three, returning.Items.Count);
         Assert.IsType<StarExpression>(returning.Items[0].Expression);
         Assert.NotNull(returning.Items[1].AsKeyword);
@@ -255,7 +256,7 @@ public sealed class PgDmlTests
     public void Parses_returning_with_old_and_new()
     {
         const string sql = "update t set a = 1 returning with (old as o, new as n) o.a, n.a";
-        var returning = SqlAssert.ParsePg<UpdateStatement>(sql).Returning!;
+        var returning = SqlAssert.ParsePg<UpdateStatement>(sql).Postgres!.Returning!;
         Assert.Equal(Count.Two, returning.OutputAliases.Count);
         AssertSpan(sql, returning.OutputAliases[1].Span, "new as n");
         Assert.Equal(Count.Two, returning.Items.Count);
@@ -266,10 +267,10 @@ public sealed class PgDmlTests
     public void Parses_update_delete_and_merge_returning()
     {
         const string merge = "merge into t using s on t.id = s.id when matched then delete returning merge_action(), t.*";
-        Assert.NotNull(SqlAssert.ParsePg<UpdateStatement>("update t set a = 1 where b = 2 returning a").Returning);
-        Assert.NotNull(SqlAssert.ParsePg<DeleteStatement>("delete from t returning *").Returning);
+        Assert.NotNull(SqlAssert.ParsePg<UpdateStatement>("update t set a = 1 where b = 2 returning a").Postgres?.Returning);
+        Assert.NotNull(SqlAssert.ParsePg<DeleteStatement>("delete from t returning *").Postgres?.Returning);
         var statement = SqlAssert.ParsePg<MergeStatement>(merge);
-        Assert.Equal(Count.Two, statement.Returning!.Items.Count);
+        Assert.Equal(Count.Two, statement.Postgres!.Returning!.Items.Count);
         AssertWhole(merge, statement);
         SqlAssert.ParseFails(merge);
     }
@@ -280,7 +281,7 @@ public sealed class PgDmlTests
     public void Parses_on_conflict_do_nothing()
     {
         const string sql = "insert into t (a) values (1) on conflict (a) do nothing";
-        var conflict = Assert.IsType<OnConflictClause>(SqlAssert.ParsePg<InsertStatement>(sql).OnConflict);
+        var conflict = Assert.IsType<OnConflictClause>(SqlAssert.ParsePg<InsertStatement>(sql).Postgres?.OnConflict);
         Assert.NotNull(conflict.NothingKeyword);
         Assert.Single(Assert.IsType<ConflictTarget>(conflict.Target).Elements);
         AssertSpan(sql, conflict.Span, "on conflict (a) do nothing");
@@ -290,7 +291,7 @@ public sealed class PgDmlTests
     [Fact]
     public void Parses_on_conflict_without_target()
     {
-        var conflict = SqlAssert.ParsePg<InsertStatement>("insert into t select * from s on conflict do nothing").OnConflict!;
+        var conflict = SqlAssert.ParsePg<InsertStatement>("insert into t select * from s on conflict do nothing").Postgres!.OnConflict!;
         Assert.Null(conflict.Target);
     }
 
@@ -299,7 +300,7 @@ public sealed class PgDmlTests
     {
         const string sql = "insert into t as x (a, b) values (1, 2) on conflict (a, lower(b) collate en_us text_pattern_ops, (a + 1)) where a > 0 do update set b = excluded.b, (a, c) = (excluded.a, default) where x.b <> excluded.b returning x.*";
         var insert = SqlAssert.ParsePg<InsertStatement>(sql);
-        var conflict = insert.OnConflict!;
+        var conflict = insert.Postgres!.OnConflict!;
         var target = conflict.Target!;
         Assert.Equal(Count.Three, target.Elements.Count);
         Assert.IsType<CollateExpression>(target.Elements[1].Expression);
@@ -310,7 +311,7 @@ public sealed class PgDmlTests
         Assert.Equal(Count.Two, conflict.Assignments.Count);
         Assert.Equal(Count.Two, conflict.Assignments[1].Targets.Count);
         Assert.NotNull(conflict.Where);
-        Assert.NotNull(insert.Returning);
+        Assert.NotNull(insert.Postgres.Returning);
         AssertWhole(sql, insert);
         SqlAssert.ParseFails(sql);
     }
@@ -319,7 +320,7 @@ public sealed class PgDmlTests
     public void Parses_on_conflict_on_constraint()
     {
         const string sql = "insert into t values (1) on conflict on constraint t_pkey do update set a = default";
-        var target = SqlAssert.ParsePg<InsertStatement>(sql).OnConflict!.Target!;
+        var target = SqlAssert.ParsePg<InsertStatement>(sql).Postgres!.OnConflict!.Target!;
         Assert.NotNull(target.ConstraintKeyword);
         Assert.Empty(target.Elements);
         AssertSpan(sql, target.Span, "on constraint t_pkey");
@@ -330,7 +331,7 @@ public sealed class PgDmlTests
     public void Parses_excluded_pseudo_table_in_do_update()
     {
         const string sql = "insert into t (a, b) values (1, 2) on conflict (a) do update set b = excluded.b";
-        var value = SqlAssert.ParsePg<InsertStatement>(sql).OnConflict!.Assignments[0].Value;
+        var value = SqlAssert.ParsePg<InsertStatement>(sql).Postgres!.OnConflict!.Assignments[0].Value;
         var member = Assert.IsType<MemberAccessExpression>(value);
         var table = Assert.IsType<IdentifierExpression>(member.Target);
         AssertSpan(sql, table.Span, "excluded");
@@ -344,8 +345,8 @@ public sealed class PgDmlTests
     {
         const string sql = "insert into s.t as x (a) values (1)";
         var insert = SqlAssert.ParsePg<InsertStatement>(sql);
-        Assert.NotNull(insert.AsKeyword);
-        AssertSpan(sql, Assert.NotNull(insert.Alias).Span, "x");
+        Assert.NotNull(insert.Postgres!.AsKeyword);
+        AssertSpan(sql, Assert.NotNull(insert.Postgres.Alias).Span, "x");
         Assert.NotNull(insert.Columns);
         SqlAssert.ParseFails(sql);
     }
@@ -364,7 +365,7 @@ public sealed class PgDmlTests
         const string sql = "insert into t as x default values returning *";
         var insert = SqlAssert.ParsePg<InsertStatement>(sql);
         Assert.NotNull(insert.DefaultKeyword);
-        Assert.NotNull(insert.Returning);
+        Assert.NotNull(insert.Postgres?.Returning);
         AssertWhole(sql, insert);
     }
 
@@ -375,8 +376,8 @@ public sealed class PgDmlTests
     {
         const string sql = "update t set a = s.a from s where t.id = s.id";
         var update = SqlAssert.ParsePg<UpdateStatement>(sql);
-        Assert.NotNull(update.FromKeyword);
-        Assert.IsType<TableReference>(update.From);
+        Assert.NotNull(update.Postgres!.FromKeyword);
+        Assert.IsType<TableReference>(update.Postgres.From);
         Assert.NotNull(update.Where);
         AssertWhole(sql, update);
         SqlAssert.ParseFails(sql);
@@ -388,8 +389,8 @@ public sealed class PgDmlTests
         const string sql = "update t as x set a = 1 from s join u on s.id = u.id, v where current of c";
         var update = SqlAssert.ParsePg<UpdateStatement>(sql);
         Assert.NotNull(update.Target.Alias);
-        Assert.Single(update.Joins);
-        Assert.Single(update.ExtraFrom);
+        Assert.Single(update.Postgres!.Joins);
+        Assert.Single(update.Postgres.ExtraFrom);
         Assert.NotNull(update.Positioned);
         AssertWhole(sql, update);
     }
@@ -407,9 +408,9 @@ public sealed class PgDmlTests
     {
         const string sql = "delete from t using s, u where t.id = s.id";
         var delete = SqlAssert.ParsePg<DeleteStatement>(sql);
-        Assert.NotNull(delete.UsingKeyword);
-        Assert.IsType<TableReference>(delete.Using);
-        Assert.Single(delete.ExtraUsing);
+        Assert.NotNull(delete.Postgres!.UsingKeyword);
+        Assert.IsType<TableReference>(delete.Postgres.Using);
+        Assert.Single(delete.Postgres.ExtraUsing);
         AssertWhole(sql, delete);
         SqlAssert.ParseFails(sql);
     }
@@ -576,8 +577,9 @@ public sealed class PgDmlTests
         Assert.NotNull(updateTarget.OnlyKeyword);
         Assert.Null(updateTarget.OpenParen);
         AssertSpan(update, updateTarget.Span, "only t");
-        var deleteTarget = SqlAssert.ParsePg<DeleteStatement>(delete).Target;
-        Assert.NotNull(deleteTarget.DescendantStar);
+        var deleteStatement = SqlAssert.ParsePg<DeleteStatement>(delete);
+        var deleteTarget = deleteStatement.Target;
+        Assert.NotNull(deleteStatement.Postgres?.TargetDescendantStar);
         AssertSpan(delete, deleteTarget.Span, "only t *");
         SqlAssert.ParseFails(update);
         SqlAssert.ParseFails(delete);
@@ -586,7 +588,7 @@ public sealed class PgDmlTests
     [Fact]
     public void Parses_update_star_and_delete_only_parenthesized()
     {
-        Assert.NotNull(SqlAssert.ParsePg<UpdateStatement>("update t * set a = 1").Target.DescendantStar);
+        Assert.NotNull(SqlAssert.ParsePg<UpdateStatement>("update t * set a = 1").Postgres?.TargetDescendantStar);
         Assert.NotNull(SqlAssert.ParsePg<DeleteStatement>("delete from only (t)").Target.OpenParen);
     }
 
@@ -596,7 +598,7 @@ public sealed class PgDmlTests
         const string sql = "truncate only t";
         var truncate = SqlAssert.ParsePg<TruncateStatement>(sql);
         Assert.Null(truncate.TableKeyword);
-        Assert.NotNull(truncate.OnlyKeyword);
+        Assert.NotNull(truncate.Postgres?.OnlyKeyword);
         AssertWhole(sql, truncate);
         SqlAssert.ParseFails(sql);
     }
@@ -607,7 +609,7 @@ public sealed class PgDmlTests
         const string sql = "truncate table t * restart identity";
         var truncate = SqlAssert.ParsePg<TruncateStatement>(sql);
         Assert.NotNull(truncate.TableKeyword);
-        Assert.NotNull(truncate.DescendantStar);
+        Assert.NotNull(truncate.Postgres?.DescendantStar);
         Assert.NotNull(truncate.IdentityKeyword);
         AssertWhole(sql, truncate);
     }
@@ -619,10 +621,10 @@ public sealed class PgDmlTests
     {
         const string sql = "select a from t for no key update of t nowait";
         var lockClause = Assert.IsType<LockClause>(SqlAssert.SelectPg(sql).Lock);
-        Assert.NotNull(lockClause.Modifier!.NoKeyword);
-        AssertSpan(sql, lockClause.Modifier.Span, "no key");
+        Assert.NotNull(lockClause.Postgres!.NoKeyword);
+        AssertSpan(sql, SourceSpan.From(lockClause.Postgres.NoKeyword!.Value, lockClause.Postgres.KeyKeyword!.Value), "no key");
         Assert.NotNull(lockClause.UpdateKeyword);
-        Assert.NotNull(lockClause.WaitPolicy!.NowaitKeyword);
+        Assert.NotNull(lockClause.Postgres.NowaitKeyword);
         AssertSpan(sql, lockClause.Span, "for no key update of t nowait");
         SqlAssert.ParseFails(sql);
     }
@@ -633,7 +635,7 @@ public sealed class PgDmlTests
         const string sql = "select a from t for share skip locked";
         var lockClause = SqlAssert.SelectPg(sql).Lock!;
         Assert.NotNull(lockClause.ShareKeyword);
-        Assert.NotNull(lockClause.WaitPolicy!.LockedKeyword);
+        Assert.NotNull(lockClause.Postgres?.LockedKeyword);
         SqlAssert.ParseFails(sql);
     }
 
@@ -642,8 +644,8 @@ public sealed class PgDmlTests
     {
         const string sql = "select a from t, u for key share of t for update of u skip locked limit 1";
         var select = SqlAssert.SelectPg(sql);
-        Assert.Null(select.Lock!.Modifier!.NoKeyword);
-        Assert.NotNull(select.Lock.NextLock!.WaitPolicy);
+        Assert.Null(select.Lock!.Postgres!.NoKeyword);
+        Assert.NotNull(select.Lock.Postgres.NextLock!.Postgres?.SkipKeyword);
         Assert.NotNull(select.Limit);
         AssertWhole(sql, select);
         SqlAssert.ParseFails(sql);
@@ -665,7 +667,7 @@ public sealed class PgDmlTests
     {
         const string sql = "select a into unlogged table s.new_t from t";
         var select = SqlAssert.SelectPg(sql);
-        var into = Assert.IsType<SelectIntoTable>(select.IntoTable);
+        var into = Assert.IsType<SelectIntoTable>(select.Postgres?.IntoTable);
         Assert.NotNull(into.Modifier);
         Assert.NotNull(into.TableKeyword);
         Assert.Equal(Count.Two, into.NameParts.Count);
@@ -677,7 +679,7 @@ public sealed class PgDmlTests
     [Fact]
     public void Parses_plain_select_into_under_postgres()
     {
-        var into = SqlAssert.SelectPg("select a into temp new_t from t").IntoTable!;
+        var into = SqlAssert.SelectPg("select a into temp new_t from t").Postgres!.IntoTable!;
         Assert.NotNull(into.Modifier);
         Assert.Single(into.NameParts);
     }
@@ -720,6 +722,18 @@ public sealed class PgDmlTests
             base.VisitCopyOption(node);
         }
 
+        public override void VisitPgLockExtras(PgLockExtras node)
+        {
+            _types.Add(typeof(PgLockExtras));
+            base.VisitPgLockExtras(node);
+        }
+
+        public override void VisitPgTruncateExtras(PgTruncateExtras node)
+        {
+            _types.Add(typeof(PgTruncateExtras));
+            base.VisitPgTruncateExtras(node);
+        }
+
         public override void VisitDistinctOnClause(DistinctOnClause node)
         {
             _types.Add(typeof(DistinctOnClause));
@@ -741,6 +755,8 @@ public sealed class PgDmlTests
 
     [Theory]
     [InlineData("table t", typeof(ExplicitTableQuery))]
+    [InlineData("select a from t for update nowait", typeof(PgLockExtras))]
+    [InlineData("truncate only t", typeof(PgTruncateExtras))]
     [InlineData("select * from t * where x = 1", typeof(IdentifierExpression))]
     [InlineData("select * from rows from (f(1) as (a int)) with ordinality", typeof(RowsFromTable))]
     [InlineData("select * from f(1) as t(a int)", typeof(DataType))]

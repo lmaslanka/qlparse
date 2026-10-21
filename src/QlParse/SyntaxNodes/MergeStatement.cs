@@ -11,5 +11,5 @@ public sealed class MergeStatement : Query
     public required SyntaxToken OnKeyword { get; init; }
     public required Expression Condition { get; init; }
     public required IReadOnlyList<MergeWhenClause> Whens { get; init; }
-    public ReturningClause? Returning { get; init; }
+    public PgMergeExtras? Postgres { get; init; }
 }

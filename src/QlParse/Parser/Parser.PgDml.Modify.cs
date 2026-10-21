@@ -12,13 +12,61 @@ internal sealed partial class Parser
         return new InsertAlias(asKeyword, alias);
     }
 
-    internal readonly record struct PgInsertTail(OnConflictClause? OnConflict, ReturningClause? Returning, SourceSpan? End);
+    internal readonly record struct PgInsertTail(PgInsertExtras? Extras, SourceSpan? End);
 
-    internal PgInsertTail ParsePgInsertTail()
+    internal PgInsertTail ParsePgInsertTail(InsertAlias alias)
     {
         var onConflict = _current.Kind == SyntaxKind.OnKeyword && NextEquals(Keyword.Conflict) ? ParseOnConflict() : null;
         var returning = ParseOptionalReturning();
-        return new PgInsertTail(onConflict, returning, returning?.Span ?? onConflict?.Span);
+        if (alias.Alias is null && onConflict is null && returning is null)
+        {
+            return default;
+        }
+
+        var extras = new PgInsertExtras
+        {
+            AsKeyword = alias.AsKeyword,
+            Alias = alias.Alias,
+            OnConflict = onConflict,
+            Returning = returning,
+        };
+        return new PgInsertTail(extras, returning?.Span ?? onConflict?.Span);
+    }
+
+    internal static PgUpdateExtras? BuildPgUpdateExtras(SyntaxToken? targetStar, FromClause from, ReturningClause? returning)
+    {
+        if (targetStar is null && from.FromKeyword is null && returning is null)
+        {
+            return null;
+        }
+
+        return new PgUpdateExtras
+        {
+            TargetDescendantStar = targetStar,
+            FromKeyword = from.FromKeyword,
+            From = from.From,
+            Joins = from.Joins,
+            ExtraFrom = from.ExtraFrom,
+            Returning = returning,
+        };
+    }
+
+    internal static PgDeleteExtras? BuildPgDeleteExtras(SyntaxToken? targetStar, FromClause usingClause, ReturningClause? returning)
+    {
+        if (targetStar is null && usingClause.FromKeyword is null && returning is null)
+        {
+            return null;
+        }
+
+        return new PgDeleteExtras
+        {
+            TargetDescendantStar = targetStar,
+            UsingKeyword = usingClause.FromKeyword,
+            Using = usingClause.From,
+            UsingJoins = usingClause.Joins,
+            ExtraUsing = usingClause.ExtraFrom,
+            Returning = returning,
+        };
     }
 
     // ON CONFLICT [conflict_target] DO NOTHING | DO UPDATE SET ... [WHERE condition]
@@ -213,11 +261,12 @@ internal sealed partial class Parser
             Span = SourceSpan.From(truncateKeyword, identity.IdentityKeyword ?? star ?? tableName[^1]),
             TruncateKeyword = truncateKeyword,
             TableKeyword = tableKeyword,
-            OnlyKeyword = onlyKeyword,
             TableName = tableName,
-            DescendantStar = star,
             RestartKeyword = identity.RestartKeyword,
             IdentityKeyword = identity.IdentityKeyword,
+            Postgres = onlyKeyword is null && star is null
+                ? null
+                : new PgTruncateExtras { OnlyKeyword = onlyKeyword, DescendantStar = star },
         };
     }
 }

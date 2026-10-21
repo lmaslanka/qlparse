@@ -6,13 +6,9 @@ public sealed class LockClause
     public required SyntaxToken ForKeyword { get; init; }
     public SyntaxToken? ReadKeyword { get; init; }
     public SyntaxToken? OnlyKeyword { get; init; }
-    public LockStrengthModifier? Modifier { get; init; }
     public SyntaxToken? UpdateKeyword { get; init; }
     public SyntaxToken? ShareKeyword { get; init; }
     public SyntaxToken? OfKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
-    public LockWaitPolicy? WaitPolicy { get; init; }
-
-    // Postgres allows several locking clauses in a row; each one links to the next.
-    public LockClause? NextLock { get; init; }
+    public PgLockExtras? Postgres { get; init; }
 }

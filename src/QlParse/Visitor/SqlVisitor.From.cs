@@ -6,19 +6,14 @@ public partial class SqlVisitor
 {
     public virtual void VisitSelectStatement(SelectStatement node)
     {
-        if (node.DistinctOn is not null)
+        if (node.Postgres is not null)
         {
-            VisitDistinctOnClause(node.DistinctOn);
+            VisitPgSelectExtras(node.Postgres);
         }
 
         foreach (var item in node.SelectList)
         {
             VisitSelectItem(item);
-        }
-
-        if (node.IntoTable is not null)
-        {
-            VisitSelectIntoTable(node.IntoTable);
         }
 
         if (node.From is not null)
@@ -108,6 +103,11 @@ public partial class SqlVisitor
         {
             Visit(node.Count);
         }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgLimitExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitOffsetClause(OffsetClause node) => Visit(node.Count);
@@ -122,19 +122,9 @@ public partial class SqlVisitor
 
     public virtual void VisitLockClause(LockClause node)
     {
-        if (node.Modifier is not null)
+        if (node.Postgres is not null)
         {
-            VisitLockStrengthModifier(node.Modifier);
-        }
-
-        if (node.WaitPolicy is not null)
-        {
-            VisitLockWaitPolicy(node.WaitPolicy);
-        }
-
-        if (node.NextLock is not null)
-        {
-            VisitLockClause(node.NextLock);
+            VisitPgLockExtras(node.Postgres);
         }
     }
 
@@ -295,12 +285,10 @@ public partial class SqlVisitor
             Visit(node.Query);
         }
 
-        if (node.Ordinality is not null)
+        if (node.Postgres is not null)
         {
-            VisitOrdinalityClause(node.Ordinality);
+            VisitPgTableFunctionExtras(node.Postgres);
         }
-
-        VisitFieldDefinitions(node.ColumnDefinitions);
     }
 
     public virtual void VisitDirectSqlScript(DirectSqlScript node)

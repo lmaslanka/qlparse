@@ -72,31 +72,6 @@ public partial class SqlVisitor
         {
             VisitRowsFromFunction(function);
         }
-
-        if (node.Ordinality is not null)
-        {
-            VisitOrdinalityClause(node.Ordinality);
-        }
-    }
-
-    public virtual void VisitOrdinalityClause(OrdinalityClause node)
-    {
-        return;
-    }
-
-    public virtual void VisitMaterializationClause(MaterializationClause node)
-    {
-        return;
-    }
-
-    public virtual void VisitLockStrengthModifier(LockStrengthModifier node)
-    {
-        return;
-    }
-
-    public virtual void VisitLockWaitPolicy(LockWaitPolicy node)
-    {
-        return;
     }
 
     public virtual void VisitRowsFromFunction(RowsFromFunction node)
@@ -159,7 +134,69 @@ public partial class SqlVisitor
 
     public virtual void VisitConflictTargetElement(ConflictTargetElement node) => Visit(node.Expression);
 
-    internal void VisitOptionalReturning(ReturningClause? returning)
+    public virtual void VisitPgSelectExtras(PgSelectExtras node)
+    {
+        if (node.DistinctOn is not null)
+        {
+            VisitDistinctOnClause(node.DistinctOn);
+        }
+
+        if (node.IntoTable is not null)
+        {
+            VisitSelectIntoTable(node.IntoTable);
+        }
+    }
+
+    public virtual void VisitPgLimitExtras(PgLimitExtras node)
+    {
+        return;
+    }
+
+    public virtual void VisitPgLockExtras(PgLockExtras node)
+    {
+        if (node.NextLock is not null)
+        {
+            VisitLockClause(node.NextLock);
+        }
+    }
+
+    public virtual void VisitPgTableFunctionExtras(PgTableFunctionExtras node) => VisitFieldDefinitions(node.ColumnDefinitions);
+
+    public virtual void VisitPgCteExtras(PgCteExtras node)
+    {
+        return;
+    }
+
+    public virtual void VisitPgInsertExtras(PgInsertExtras node)
+    {
+        if (node.OnConflict is not null)
+        {
+            VisitOnConflictClause(node.OnConflict);
+        }
+
+        VisitOptionalReturning(node.Returning);
+    }
+
+    public virtual void VisitPgUpdateExtras(PgUpdateExtras node)
+    {
+        VisitOptionalFrom(node.From, node.Joins, node.ExtraFrom);
+        VisitOptionalReturning(node.Returning);
+    }
+
+    public virtual void VisitPgDeleteExtras(PgDeleteExtras node)
+    {
+        VisitOptionalFrom(node.Using, node.UsingJoins, node.ExtraUsing);
+        VisitOptionalReturning(node.Returning);
+    }
+
+    public virtual void VisitPgMergeExtras(PgMergeExtras node) => VisitOptionalReturning(node.Returning);
+
+    public virtual void VisitPgTruncateExtras(PgTruncateExtras node)
+    {
+        return;
+    }
+
+    private void VisitOptionalReturning(ReturningClause? returning)
     {
         if (returning is not null)
         {
@@ -167,7 +204,7 @@ public partial class SqlVisitor
         }
     }
 
-    internal void VisitOptionalFrom(TableSource? from, IReadOnlyList<JoinClause> joins, IReadOnlyList<CommaFrom> extra)
+    private void VisitOptionalFrom(TableSource? from, IReadOnlyList<JoinClause> joins, IReadOnlyList<CommaFrom> extra)
     {
         if (from is null)
         {
@@ -182,7 +219,7 @@ public partial class SqlVisitor
         }
     }
 
-    internal void VisitFieldDefinitions(IReadOnlyList<FieldDefinition> definitions)
+    private void VisitFieldDefinitions(IReadOnlyList<FieldDefinition> definitions)
     {
         foreach (var definition in definitions)
         {
