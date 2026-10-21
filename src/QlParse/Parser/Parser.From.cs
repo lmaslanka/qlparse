@@ -319,7 +319,7 @@ internal sealed partial class Parser
 
     private TableSource ParseTableReference()
     {
-        var nameParts = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
+        var nameParts = new List<SyntaxToken> { ExpectTableNameStart() };
         while (_current.Kind == SyntaxKind.Dot)
         {
             Advance();

@@ -43,7 +43,8 @@ internal sealed partial class Parser
 
     private Query? ParseLabeledStatement()
     {
-        if (!IsLabeled())
+        // A T-SQL `label:` is a statement of its own (workstream E), not the label of the next one.
+        if (!IsLabeled() || IsSqlServer)
         {
             return null;
         }

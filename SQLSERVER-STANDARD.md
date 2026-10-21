@@ -42,8 +42,8 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `XML` and typed XML (`XML([CONTENT|DOCUMENT] schema_collection)`)
 - [x] `HIERARCHYID`
 - [x] Spatial types (`GEOMETRY` `GEOGRAPHY`)
-- [ ] `TABLE` type for table variables (`DECLARE @t TABLE (...)`)
-- [ ] `CURSOR` type for cursor variables and `OUTPUT` parameters
+- [x] `TABLE` type for table variables (`DECLARE @t TABLE (...)`)
+- [x] `CURSOR` type for cursor variables and `OUTPUT` parameters
 - [x] `VECTOR(n)` (2025)
 - [x] Native `JSON` type (2025 / Azure SQL)
 - [ ] Alias types via `CREATE TYPE name FROM base_type [NULL|NOT NULL]`
@@ -177,7 +177,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `UPDATE ... SET @v = col = expr` combined variable/column assignment
 - [ ] `UPDATE ... SET col.WRITE(expr, offset, length)` partial LOB updates
 - [ ] `UPDATE ... SET udt_col.Method(...)` mutator calls
-- [ ] `INSERT INTO t EXEC[UTE] proc ...` / `INSERT ... EXEC ('sql')`
+- [x] `INSERT INTO t EXEC[UTE] proc ...` / `INSERT ... EXEC ('sql')`
 - [ ] `INSERT` without `INTO`
 - [ ] `MERGE ... WHEN NOT MATCHED [BY TARGET]` / `WHEN NOT MATCHED BY SOURCE` with extra `AND` conditions
 - [ ] Table hints on DML targets (`UPDATE t WITH (ROWLOCK)`, `MERGE t WITH (HOLDLOCK)`)
@@ -198,7 +198,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] Ledger tables (`WITH (LEDGER = ON [(APPEND_ONLY = ON)])`)
 - [ ] Graph tables (`CREATE TABLE ... AS NODE` / `AS EDGE`)
 - [ ] `CREATE TABLE #temp` / `##temp` and table variables in `DECLARE`
-- [ ] `CREATE OR ALTER` for views, procedures, functions, triggers
+- [x] `CREATE OR ALTER` for views, procedures, functions, triggers
 - [ ] `DROP {TABLE|VIEW|PROCEDURE|...} IF EXISTS a, b, c`
 - [ ] `ALTER TABLE ... ALTER COLUMN col type [NULL|NOT NULL] [WITH (ONLINE = ON)]`
 - [ ] `ALTER TABLE ... ADD col ...` without `COLUMN` keyword, multiple comma-separated adds
@@ -208,7 +208,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `ALTER TABLE ... SWITCH [PARTITION n] TO target [PARTITION m]`
 - [ ] `ALTER TABLE ... SET (LOCK_ESCALATION = ..., SYSTEM_VERSIONING = ...)`
 - [ ] `ALTER TABLE ... REBUILD [PARTITION = ...] WITH (...)`
-- [ ] `sp_rename` style renames via `EXEC` (no dedicated `RENAME` syntax)
+- [x] `sp_rename` style renames via `EXEC` (no dedicated `RENAME` syntax)
 
 ### Partitioning
 - [ ] `CREATE PARTITION FUNCTION fn (type) AS RANGE {LEFT|RIGHT} FOR VALUES (...)`
@@ -238,7 +238,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 
 ### Sequences and synonyms
 - [x] `NEXT VALUE FOR seq [OVER (ORDER BY ...)]`
-- [ ] `sp_sequence_get_range` via `EXEC`
+- [x] `sp_sequence_get_range` via `EXEC`
 - [ ] `CREATE SYNONYM name FOR [server.][db.][schema.]object`
 
 ### Databases, schemas, and storage
@@ -253,8 +253,8 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ### Other objects
 - [x] `CREATE XML SCHEMA COLLECTION`
 - [x] `CREATE ASSEMBLY ... FROM ... WITH PERMISSION_SET = ...`
-- [ ] CLR modules (`CREATE PROCEDURE|FUNCTION|TRIGGER|AGGREGATE ... EXTERNAL NAME a.c.m`)
-- [ ] Legacy `CREATE DEFAULT` / `CREATE RULE` and `sp_bindefault` / `sp_bindrule`
+- [x] CLR modules (`CREATE PROCEDURE|FUNCTION|TRIGGER|AGGREGATE ... EXTERNAL NAME a.c.m`)
+- [x] Legacy `CREATE DEFAULT` / `CREATE RULE` and `sp_bindefault` / `sp_bindrule`
 - [x] PolyBase (`CREATE EXTERNAL DATA SOURCE`, `CREATE EXTERNAL FILE FORMAT`, `CREATE EXTERNAL TABLE`, `CREATE EXTERNAL TABLE AS SELECT`)
 - [x] `CREATE EXTERNAL MODEL` (2025)
 
@@ -272,39 +272,39 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] Edge constraints (`CONSTRAINT ec CONNECTION (Node1 TO Node2) ON DELETE CASCADE`)
 
 ## Triggers
-- [ ] `CREATE [OR ALTER] TRIGGER ... ON t [WITH ...] {FOR|AFTER|INSTEAD OF} {INSERT|UPDATE|DELETE}[, ...] [NOT FOR REPLICATION] AS ...`
-- [ ] `inserted` / `deleted` pseudo-tables
-- [ ] `UPDATE(col)` / `COLUMNS_UPDATED()` inside triggers
-- [ ] DDL triggers (`ON {DATABASE|ALL SERVER} FOR {CREATE_TABLE|DDL_DATABASE_LEVEL_EVENTS|...}`) and `EVENTDATA()`
-- [ ] Logon triggers (`ON ALL SERVER FOR LOGON`)
-- [ ] `{ENABLE|DISABLE} TRIGGER {name|ALL} ON {object|DATABASE|ALL SERVER}`
-- [ ] Event notifications (`CREATE EVENT NOTIFICATION ... TO SERVICE ...`)
+- [x] `CREATE [OR ALTER] TRIGGER ... ON t [WITH ...] {FOR|AFTER|INSTEAD OF} {INSERT|UPDATE|DELETE}[, ...] [NOT FOR REPLICATION] AS ...`
+- [x] `inserted` / `deleted` pseudo-tables
+- [x] `UPDATE(col)` / `COLUMNS_UPDATED()` inside triggers
+- [x] DDL triggers (`ON {DATABASE|ALL SERVER} FOR {CREATE_TABLE|DDL_DATABASE_LEVEL_EVENTS|...}`) and `EVENTDATA()`
+- [x] Logon triggers (`ON ALL SERVER FOR LOGON`)
+- [x] `{ENABLE|DISABLE} TRIGGER {name|ALL} ON {object|DATABASE|ALL SERVER}`
+- [x] Event notifications (`CREATE EVENT NOTIFICATION ... TO SERVICE ...`)
 
 ## Procedural T-SQL
-- [ ] `DECLARE @a type [= expr], @b type, @t TABLE (...), @c CURSOR`
-- [ ] `SET @v = expr` and compound `SET @v += expr`
-- [ ] `BEGIN ... END` statement blocks
-- [ ] `IF cond stmt [ELSE stmt]` (single statement or block, no `THEN`/`END IF`)
-- [ ] `WHILE cond stmt` / `BREAK` / `CONTINUE`
-- [ ] `GOTO label` / `label:`
-- [ ] `RETURN [expr]`
-- [ ] `WAITFOR {DELAY 'hh:mm:ss'|TIME 'hh:mm:ss'|(RECEIVE ...)} [, TIMEOUT n]`
-- [ ] `BEGIN TRY ... END TRY BEGIN CATCH ... END CATCH`
-- [ ] `THROW [number, message, state]`
-- [ ] `RAISERROR (msg, severity, state [, args]) [WITH LOG|NOWAIT|SETERROR]`
-- [ ] `PRINT expr`
-- [ ] `EXEC[UTE] [@ret =] proc [@p =] value [OUTPUT] [DEFAULT], ... [WITH RECOMPILE|RESULT SETS (...)]`
-- [ ] `EXEC[UTE] ('sql' + @x) [AS {LOGIN|USER} = '...'] [AT linked_server]`
-- [ ] `EXEC sp_executesql @stmt, N'@p int', @p = 1`
-- [ ] Procedure numbers (`proc;2`) and module-name variables (`EXEC @procname`)
-- [ ] `CREATE [OR ALTER] PROC[EDURE] name [@p type [VARYING] [= default] [OUT|OUTPUT] [READONLY], ...] [WITH {RECOMPILE|ENCRYPTION|EXECUTE AS ...}] [FOR REPLICATION] AS ...`
-- [ ] Scalar functions (`CREATE FUNCTION ... RETURNS type [WITH {SCHEMABINDING|RETURNS NULL ON NULL INPUT|INLINE = ON}] AS BEGIN ... RETURN expr END`)
-- [ ] Inline table-valued functions (`RETURNS TABLE AS RETURN (select)`)
-- [ ] Multi-statement table-valued functions (`RETURNS @t TABLE (...) AS BEGIN ... RETURN END`)
-- [ ] Natively compiled modules (`WITH NATIVE_COMPILATION, SCHEMABINDING AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'...') ... END`)
-- [ ] T-SQL cursor declarations (`DECLARE c CURSOR [LOCAL|GLOBAL] [FORWARD_ONLY|SCROLL] [STATIC|KEYSET|DYNAMIC|FAST_FORWARD] [READ_ONLY|SCROLL_LOCKS|OPTIMISTIC] FOR select [FOR UPDATE [OF ...]]`)
-- [ ] `OPEN` / `FETCH [NEXT|PRIOR|FIRST|LAST|ABSOLUTE n|RELATIVE n] FROM [GLOBAL] c INTO @a, @b` / `CLOSE` / `DEALLOCATE`
-- [ ] `SET @cursor_var = CURSOR FOR ...`
+- [x] `DECLARE @a type [= expr], @b type, @t TABLE (...), @c CURSOR`
+- [x] `SET @v = expr` and compound `SET @v += expr`
+- [x] `BEGIN ... END` statement blocks
+- [x] `IF cond stmt [ELSE stmt]` (single statement or block, no `THEN`/`END IF`)
+- [x] `WHILE cond stmt` / `BREAK` / `CONTINUE`
+- [x] `GOTO label` / `label:`
+- [x] `RETURN [expr]`
+- [x] `WAITFOR {DELAY 'hh:mm:ss'|TIME 'hh:mm:ss'|(RECEIVE ...)} [, TIMEOUT n]`
+- [x] `BEGIN TRY ... END TRY BEGIN CATCH ... END CATCH`
+- [x] `THROW [number, message, state]`
+- [x] `RAISERROR (msg, severity, state [, args]) [WITH LOG|NOWAIT|SETERROR]`
+- [x] `PRINT expr`
+- [x] `EXEC[UTE] [@ret =] proc [@p =] value [OUTPUT] [DEFAULT], ... [WITH RECOMPILE|RESULT SETS (...)]`
+- [x] `EXEC[UTE] ('sql' + @x) [AS {LOGIN|USER} = '...'] [AT linked_server]`
+- [x] `EXEC sp_executesql @stmt, N'@p int', @p = 1`
+- [x] Procedure numbers (`proc;2`) and module-name variables (`EXEC @procname`)
+- [x] `CREATE [OR ALTER] PROC[EDURE] name [@p type [VARYING] [= default] [OUT|OUTPUT] [READONLY], ...] [WITH {RECOMPILE|ENCRYPTION|EXECUTE AS ...}] [FOR REPLICATION] AS ...`
+- [x] Scalar functions (`CREATE FUNCTION ... RETURNS type [WITH {SCHEMABINDING|RETURNS NULL ON NULL INPUT|INLINE = ON}] AS BEGIN ... RETURN expr END`)
+- [x] Inline table-valued functions (`RETURNS TABLE AS RETURN (select)`)
+- [x] Multi-statement table-valued functions (`RETURNS @t TABLE (...) AS BEGIN ... RETURN END`)
+- [x] Natively compiled modules (`WITH NATIVE_COMPILATION, SCHEMABINDING AS BEGIN ATOMIC WITH (TRANSACTION ISOLATION LEVEL = SNAPSHOT, LANGUAGE = N'...') ... END`)
+- [x] T-SQL cursor declarations (`DECLARE c CURSOR [LOCAL|GLOBAL] [FORWARD_ONLY|SCROLL] [STATIC|KEYSET|DYNAMIC|FAST_FORWARD] [READ_ONLY|SCROLL_LOCKS|OPTIMISTIC] FOR select [FOR UPDATE [OF ...]]`)
+- [x] `OPEN` / `FETCH [NEXT|PRIOR|FIRST|LAST|ABSOLUTE n|RELATIVE n] FROM [GLOBAL] c INTO @a, @b` / `CLOSE` / `DEALLOCATE`
+- [x] `SET @cursor_var = CURSOR FOR ...`
 
 ## Security
 - [x] `CREATE LOGIN name {WITH PASSWORD = '...' [HASHED] [MUST_CHANGE], ...|FROM {WINDOWS|EXTERNAL PROVIDER|CERTIFICATE c|ASYMMETRIC KEY k}}`
@@ -321,16 +321,16 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Credentials and auditing (`CREATE [DATABASE SCOPED] CREDENTIAL`, `CREATE SERVER AUDIT`, `CREATE DATABASE AUDIT SPECIFICATION`)
 
 ## Transactions and session
-- [ ] `BEGIN TRAN[SACTION] [name|@var] [WITH MARK ['desc']]`
-- [ ] `SAVE TRAN[SACTION] name`
-- [ ] `COMMIT [TRAN[SACTION]] [name] [WITH (DELAYED_DURABILITY = ON)]` / `ROLLBACK [TRAN[SACTION]] [name]`
-- [ ] `COMMIT WORK` / `ROLLBACK WORK`
-- [ ] `BEGIN DISTRIBUTED TRAN[SACTION]`
-- [ ] `SET` session options (`NOCOUNT` `XACT_ABORT` `ANSI_NULLS` `ANSI_PADDING` `ARITHABORT` `CONCAT_NULL_YIELDS_NULL` `DATEFIRST` `DATEFORMAT` `LANGUAGE` `LOCK_TIMEOUT` `DEADLOCK_PRIORITY` `ROWCOUNT` `TEXTSIZE` `IMPLICIT_TRANSACTIONS` `CONTEXT_INFO` `{ON|OFF}`)
-- [ ] `SET TRANSACTION ISOLATION LEVEL {READ UNCOMMITTED|READ COMMITTED|REPEATABLE READ|SNAPSHOT|SERIALIZABLE}`
-- [ ] `SET IDENTITY_INSERT t {ON|OFF}`
-- [ ] Diagnostics options (`SET STATISTICS {IO|TIME|XML|PROFILE} ON`, `SET SHOWPLAN_{TEXT|ALL|XML} ON`, `SET NOEXEC ON`, `SET PARSEONLY ON`)
-- [ ] `USE database`
+- [x] `BEGIN TRAN[SACTION] [name|@var] [WITH MARK ['desc']]`
+- [x] `SAVE TRAN[SACTION] name`
+- [x] `COMMIT [TRAN[SACTION]] [name] [WITH (DELAYED_DURABILITY = ON)]` / `ROLLBACK [TRAN[SACTION]] [name]`
+- [x] `COMMIT WORK` / `ROLLBACK WORK`
+- [x] `BEGIN DISTRIBUTED TRAN[SACTION]`
+- [x] `SET` session options (`NOCOUNT` `XACT_ABORT` `ANSI_NULLS` `ANSI_PADDING` `ARITHABORT` `CONCAT_NULL_YIELDS_NULL` `DATEFIRST` `DATEFORMAT` `LANGUAGE` `LOCK_TIMEOUT` `DEADLOCK_PRIORITY` `ROWCOUNT` `TEXTSIZE` `IMPLICIT_TRANSACTIONS` `CONTEXT_INFO` `{ON|OFF}`)
+- [x] `SET TRANSACTION ISOLATION LEVEL {READ UNCOMMITTED|READ COMMITTED|REPEATABLE READ|SNAPSHOT|SERIALIZABLE}`
+- [x] `SET IDENTITY_INSERT t {ON|OFF}`
+- [x] Diagnostics options (`SET STATISTICS {IO|TIME|XML|PROFILE} ON`, `SET SHOWPLAN_{TEXT|ALL|XML} ON`, `SET NOEXEC ON`, `SET PARSEONLY ON`)
+- [x] `USE database`
 
 ## Administration and utility commands
 - [x] `DBCC command [(args)] [WITH options]` (`CHECKDB`, `SHRINKFILE`, `FREEPROCCACHE`, `INPUTBUFFER`, …)
@@ -367,7 +367,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 
 ## System objects and pseudo-columns
 - [ ] `sys.*` catalog views, `INFORMATION_SCHEMA`, and `dm_*` DMVs as ordinary multi-part names
-- [ ] System stored procedures (`sp_*`, `xp_*`) called via `EXEC` without schema qualification
+- [x] System stored procedures (`sp_*`, `xp_*`) called via `EXEC` without schema qualification
 - [x] `$IDENTITY` / `$ROWGUID` pseudo-columns
 - [x] `$PARTITION.fn(expr)`
 - [x] Graph pseudo-columns (`$node_id` `$edge_id` `$from_id` `$to_id`)
