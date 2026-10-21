@@ -31,7 +31,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `UUID`
 - [x] `MONEY`
 - [x] Composite/row types via `CREATE TYPE ... AS (...)`
-- [ ] Enumerated types via `CREATE TYPE ... AS ENUM (...)`
+- [x] Enumerated types via `CREATE TYPE ... AS ENUM (...)`
 - [x] Full text search types (`TSVECTOR` `TSQUERY`)
 - [x] Pseudo-types (`ANYELEMENT` `ANYARRAY` `ANYRANGE` `ANYCOMPATIBLE` `VOID` `RECORD` `CSTRING` `INTERNAL` `TRIGGER`)
 - [x] Object identifier / reg-types (`OID` `REGCLASS` `REGPROC` `REGTYPE` `REGNAMESPACE` `REGROLE`)
@@ -46,7 +46,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] Range operators (`@>` `<@` `&&` `<<` `>>` `&<` `&>` `-|-`)
 - [x] Network/inet operators (`<<` `<<=` `>>` `>>=` `&&` `~` `&` `|`)
 - [x] Geometric operators (`<->` `&&` `<<` `>>` `<^` `>^` `?#` `@>` `<@` `~=`)
-- [ ] `CREATE OPERATOR` custom infix/prefix operator definitions
+- [x] `CREATE OPERATOR` custom infix/prefix operator definitions
 
 ## Functions
 
@@ -96,7 +96,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 ### Aggregates
 - [x] `string_agg()`
 - [x] `array_agg()` / `jsonb_agg()` / `jsonb_object_agg()` as built-ins
-- [ ] `CREATE AGGREGATE` custom aggregate definitions
+- [x] `CREATE AGGREGATE` custom aggregate definitions
 
 ### System and introspection
 - [x] `pg_typeof()`
@@ -127,94 +127,94 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 ## Schema / DDL
 
 ### Tables and inheritance
-- [ ] `CREATE TABLE ... INHERITS (...)`
-- [ ] `CREATE UNLOGGED TABLE`
-- [ ] `CREATE TABLE ... WITH (storage_parameter = value, ...)`
-- [ ] `CREATE TABLE ... USING method` (table access methods)
-- [ ] `ALTER TABLE ... INHERIT` / `NO INHERIT`
-- [ ] `ALTER TABLE ... SET LOGGED` / `SET UNLOGGED`
-- [ ] `ALTER TABLE ... SET STATISTICS`
-- [ ] `ALTER TABLE ... SET (storage parameters)`
-- [ ] `ALTER TABLE ... CLUSTER ON` / `SET WITHOUT CLUSTER`
-- [ ] `ALTER COLUMN ... SET STORAGE {PLAIN|EXTERNAL|EXTENDED|MAIN}`
-- [ ] `ALTER COLUMN ... SET DATA TYPE ... USING expression`
+- [x] `CREATE TABLE ... INHERITS (...)`
+- [x] `CREATE UNLOGGED TABLE`
+- [x] `CREATE TABLE ... WITH (storage_parameter = value, ...)`
+- [x] `CREATE TABLE ... USING method` (table access methods)
+- [x] `ALTER TABLE ... INHERIT` / `NO INHERIT`
+- [x] `ALTER TABLE ... SET LOGGED` / `SET UNLOGGED`
+- [x] `ALTER TABLE ... SET STATISTICS`
+- [x] `ALTER TABLE ... SET (storage parameters)`
+- [x] `ALTER TABLE ... CLUSTER ON` / `SET WITHOUT CLUSTER`
+- [x] `ALTER COLUMN ... SET STORAGE {PLAIN|EXTERNAL|EXTENDED|MAIN}`
+- [x] `ALTER COLUMN ... SET DATA TYPE ... USING expression`
 - [ ] `ONLY` to exclude inheriting child tables in DML/DDL
 - [x] `GENERATED ALWAYS AS (expr) STORED` computed columns
 
 ### Partitioning
-- [ ] `PARTITION BY RANGE (...)`
-- [ ] `PARTITION BY LIST (...)`
-- [ ] `PARTITION BY HASH (...)`
-- [ ] `CREATE TABLE ... PARTITION OF parent FOR VALUES {IN (...)|FROM (...) TO (...)|WITH (MODULUS, REMAINDER)}`
-- [ ] `PARTITION ... DEFAULT`
-- [ ] `ALTER TABLE ... ATTACH PARTITION ... FOR VALUES ...`
-- [ ] `ALTER TABLE ... DETACH PARTITION ... [CONCURRENTLY]`
+- [x] `PARTITION BY RANGE (...)`
+- [x] `PARTITION BY LIST (...)`
+- [x] `PARTITION BY HASH (...)`
+- [x] `CREATE TABLE ... PARTITION OF parent FOR VALUES {IN (...)|FROM (...) TO (...)|WITH (MODULUS, REMAINDER)}`
+- [x] `PARTITION ... DEFAULT`
+- [x] `ALTER TABLE ... ATTACH PARTITION ... FOR VALUES ...`
+- [x] `ALTER TABLE ... DETACH PARTITION ... [CONCURRENTLY]`
 
 ### Indexes
-- [ ] `CREATE INDEX ... USING {btree|hash|gist|gin|brin|spgist}`
-- [ ] `CREATE INDEX CONCURRENTLY`
+- [x] `CREATE INDEX ... USING {btree|hash|gist|gin|brin|spgist}`
+- [x] `CREATE INDEX CONCURRENTLY`
 - [x] Partial indexes (`CREATE INDEX ... WHERE condition`)
 - [x] Expression indexes
-- [ ] `CREATE INDEX ... INCLUDE (...)`
-- [ ] Operator class specification (`col jsonb_path_ops`, `col gin_trgm_ops`, etc.)
-- [ ] `REINDEX [TABLE|INDEX|SCHEMA|DATABASE|SYSTEM] [CONCURRENTLY]`
+- [x] `CREATE INDEX ... INCLUDE (...)`
+- [x] Operator class specification (`col jsonb_path_ops`, `col gin_trgm_ops`, etc.)
+- [x] `REINDEX [TABLE|INDEX|SCHEMA|DATABASE|SYSTEM] [CONCURRENTLY]`
 
 ### Types, domains, and enums
 - [x] `CREATE TYPE name AS (...)` composite
-- [ ] `CREATE TYPE name AS ENUM (...)`
-- [ ] `CREATE TYPE name AS RANGE (SUBTYPE = ..., ...)`
-- [ ] `CREATE TYPE name` shell type / `CREATE TYPE name (INPUT=, OUTPUT=, ...)` base type
-- [ ] `ALTER TYPE ... ADD VALUE [IF NOT EXISTS] 'v' [BEFORE|AFTER 'x']`
-- [ ] `ALTER TYPE ... RENAME VALUE 'old' TO 'new'`
+- [x] `CREATE TYPE name AS ENUM (...)`
+- [x] `CREATE TYPE name AS RANGE (SUBTYPE = ..., ...)`
+- [x] `CREATE TYPE name` shell type / `CREATE TYPE name (INPUT=, OUTPUT=, ...)` base type
+- [x] `ALTER TYPE ... ADD VALUE [IF NOT EXISTS] 'v' [BEFORE|AFTER 'x']`
+- [x] `ALTER TYPE ... RENAME VALUE 'old' TO 'new'`
 
 ### Views and materialized views
-- [ ] `CREATE OR REPLACE VIEW`
-- [ ] `CREATE MATERIALIZED VIEW`
-- [ ] `REFRESH MATERIALIZED VIEW [CONCURRENTLY]`
-- [ ] `CREATE RULE`
+- [x] `CREATE OR REPLACE VIEW`
+- [x] `CREATE MATERIALIZED VIEW`
+- [x] `REFRESH MATERIALIZED VIEW [CONCURRENTLY]`
+- [x] `CREATE RULE`
 
 ### Sequences and identity
 - [x] `CREATE SEQUENCE ... AS data_type`
-- [ ] `ALTER SEQUENCE ... OWNED BY`
+- [x] `ALTER SEQUENCE ... OWNED BY`
 
 ### Tablespaces and storage
-- [ ] `CREATE TABLESPACE name LOCATION 'path'`
-- [ ] `DROP TABLESPACE`
-- [ ] `TABLESPACE` clause on `CREATE TABLE` / `CREATE INDEX`
+- [x] `CREATE TABLESPACE name LOCATION 'path'`
+- [x] `DROP TABLESPACE`
+- [x] `TABLESPACE` clause on `CREATE TABLE` / `CREATE INDEX`
 
 ### Extensions and languages
-- [ ] `CREATE EXTENSION [IF NOT EXISTS] name [VERSION ...] [SCHEMA ...]`
-- [ ] `ALTER EXTENSION ... UPDATE` / `ADD` / `DROP`
-- [ ] `DROP EXTENSION`
-- [ ] `CREATE [OR REPLACE] [TRUSTED] [PROCEDURAL] LANGUAGE`
+- [x] `CREATE EXTENSION [IF NOT EXISTS] name [VERSION ...] [SCHEMA ...]`
+- [x] `ALTER EXTENSION ... UPDATE` / `ADD` / `DROP`
+- [x] `DROP EXTENSION`
+- [x] `CREATE [OR REPLACE] [TRUSTED] [PROCEDURAL] LANGUAGE`
 
 ### Foreign data
-- [ ] `CREATE FOREIGN DATA WRAPPER`
-- [ ] `CREATE SERVER`
-- [ ] `CREATE USER MAPPING FOR ... SERVER ...`
-- [ ] `CREATE FOREIGN TABLE`
-- [ ] `IMPORT FOREIGN SCHEMA`
+- [x] `CREATE FOREIGN DATA WRAPPER`
+- [x] `CREATE SERVER`
+- [x] `CREATE USER MAPPING FOR ... SERVER ...`
+- [x] `CREATE FOREIGN TABLE`
+- [x] `IMPORT FOREIGN SCHEMA`
 
 ### Operator, aggregate, and cast definitions
-- [ ] `CREATE OPERATOR`
-- [ ] `CREATE OPERATOR CLASS` / `CREATE OPERATOR FAMILY`
-- [ ] `CREATE AGGREGATE`
-- [ ] `CREATE CAST ... WITH FUNCTION ... AS {IMPLICIT|ASSIGNMENT}`
-- [ ] `CREATE COLLATION ... (PROVIDER = ...)`
+- [x] `CREATE OPERATOR`
+- [x] `CREATE OPERATOR CLASS` / `CREATE OPERATOR FAMILY`
+- [x] `CREATE AGGREGATE`
+- [x] `CREATE CAST ... WITH FUNCTION ... AS {IMPLICIT|ASSIGNMENT}`
+- [x] `CREATE COLLATION ... (PROVIDER = ...)`
 
 ## Constraints
-- [ ] Exclusion constraints (`EXCLUDE USING index_method (column WITH operator, ...)`)
-- [ ] `ALTER TABLE ... ADD CONSTRAINT ... NOT VALID`
-- [ ] `ALTER TABLE ... VALIDATE CONSTRAINT constraint_name`
+- [x] Exclusion constraints (`EXCLUDE USING index_method (column WITH operator, ...)`)
+- [x] `ALTER TABLE ... ADD CONSTRAINT ... NOT VALID`
+- [x] `ALTER TABLE ... VALIDATE CONSTRAINT constraint_name`
 
 ## Triggers and event triggers
-- [ ] `CREATE TRIGGER ... FOR EACH ROW|STATEMENT`
-- [ ] `CREATE TRIGGER ... WHEN (condition)`
-- [ ] `CREATE TRIGGER ... REFERENCING OLD TABLE AS ... NEW TABLE AS ...` (transition tables)
-- [ ] `CREATE CONSTRAINT TRIGGER`
-- [ ] `CREATE EVENT TRIGGER name ON event WHEN ... EXECUTE FUNCTION ...`
+- [x] `CREATE TRIGGER ... FOR EACH ROW|STATEMENT`
+- [x] `CREATE TRIGGER ... WHEN (condition)`
+- [x] `CREATE TRIGGER ... REFERENCING OLD TABLE AS ... NEW TABLE AS ...` (transition tables)
+- [x] `CREATE CONSTRAINT TRIGGER`
+- [x] `CREATE EVENT TRIGGER name ON event WHEN ... EXECUTE FUNCTION ...`
 - [ ] Trigger function special variables (`NEW` `OLD` `TG_OP` `TG_TABLE_NAME` `TG_WHEN` `TG_ARGV`)
-- [ ] `EXECUTE FUNCTION` vs deprecated `EXECUTE PROCEDURE` on `CREATE TRIGGER`
+- [x] `EXECUTE FUNCTION` vs deprecated `EXECUTE PROCEDURE` on `CREATE TRIGGER`
 
 ## Procedural language (PL/pgSQL)
 - [ ] `DO [LANGUAGE lang] $$ ... $$` anonymous code blocks
@@ -232,37 +232,37 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [ ] `REFCURSOR` variables and `FOR row IN query LOOP`
 
 ## Privileges and roles
-- [ ] `CREATE ROLE ... WITH LOGIN|SUPERUSER|CREATEDB|CREATEROLE|REPLICATION|BYPASSRLS|CONNECTION LIMIT n|PASSWORD|VALID UNTIL`
-- [ ] `ALTER DEFAULT PRIVILEGES [FOR ROLE ...] IN SCHEMA ... GRANT/REVOKE ...`
-- [ ] `GRANT ... ON ALL TABLES IN SCHEMA ...`
-- [ ] `REASSIGN OWNED BY old TO new`
-- [ ] `DROP OWNED BY role`
+- [x] `CREATE ROLE ... WITH LOGIN|SUPERUSER|CREATEDB|CREATEROLE|REPLICATION|BYPASSRLS|CONNECTION LIMIT n|PASSWORD|VALID UNTIL`
+- [x] `ALTER DEFAULT PRIVILEGES [FOR ROLE ...] IN SCHEMA ... GRANT/REVOKE ...`
+- [x] `GRANT ... ON ALL TABLES IN SCHEMA ...`
+- [x] `REASSIGN OWNED BY old TO new`
+- [x] `DROP OWNED BY role`
 
 ## Row-level security
-- [ ] `CREATE POLICY name ON table [AS {PERMISSIVE|RESTRICTIVE}] [FOR {ALL|SELECT|INSERT|UPDATE|DELETE}] [TO role] [USING (expr)] [WITH CHECK (expr)]`
-- [ ] `ALTER POLICY` / `DROP POLICY`
-- [ ] `ALTER TABLE ... ENABLE|DISABLE ROW LEVEL SECURITY`
-- [ ] `ALTER TABLE ... FORCE|NO FORCE ROW LEVEL SECURITY`
-- [ ] `SECURITY LABEL`
+- [x] `CREATE POLICY name ON table [AS {PERMISSIVE|RESTRICTIVE}] [FOR {ALL|SELECT|INSERT|UPDATE|DELETE}] [TO role] [USING (expr)] [WITH CHECK (expr)]`
+- [x] `ALTER POLICY` / `DROP POLICY`
+- [x] `ALTER TABLE ... ENABLE|DISABLE ROW LEVEL SECURITY`
+- [x] `ALTER TABLE ... FORCE|NO FORCE ROW LEVEL SECURITY`
+- [x] `SECURITY LABEL`
 
 ## Transactions, sessions, and configuration
-- [ ] `BEGIN [WORK|TRANSACTION]` as alias for `START TRANSACTION`
-- [ ] `SET parameter = value` / `SET LOCAL`
-- [ ] `SHOW parameter` / `SHOW ALL`
-- [ ] `RESET parameter` / `RESET ALL`
-- [ ] `PREPARE TRANSACTION 'gid'` / `COMMIT PREPARED` / `ROLLBACK PREPARED` (two-phase commit)
-- [ ] `LOCK [TABLE] name IN lock_mode MODE [NOWAIT]`
+- [x] `BEGIN [WORK|TRANSACTION]` as alias for `START TRANSACTION`
+- [x] `SET parameter = value` / `SET LOCAL`
+- [x] `SHOW parameter` / `SHOW ALL`
+- [x] `RESET parameter` / `RESET ALL`
+- [x] `PREPARE TRANSACTION 'gid'` / `COMMIT PREPARED` / `ROLLBACK PREPARED` (two-phase commit)
+- [x] `LOCK [TABLE] name IN lock_mode MODE [NOWAIT]`
 
 ## Administration and utility commands
-- [ ] `EXPLAIN [ANALYZE] [VERBOSE] [COSTS] [BUFFERS] [FORMAT {TEXT|XML|JSON|YAML}] statement`
-- [ ] `VACUUM [FULL] [FREEZE] [VERBOSE] [ANALYZE] [table ...]`
-- [ ] `ANALYZE [VERBOSE] [table ...]`
-- [ ] `CLUSTER [table [USING index]]`
-- [ ] `CHECKPOINT`
-- [ ] `LISTEN channel` / `NOTIFY channel [, 'payload']` / `UNLISTEN`
-- [ ] `LOAD 'filename'`
-- [ ] `DISCARD {ALL|PLANS|SEQUENCES|TEMP}`
-- [ ] `ALTER SYSTEM SET parameter = value`
+- [x] `EXPLAIN [ANALYZE] [VERBOSE] [COSTS] [BUFFERS] [FORMAT {TEXT|XML|JSON|YAML}] statement`
+- [x] `VACUUM [FULL] [FREEZE] [VERBOSE] [ANALYZE] [table ...]`
+- [x] `ANALYZE [VERBOSE] [table ...]`
+- [x] `CLUSTER [table [USING index]]`
+- [x] `CHECKPOINT`
+- [x] `LISTEN channel` / `NOTIFY channel [, 'payload']` / `UNLISTEN`
+- [x] `LOAD 'filename'`
+- [x] `DISCARD {ALL|PLANS|SEQUENCES|TEMP}`
+- [x] `ALTER SYSTEM SET parameter = value`
 
 ## Full text search
 - [x] `@@` tsvector/tsquery match operator
@@ -271,16 +271,16 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `ts_headline()`
 - [x] `setweight()`
 - [x] tsquery combinators (`&&` AND, `||` OR, `!!` NOT, `<->` FOLLOWED BY)
-- [ ] `CREATE TEXT SEARCH CONFIGURATION`
-- [ ] `CREATE TEXT SEARCH DICTIONARY`
-- [ ] `CREATE TEXT SEARCH PARSER`
-- [ ] `CREATE TEXT SEARCH TEMPLATE`
+- [x] `CREATE TEXT SEARCH CONFIGURATION`
+- [x] `CREATE TEXT SEARCH DICTIONARY`
+- [x] `CREATE TEXT SEARCH PARSER`
+- [x] `CREATE TEXT SEARCH TEMPLATE`
 
 ## Replication
-- [ ] `CREATE PUBLICATION name FOR TABLE ... | FOR ALL TABLES`
-- [ ] `ALTER PUBLICATION` / `DROP PUBLICATION`
-- [ ] `CREATE SUBSCRIPTION name CONNECTION '...' PUBLICATION ...`
-- [ ] `ALTER SUBSCRIPTION` / `DROP SUBSCRIPTION`
+- [x] `CREATE PUBLICATION name FOR TABLE ... | FOR ALL TABLES`
+- [x] `ALTER PUBLICATION` / `DROP PUBLICATION`
+- [x] `CREATE SUBSCRIPTION name CONNECTION '...' PUBLICATION ...`
+- [x] `ALTER SUBSCRIPTION` / `DROP SUBSCRIPTION`
 
 ## System columns and catalog access
 - [x] System columns (`ctid` `xmin` `xmax` `cmin` `cmax` `tableoid`, legacy `oid`)
