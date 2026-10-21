@@ -11,4 +11,6 @@ public sealed class AlterIndexStatement : Query
     public SyntaxToken? OnKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? TableName { get; init; }
     public SyntaxToken? Action { get; init; }
+    public ExistenceCheck? IfExists { get; init; }
+    public AlterTableAction? RelationAction { get; init; }
 }

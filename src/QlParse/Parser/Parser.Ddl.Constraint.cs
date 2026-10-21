@@ -42,6 +42,16 @@ internal sealed partial class Parser
             return ParseColumnNotNullConstraint(start, constraintKeyword, constraintName);
         }
 
+        return ParseUnknownConstraint(column, start, constraintKeyword, constraintName);
+    }
+
+    private TableConstraint ParseUnknownConstraint(bool column, SyntaxToken start, SyntaxToken? constraintKeyword, SyntaxToken? constraintName)
+    {
+        if (IsPostgres)
+        {
+            return ParsePgConstraintKind(column, start, constraintKeyword, constraintName);
+        }
+
         throw new SqlParseException($"Expected constraint, found {_current.Kind}", _current.Position);
     }
 
@@ -53,6 +63,7 @@ internal sealed partial class Parser
         ParseReferences(out var referencesKeyword, out var referenceTable, out var referenceOpen, out var referenceColumns, out var referenceClose);
         ParseMatchAndActions(out var matchKeyword, out var matchType, out var actions);
         ParseConstraintCharacteristics(out var deferrableNot, out var deferrable, out var initially, out var initiallyWhen);
+        var attributes = ParsePgConstraintTail();
         var end = initiallyWhen?.Span
             ?? deferrable?.Span
             ?? (actions.Count > 0 ? actions[^1].Span : (SourceSpan?)null)
@@ -60,9 +71,13 @@ internal sealed partial class Parser
             ?? referenceTable[^1].Span;
         return new TableConstraint
         {
-            Span = SourceSpan.From(start, end),
+            Span = SourceSpan.From(start, MaxEnd(end, attributes.End)),
             ConstraintKeyword = constraintKeyword,
             ConstraintName = constraintName,
+            InheritNoKeyword = attributes.InheritNoKeyword,
+            InheritKeyword = attributes.InheritKeyword,
+            ValidNotKeyword = attributes.ValidNotKeyword,
+            ValidKeyword = attributes.ValidKeyword,
             ForeignKeyword = foreignKeyword,
             KeyKeyword = keyKeyword,
             ColumnsOpen = columnsOpen,
@@ -105,28 +120,19 @@ internal sealed partial class Parser
             distinctKeyword = distinctToken;
         }
 
-        SyntaxToken? columnsOpen = null;
-        IReadOnlyList<SyntaxToken>? columns = null;
-        SyntaxToken? columnsClose = null;
-        if (!column)
-        {
-            ParseRequiredNameList(out var keyOpen, out var keyColumns, out var keyClose);
-            columnsOpen = keyOpen;
-            columns = keyColumns;
-            columnsClose = keyClose;
-        }
-
+        var key = ParseUniqueKeyColumns(column);
         ParseConstraintCharacteristics(out var deferrableNot, out var deferrable, out var initially, out var initiallyWhen);
+        var attributes = ParsePgConstraintTail();
         var end = initiallyWhen?.Span
             ?? deferrable?.Span
-            ?? columnsClose?.Span
+            ?? key.End
             ?? keyKeyword?.Span
             ?? uniqueKeyword?.Span
             ?? constraintName?.Span
             ?? start.Span;
         return new TableConstraint
         {
-            Span = SourceSpan.From(start, end),
+            Span = SourceSpan.From(start, MaxEnd(end, attributes.End)),
             ConstraintKeyword = constraintKeyword,
             ConstraintName = constraintName,
             PrimaryKeyword = primaryKeyword,
@@ -135,14 +141,46 @@ internal sealed partial class Parser
             NullsKeyword = nullsKeyword,
             NullsNotKeyword = nullsNotKeyword,
             DistinctKeyword = distinctKeyword,
-            ColumnsOpen = columnsOpen,
-            Columns = columns,
-            ColumnsClose = columnsClose,
+            ColumnsOpen = key.OpenParen,
+            Columns = key.Columns,
+            ColumnsClose = key.CloseParen,
+            UsingKeyword = key.UsingIndex.UsingKeyword,
+            IndexKeyword = key.UsingIndex.IndexKeyword,
+            IndexName = key.UsingIndex.Name,
+            IndexParameters = key.IndexParameters,
+            InheritNoKeyword = attributes.InheritNoKeyword,
+            InheritKeyword = attributes.InheritKeyword,
+            ValidNotKeyword = attributes.ValidNotKeyword,
+            ValidKeyword = attributes.ValidKeyword,
             DeferrableNotKeyword = deferrableNot,
             DeferrableKeyword = deferrable,
             InitiallyKeyword = initially,
             InitiallyWhen = initiallyWhen,
         };
+    }
+
+    internal readonly record struct UniqueKeyColumns(
+        SyntaxToken? OpenParen,
+        IReadOnlyList<SyntaxToken>? Columns,
+        SyntaxToken? CloseParen,
+        PgUsingIndexName UsingIndex,
+        IndexParameters? IndexParameters,
+        SourceSpan? End);
+
+    private UniqueKeyColumns ParseUniqueKeyColumns(bool column)
+    {
+        if (IsPostgres)
+        {
+            return ParsePgUniqueKeyColumns(column);
+        }
+
+        if (column)
+        {
+            return default;
+        }
+
+        ParseRequiredNameList(out var openParen, out var columns, out var closeParen);
+        return new UniqueKeyColumns(openParen, columns, closeParen, default, null, closeParen.Span);
     }
 
     private TableConstraint ParseCheckConstraint(SyntaxToken start, SyntaxToken? constraintKeyword, SyntaxToken? constraintName)
@@ -152,12 +190,17 @@ internal sealed partial class Parser
         var check = ParseExpression();
         var checkClose = Expect(SyntaxKind.CloseParen);
         ParseConstraintCharacteristics(out var deferrableNot, out var deferrable, out var initially, out var initiallyWhen);
+        var attributes = ParsePgConstraintTail();
         var end = initiallyWhen?.Span ?? deferrable?.Span ?? checkClose.Span;
         return new TableConstraint
         {
-            Span = SourceSpan.From(start, end),
+            Span = SourceSpan.From(start, MaxEnd(end, attributes.End)),
             ConstraintKeyword = constraintKeyword,
             ConstraintName = constraintName,
+            InheritNoKeyword = attributes.InheritNoKeyword,
+            InheritKeyword = attributes.InheritKeyword,
+            ValidNotKeyword = attributes.ValidNotKeyword,
+            ValidKeyword = attributes.ValidKeyword,
             CheckKeyword = checkKeyword,
             CheckOpen = checkOpen,
             Check = check,
@@ -174,6 +217,7 @@ internal sealed partial class Parser
         ParseReferences(out var referencesKeyword, out var referenceTable, out var referenceOpen, out var referenceColumns, out var referenceClose);
         ParseMatchAndActions(out var matchKeyword, out var matchType, out var actions);
         ParseConstraintCharacteristics(out var deferrableNot, out var deferrable, out var initially, out var initiallyWhen);
+        var attributes = ParsePgConstraintTail();
         var end = initiallyWhen?.Span
             ?? deferrable?.Span
             ?? (actions.Count > 0 ? actions[^1].Span : (SourceSpan?)null)
@@ -181,9 +225,13 @@ internal sealed partial class Parser
             ?? referenceTable[^1].Span;
         return new TableConstraint
         {
-            Span = SourceSpan.From(start, end),
+            Span = SourceSpan.From(start, MaxEnd(end, attributes.End)),
             ConstraintKeyword = constraintKeyword,
             ConstraintName = constraintName,
+            InheritNoKeyword = attributes.InheritNoKeyword,
+            InheritKeyword = attributes.InheritKeyword,
+            ValidNotKeyword = attributes.ValidNotKeyword,
+            ValidKeyword = attributes.ValidKeyword,
             ReferencesKeyword = referencesKeyword,
             ReferenceTable = referenceTable,
             ReferenceOpen = referenceOpen,
@@ -297,19 +345,28 @@ internal sealed partial class Parser
             }
 
             var eventKeyword = Advance();
-            var (noKeyword, setKeyword, action) = ParseReferentialActionValue();
-            items.Add(new ReferentialAction
-            {
-                Span = SourceSpan.From(onKeyword, action),
-                OnKeyword = onKeyword,
-                Event = eventKeyword,
-                NoKeyword = noKeyword,
-                SetKeyword = setKeyword,
-                Action = action,
-            });
+            items.Add(ParseReferentialAction(onKeyword, eventKeyword));
         }
 
         actions = items;
+    }
+
+    private ReferentialAction ParseReferentialAction(SyntaxToken onKeyword, SyntaxToken eventKeyword)
+    {
+        var (noKeyword, setKeyword, action) = ParseReferentialActionValue();
+        var (columnsOpen, columns, columnsClose) = setKeyword is not null && IsPostgres ? TryParsePgActionColumns() : default;
+        return new ReferentialAction
+        {
+            Span = SourceSpan.From(onKeyword, columnsClose ?? action),
+            OnKeyword = onKeyword,
+            Event = eventKeyword,
+            NoKeyword = noKeyword,
+            SetKeyword = setKeyword,
+            Action = action,
+            ColumnsOpen = columnsOpen,
+            Columns = columns,
+            ColumnsClose = columnsClose,
+        };
     }
 
     private (SyntaxToken? NoKeyword, SyntaxToken? SetKeyword, SyntaxToken Action) ParseReferentialActionValue()
@@ -545,7 +602,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Start))
         {
             var start = Advance();
-            var withKeyword = Expect(SyntaxKind.WithKeyword);
+            var withKeyword = ExpectSequenceOptionWord(SyntaxKind.WithKeyword);
             var value = ParseExpression();
             return new SequenceOption
             {
@@ -559,7 +616,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Increment))
         {
             var increment = Advance();
-            var byKeyword = Expect(SyntaxKind.ByKeyword);
+            var byKeyword = ExpectSequenceOptionWord(SyntaxKind.ByKeyword);
             var value = ParseExpression();
             return new SequenceOption
             {
@@ -580,6 +637,20 @@ internal sealed partial class Parser
                 Name = name,
                 Value = value,
             };
+        }
+
+        return ParseUnknownSequenceOption();
+    }
+
+    // START's WITH and INCREMENT's BY are required by ISO and optional in Postgres.
+    private SyntaxToken? ExpectSequenceOptionWord(SyntaxKind kind) =>
+        _current.Kind == kind || !IsPostgres ? Expect(kind) : null;
+
+    private SequenceOption ParseUnknownSequenceOption()
+    {
+        if (IsPostgres)
+        {
+            return ParsePgSequenceOption();
         }
 
         throw new SqlParseException($"Expected sequence option, found {_current.Kind}", _current.Position);
@@ -623,11 +694,23 @@ internal sealed partial class Parser
         commitKeyword = ExpectIdent(Keyword.Commit);
         if (!IdentifierEquals(Keyword.Preserve) && !IdentifierEquals(Keyword.Delete))
         {
-            throw new SqlParseException($"Expected PRESERVE or DELETE, found {_current.Kind}", _current.Position);
+            action = ParsePgOnCommitDrop();
+            return;
         }
 
         action = Advance();
         rowsKeyword = ExpectIdent(Keyword.Rows);
+    }
+
+    // Postgres `ON COMMIT DROP` has no trailing ROWS keyword.
+    private SyntaxToken ParsePgOnCommitDrop()
+    {
+        if (!IsPostgres || !IdentifierEquals(Keyword.Drop))
+        {
+            throw new SqlParseException($"Expected PRESERVE or DELETE, found {_current.Kind}", _current.Position);
+        }
+
+        return Advance();
     }
 
     private void ParseRequiredNameList(
@@ -721,7 +804,8 @@ internal sealed partial class Parser
     internal bool IsColumnConstraintStart() =>
         IsTableConstraintStart()
         || _current.Kind == SyntaxKind.NotKeyword
-        || IdentifierEquals(Keyword.References);
+        || IdentifierEquals(Keyword.References)
+        || (IsPostgres && _current.Kind == SyntaxKind.NullKeyword);
 
     internal bool IsPeriodDefinition() =>
         IdentifierEquals(Keyword.Period) && NextKind == SyntaxKind.ForKeyword;

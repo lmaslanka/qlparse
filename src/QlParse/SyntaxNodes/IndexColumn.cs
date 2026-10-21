@@ -7,4 +7,6 @@ public sealed class IndexColumn
     public SyntaxToken? Direction { get; init; }
     public SyntaxToken? NullsKeyword { get; init; }
     public SyntaxToken? NullsOrder { get; init; }
+    public IReadOnlyList<SyntaxToken>? OperatorClass { get; init; }
+    public StorageParameterList? OperatorClassParameters { get; init; }
 }

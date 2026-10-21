@@ -14,4 +14,10 @@ public sealed class CreateIndexStatement : Query
     public required SyntaxToken CloseParen { get; init; }
     public SyntaxToken? WhereKeyword { get; init; }
     public Expression? Where { get; init; }
+    public SyntaxToken? ConcurrentlyKeyword { get; init; }
+    public ExistenceCheck? IfNotExists { get; init; }
+    public SyntaxToken? OnlyKeyword { get; init; }
+    public SyntaxToken? UsingKeyword { get; init; }
+    public SyntaxToken? Method { get; init; }
+    public IndexParameters? Options { get; init; }
 }

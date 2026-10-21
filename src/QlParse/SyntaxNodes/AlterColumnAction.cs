@@ -26,4 +26,16 @@ public sealed class AlterColumnAction : AlterTableAction
     public SyntaxToken? DefaultKeyword { get; init; }
     public SyntaxToken? IdentityKeyword { get; init; }
     public SequenceOption? IdentityOption { get; init; }
+    public SyntaxToken? CollateKeyword { get; init; }
+    public IReadOnlyList<SyntaxToken>? Collation { get; init; }
+    public SyntaxToken? UsingKeyword { get; init; }
+    public Expression? Using { get; init; }
+    public SyntaxToken? AttributeKeyword { get; init; }
+    public Expression? AttributeValue { get; init; }
+    public SyntaxToken? AttributeName { get; init; }
+    public SyntaxToken? ResetKeyword { get; init; }
+    public StorageParameterList? Parameters { get; init; }
+    public IdentityColumn? Identity { get; init; }
+    public SyntaxToken? ExpressionKeyword { get; init; }
+    public ExistenceCheck? IfExists { get; init; }
 }

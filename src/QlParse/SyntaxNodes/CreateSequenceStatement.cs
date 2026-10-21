@@ -8,4 +8,6 @@ public sealed class CreateSequenceStatement : Query
     public SyntaxToken? AsKeyword { get; init; }
     public DataType? DataType { get; init; }
     public IReadOnlyList<SequenceOption> Options { get; init; } = [];
+    public SyntaxToken? PersistenceKeyword { get; init; }
+    public ExistenceCheck? IfNotExists { get; init; }
 }
