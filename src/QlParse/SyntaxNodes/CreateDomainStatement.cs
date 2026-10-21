@@ -11,4 +11,5 @@ public sealed class CreateDomainStatement : Query
     public IReadOnlyList<DomainConstraint> Constraints { get; init; } = [];
     public SyntaxToken? CollateKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? Collation { get; init; }
+    public IReadOnlyList<PgDomainNullConstraint> NullConstraints { get; init; } = [];
 }

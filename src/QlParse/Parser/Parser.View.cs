@@ -135,7 +135,7 @@ internal sealed partial class Parser
         var name = ParseQualifiedName();
         var asKeyword = _current.Kind == SyntaxKind.AsKeyword ? Advance() : (SyntaxToken?)null;
         var type = ParseDataType();
-        ParseDomainTail(out var defaultClause, out var constraints, out var collateKeyword, out var collation);
+        var nullConstraints = ParseDomainTail(out var defaultClause, out var constraints, out var collateKeyword, out var collation);
         var end = type.Span;
         if (defaultClause is not null)
         {
@@ -152,6 +152,11 @@ internal sealed partial class Parser
             end = collation[^1].Span;
         }
 
+        if (nullConstraints.Count > 0 && nullConstraints[^1].Span.End > end.End)
+        {
+            end = nullConstraints[^1].Span;
+        }
+
         return new CreateDomainStatement
         {
             Span = SourceSpan.From(createKeyword, end),
@@ -164,6 +169,7 @@ internal sealed partial class Parser
             Constraints = constraints,
             CollateKeyword = collateKeyword,
             Collation = collation,
+            NullConstraints = nullConstraints,
         };
     }
 
@@ -388,6 +394,15 @@ internal sealed partial class Parser
         };
     }
 
+    internal readonly record struct CastConversion(
+        RoutineDesignator? Routine,
+        SyntaxToken? FunctionKeyword,
+        SyntaxToken? InoutKeyword,
+        SyntaxToken? ArgumentsOpenParen,
+        IReadOnlyList<PgRoutineArgument> Arguments,
+        SyntaxToken? ArgumentsCloseParen,
+        SourceSpan End);
+
     internal CreateCastStatement ParseCreateCast()
     {
         var createKeyword = Advance();
@@ -397,15 +412,15 @@ internal sealed partial class Parser
         var asKeyword = Expect(SyntaxKind.AsKeyword);
         var target = ParseDataType();
         var closeParen = Expect(SyntaxKind.CloseParen);
-        var withKeyword = Expect(SyntaxKind.WithKeyword);
-        var routine = ParseRoutineDesignator();
+        var withKeyword = IsPostgres && IdentifierEquals(Keyword.Without) ? Advance() : Expect(SyntaxKind.WithKeyword);
+        var conversion = IsPostgres ? ParsePgCastConversion(withKeyword) : ParseIsoCastConversion();
         SyntaxToken? assignmentAs = null;
         SyntaxToken? assignment = null;
-        var end = routine.Span;
+        var end = conversion.End;
         if (_current.Kind == SyntaxKind.AsKeyword)
         {
             assignmentAs = Advance();
-            var assignmentToken = ExpectIdent(Keyword.Assignment);
+            var assignmentToken = IsPostgres && IdentifierEquals(Keyword.PgImplicit) ? Advance() : ExpectIdent(Keyword.Assignment);
             assignment = assignmentToken;
             end = assignmentToken.Span;
         }
@@ -421,10 +436,21 @@ internal sealed partial class Parser
             Target = target,
             CloseParen = closeParen,
             WithKeyword = withKeyword,
-            Routine = routine,
+            Routine = conversion.Routine,
+            FunctionKeyword = conversion.FunctionKeyword,
+            InoutKeyword = conversion.InoutKeyword,
+            ArgumentsOpenParen = conversion.ArgumentsOpenParen,
+            Arguments = conversion.Arguments,
+            ArgumentsCloseParen = conversion.ArgumentsCloseParen,
             AssignmentAsKeyword = assignmentAs,
             AssignmentKeyword = assignment,
         };
+    }
+
+    private CastConversion ParseIsoCastConversion()
+    {
+        var routine = ParseRoutineDesignator();
+        return new CastConversion(routine, null, null, null, [], null, routine.Span);
     }
 
     internal CreateTransformStatement ParseCreateTransform()
@@ -507,7 +533,7 @@ internal sealed partial class Parser
         throw new SqlParseException($"Expected view element, found {_current.Kind}", _current.Position);
     }
 
-    private void ParseDomainTail(
+    private IReadOnlyList<PgDomainNullConstraint> ParseDomainTail(
         out DefaultClause? defaultClause,
         out IReadOnlyList<DomainConstraint> constraints,
         out SyntaxToken? collateKeyword,
@@ -517,8 +543,16 @@ internal sealed partial class Parser
         collateKeyword = null;
         collation = null;
         var items = new List<DomainConstraint>();
+        List<PgDomainNullConstraint>? nullItems = null;
         while (true)
         {
+            if (IsPgDomainNullConstraintStart())
+            {
+                nullItems ??= [];
+                nullItems.Add(ParsePgDomainNullConstraint());
+                continue;
+            }
+
             if (IdentifierEquals(Keyword.Default))
             {
                 if (defaultClause is not null)
@@ -551,6 +585,7 @@ internal sealed partial class Parser
         }
 
         constraints = items;
+        return nullItems ?? (IReadOnlyList<PgDomainNullConstraint>)[];
     }
 
     private DomainConstraint ParseDomainConstraint()

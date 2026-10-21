@@ -5,13 +5,63 @@ internal sealed partial class Parser
     internal CreateTriggerStatement ParseCreateTrigger()
     {
         var createKeyword = Advance();
+        var prefix = IsPostgres ? ParsePgTriggerPrefix() : default;
         var triggerKeyword = ExpectIdent(Keyword.Trigger);
         var name = ParseQualifiedName();
         var actionTimeClause = ParseTriggerActionTime();
-        var actionTime = actionTimeClause.ActionTime;
-        var ofKeyword = actionTimeClause.OfKeyword;
-        var eventKeyword = ParseTriggerEvent();
+        var events = ParseTriggerEvents();
+        var onKeyword = Expect(SyntaxKind.OnKeyword);
+        var tableName = ParseQualifiedName();
+        var constraint = IsPostgres ? ParsePgTriggerConstraint() : default;
+        var referencingClause = ParseTriggerReferencing();
+        var granularityClause = ParseTriggerGranularity();
+        var whenClause = ParseTriggerWhenClause();
+        var body = IsPostgres && IsPgExecuteFunctionStart() ? ParsePgExecuteFunctionClause() : ParseStatement();
+        return new CreateTriggerStatement
+        {
+            Span = SourceSpan.From(createKeyword, body.Span),
+            CreateKeyword = createKeyword,
+            OrKeyword = prefix.OrKeyword,
+            ReplaceKeyword = prefix.ReplaceKeyword,
+            ConstraintKeyword = prefix.ConstraintKeyword,
+            TriggerKeyword = triggerKeyword,
+            Name = name,
+            ActionTime = actionTimeClause.ActionTime,
+            OfKeyword = actionTimeClause.OfKeyword,
+            Event = events.Event,
+            ColumnsOfKeyword = events.ColumnsOfKeyword,
+            Columns = events.Columns,
+            AdditionalEvents = events.AdditionalEvents,
+            OnKeyword = onKeyword,
+            TableName = tableName,
+            FromKeyword = constraint.FromKeyword,
+            ReferencedTable = constraint.ReferencedTable,
+            DeferrableNotKeyword = constraint.NotKeyword,
+            DeferrableKeyword = constraint.DeferrableKeyword,
+            InitiallyKeyword = constraint.InitiallyKeyword,
+            InitiallyWhen = constraint.InitiallyWhen,
+            ReferencingKeyword = referencingClause.ReferencingKeyword,
+            Transitions = referencingClause.Transitions,
+            ForKeyword = granularityClause.ForKeyword,
+            EachKeyword = granularityClause.EachKeyword,
+            Granularity = granularityClause.Granularity,
+            WhenKeyword = whenClause.WhenKeyword,
+            WhenOpen = whenClause.WhenOpen,
+            When = whenClause.When,
+            WhenClose = whenClause.WhenClose,
+            Body = body,
+        };
+    }
 
+    private readonly record struct TriggerEvents(
+        SyntaxToken Event,
+        SyntaxToken? ColumnsOfKeyword,
+        IReadOnlyList<SyntaxToken>? Columns,
+        IReadOnlyList<PgTriggerEvent> AdditionalEvents);
+
+    private TriggerEvents ParseTriggerEvents()
+    {
+        var eventKeyword = ParseTriggerEvent();
         SyntaxToken? columnsOf = null;
         IReadOnlyList<SyntaxToken>? columns = null;
         if (eventKeyword.Kind == SyntaxKind.UpdateKeyword && _current.Kind == SyntaxKind.OfKeyword)
@@ -20,63 +70,34 @@ internal sealed partial class Parser
             columns = ParseNameList();
         }
 
-        var onKeyword = Expect(SyntaxKind.OnKeyword);
-        var tableName = ParseQualifiedName();
-        SyntaxToken? referencing = null;
-        IReadOnlyList<TransitionClause> transitions = [];
-        if (IdentifierEquals(Keyword.Referencing))
+        var additional = IsPostgres && _current.Kind == SyntaxKind.OrKeyword ? ParsePgTriggerEvents() : [];
+        return new TriggerEvents(eventKeyword, columnsOf, columns, additional);
+    }
+
+    private readonly record struct TriggerReferencing(SyntaxToken? ReferencingKeyword, IReadOnlyList<TransitionClause> Transitions);
+
+    private TriggerReferencing ParseTriggerReferencing()
+    {
+        if (!IdentifierEquals(Keyword.Referencing))
         {
-            referencing = Advance();
-            transitions = ParseTransitions();
+            return new TriggerReferencing(null, []);
         }
 
-        var granularityClause = ParseTriggerGranularity();
-        var forKeyword = granularityClause.ForKeyword;
-        var eachKeyword = granularityClause.EachKeyword;
-        var granularity = granularityClause.Granularity;
-        var whenClause = ParseTriggerWhenClause();
-        var whenKeyword = whenClause.WhenKeyword;
-        var whenOpen = whenClause.WhenOpen;
-        var when = whenClause.When;
-        var whenClose = whenClause.WhenClose;
-        var body = ParseStatement();
-        return new CreateTriggerStatement
-        {
-            Span = SourceSpan.From(createKeyword, body.Span),
-            CreateKeyword = createKeyword,
-            TriggerKeyword = triggerKeyword,
-            Name = name,
-            ActionTime = actionTime,
-            OfKeyword = ofKeyword,
-            Event = eventKeyword,
-            ColumnsOfKeyword = columnsOf,
-            Columns = columns,
-            OnKeyword = onKeyword,
-            TableName = tableName,
-            ReferencingKeyword = referencing,
-            Transitions = transitions,
-            ForKeyword = forKeyword,
-            EachKeyword = eachKeyword,
-            Granularity = granularity,
-            WhenKeyword = whenKeyword,
-            WhenOpen = whenOpen,
-            When = when,
-            WhenClose = whenClose,
-            Body = body,
-        };
+        var referencing = Advance();
+        return new TriggerReferencing(referencing, ParseTransitions());
     }
 
     private readonly record struct TriggerGranularity(SyntaxToken? ForKeyword, SyntaxToken? EachKeyword, SyntaxToken? Granularity);
 
     private TriggerGranularity ParseTriggerGranularity()
     {
-        if (_current.Kind != SyntaxKind.ForKeyword || !NextEquals(Keyword.Each))
+        if (_current.Kind != SyntaxKind.ForKeyword || !(NextEquals(Keyword.Each) || IsPgEachlessGranularity()))
         {
             return new TriggerGranularity(null, null, null);
         }
 
         var forKeyword = Advance();
-        var eachKeyword = ExpectIdent(Keyword.Each);
+        SyntaxToken? eachKeyword = IsPostgres && !IdentifierEquals(Keyword.Each) ? null : ExpectIdent(Keyword.Each);
         if (!IdentifierEquals(Keyword.Row) && !IdentifierEquals(Keyword.Statement))
         {
             throw new SqlParseException($"Expected ROW or STATEMENT, found {_current.Kind}", _current.Position);
@@ -84,6 +105,10 @@ internal sealed partial class Parser
 
         return new TriggerGranularity(forKeyword, eachKeyword, Advance());
     }
+
+    // Postgres makes EACH optional: FOR ROW / FOR STATEMENT.
+    private bool IsPgEachlessGranularity() =>
+        IsPostgres && (NextEquals(Keyword.Row) || NextEquals(Keyword.Statement));
 
     private readonly record struct TriggerWhenClause(SyntaxToken? WhenKeyword, SyntaxToken? WhenOpen, Expression? When, SyntaxToken? WhenClose);
 
@@ -126,6 +151,11 @@ internal sealed partial class Parser
             return Advance();
         }
 
+        if (IsPostgres && IdentifierEquals(Keyword.Truncate))
+        {
+            return Advance();
+        }
+
         throw new SqlParseException($"Expected INSERT, DELETE, or UPDATE, found {_current.Kind}", _current.Position);
     }
 
@@ -133,13 +163,21 @@ internal sealed partial class Parser
     {
         var dropKeyword = Advance();
         var triggerKeyword = ExpectIdent(Keyword.Trigger);
+        var ifExists = IsPostgres ? ParsePgIfExists() : default;
         var name = ParseQualifiedName();
+        var tail = IsPostgres ? ParsePgDropTriggerTail() : default;
+        var end = tail.Behavior?.Span ?? tail.TableName?[^1].Span ?? name[^1].Span;
         return new DropTriggerStatement
         {
-            Span = SourceSpan.From(dropKeyword, name[^1]),
+            Span = SourceSpan.From(dropKeyword, end),
             DropKeyword = dropKeyword,
             TriggerKeyword = triggerKeyword,
+            IfKeyword = ifExists.IfKeyword,
+            ExistsKeyword = ifExists.ExistsKeyword,
             Name = name,
+            OnKeyword = tail.OnKeyword,
+            TableName = tail.TableName,
+            Behavior = tail.Behavior,
         };
     }
 
