@@ -92,17 +92,30 @@ public partial class SqlVisitor
     // The Postgres-only parts of CREATE FUNCTION / PROCEDURE: RETURNS TABLE columns and TRANSFORM types.
     public virtual void VisitPgRoutineDefinition(CreateRoutineStatement node)
     {
-        if (node.ReturnsTable is not null)
+        if (node.Postgres?.ReturnsTable is { } returnsTable)
         {
-            VisitPgReturnsTable(node.ReturnsTable);
+            VisitPgReturnsTable(returnsTable);
         }
 
         foreach (var characteristic in node.Characteristics)
         {
-            foreach (var type in characteristic.Types)
+            if (characteristic.Postgres is null)
+            {
+                continue;
+            }
+
+            foreach (var type in characteristic.Postgres.Types)
             {
                 VisitDataType(type);
             }
+        }
+    }
+
+    public virtual void VisitPgRoutineParameterExtras(PgRoutineParameterExtras node)
+    {
+        if (node.Default is not null)
+        {
+            Visit(node.Default);
         }
     }
 

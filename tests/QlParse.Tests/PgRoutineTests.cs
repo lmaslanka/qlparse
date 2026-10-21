@@ -121,12 +121,12 @@ public sealed class PgRoutineTests
     public void Parses_create_or_replace_function_language_plpgsql()
     {
         var node = ParseWhole<CreateRoutineStatement>(FunctionSql);
-        Assert.Equal("or", Text(FunctionSql, node.OrKeyword));
-        Assert.Equal("replace", Text(FunctionSql, node.ReplaceKeyword));
+        Assert.Equal("or", Text(FunctionSql, node.Postgres!.OrKeyword));
+        Assert.Equal("replace", Text(FunctionSql, node.Postgres!.ReplaceKeyword));
         Assert.Equal("int", Text(FunctionSql, node.ReturnsType!.Span));
         Assert.Equal("language plpgsql", Attribute(FunctionSql, Assert.Single(node.Characteristics)));
-        Assert.Equal("as", Text(FunctionSql, node.AsKeyword));
-        Assert.Equal(At(FunctionSql, DollarQuote), node.Definition?.Position);
+        Assert.Equal("as", Text(FunctionSql, node.Postgres!.AsKeyword));
+        Assert.Equal(At(FunctionSql, DollarQuote), node.Postgres!.Definition?.Position);
         var block = Assert.IsType<PlpgsqlBlock>(node.Body);
         var statement = Assert.IsType<PlpgsqlReturnStatement>(Assert.Single(block.Statements));
         Assert.Equal("return x + 1", Text(FunctionSql, statement.Span));
@@ -173,8 +173,8 @@ public sealed class PgRoutineTests
                 "security definer", "set search_path = public, pg_temp"],
             attributes);
         var set = node.Characteristics[^1];
-        Assert.Equal(TwoItems, set.Values.Count);
-        Assert.Equal("pg_temp", Text(AttributesSql, set.Values[1].Span));
+        Assert.Equal(TwoItems, set.Postgres!.Values.Count);
+        Assert.Equal("pg_temp", Text(AttributesSql, set.Postgres!.Values[1].Span));
         SqlAssert.ParseFails(AttributesSql);
     }
 
@@ -194,9 +194,9 @@ public sealed class PgRoutineTests
                 "returns null on null input", "set work_mem to '1MB'", "set datestyle from current", "language c"],
             attributes);
         var transform = node.Characteristics[Ninth];
-        Assert.Equal(DoublePrecision, Text(MoreAttributesSql, transform.Types[1].Span));
-        Assert.Equal("'lib'", Text(MoreAttributesSql, node.Definition));
-        Assert.Equal("'sym'", Text(MoreAttributesSql, node.LinkSymbol));
+        Assert.Equal(DoublePrecision, Text(MoreAttributesSql, transform.Postgres!.Types[1].Span));
+        Assert.Equal("'lib'", Text(MoreAttributesSql, node.Postgres!.Definition));
+        Assert.Equal("'sym'", Text(MoreAttributesSql, node.Postgres!.LinkSymbol));
         Assert.Null(node.Body);
         SqlAssert.ParseFails(MoreAttributesSql);
     }
@@ -220,12 +220,12 @@ public sealed class PgRoutineTests
         Assert.Equal("a", Text(ParametersSql, parameters[1].Name));
         Assert.Equal(DoublePrecision, Text(ParametersSql, parameters[Fourth].Type.Span));
         Assert.Null(parameters[Sixth].Name);
-        Assert.Equal("default", Text(ParametersSql, parameters[Seventh].DefaultToken));
-        Assert.Equal("'1'", Text(ParametersSql, parameters[Seventh].Default!.Span));
-        Assert.Equal("%type", Text(ParametersSql, parameters[^1].TypeAttribute!.Span));
+        Assert.Equal("default", Text(ParametersSql, parameters[Seventh].Postgres!.DefaultToken));
+        Assert.Equal("'1'", Text(ParametersSql, parameters[Seventh].Postgres!.Default!.Span));
+        Assert.Equal("%type", Text(ParametersSql, parameters[^1].Postgres!.TypeAttribute!.Span));
         Assert.Equal("t.col", Text(ParametersSql, parameters[^1].Type.Span));
-        Assert.Equal("=", Text(ParametersSql, parameters[^1].DefaultToken));
-        Assert.Equal("setof", Text(ParametersSql, node.SetofKeyword));
+        Assert.Equal("=", Text(ParametersSql, parameters[^1].Postgres!.DefaultToken));
+        Assert.Equal("setof", Text(ParametersSql, node.Postgres!.SetofKeyword));
         Assert.Equal("record", Text(ParametersSql, node.ReturnsType!.Span));
     }
 
@@ -238,7 +238,7 @@ public sealed class PgRoutineTests
     {
         var sql = $"create function f() returns {returns} language sql as $$ select null $$";
         var node = ParseWhole<CreateRoutineStatement>(sql);
-        Assert.Equal(returns, Text(sql, SourceSpan.From(node.SetofKeyword ?? node.ReturnsType!.Name, node.ReturnsType!.Span)));
+        Assert.Equal(returns, Text(sql, SourceSpan.From(node.Postgres!.SetofKeyword ?? node.ReturnsType!.Name, node.ReturnsType!.Span)));
     }
 
     private const string ReturnsTableSql =
@@ -249,7 +249,7 @@ public sealed class PgRoutineTests
     {
         var node = ParseWhole<CreateRoutineStatement>(ReturnsTableSql);
         Assert.Null(node.ReturnsType);
-        var table = Assert.IsType<PgReturnsTable>(node.ReturnsTable);
+        var table = Assert.IsType<PgReturnsTable>(node.Postgres!.ReturnsTable);
         Assert.Equal("table (id int, name text)", Text(ReturnsTableSql, table.Span));
         Assert.Equal(TwoItems, table.Columns.Count);
         Assert.Equal("name", Text(ReturnsTableSql, table.Columns[1].Name));
@@ -262,7 +262,7 @@ public sealed class PgRoutineTests
         const string Sql = "create function f() returns t%rowtype language sql as $$ select * from t $$";
         var node = ParseWhole<CreateRoutineStatement>(Sql);
         Assert.Equal("t", Text(Sql, node.ReturnsType!.Span));
-        Assert.Equal("%rowtype", Text(Sql, node.ReturnsTypeAttribute!.Span));
+        Assert.Equal("%rowtype", Text(Sql, node.Postgres!.ReturnsTypeAttribute!.Span));
     }
 
     // ---- SQL-standard bodies ----
@@ -274,7 +274,7 @@ public sealed class PgRoutineTests
         var node = ParseWhole<CreateRoutineStatement>(Sql);
         var body = Assert.IsType<ReturnStatement>(node.Body);
         Assert.Equal("return x + 1", Text(Sql, body.Span));
-        Assert.Null(node.Definition);
+        Assert.Null(node.Postgres?.Definition);
     }
 
     private const string AtomicSql =
@@ -331,11 +331,11 @@ public sealed class PgRoutineTests
         const string Quoted = "create function f() returns text language sql as 'select ''a'''";
         var quoted = ParseWhole<CreateRoutineStatement>(Quoted);
         Assert.Null(quoted.Body);
-        Assert.Equal("'select ''a'''", Text(Quoted, quoted.Definition));
+        Assert.Equal("'select ''a'''", Text(Quoted, quoted.Postgres!.Definition));
 
         var plpgsql = ParseWhole<CreateRoutineStatement>(SingleQuotedPlpgsql);
         Assert.Null(plpgsql.Body);
-        Assert.Empty(plpgsql.BodyTokens);
+        Assert.Empty(plpgsql.Postgres!.BodyTokens);
     }
 
     [Fact]
@@ -358,8 +358,8 @@ public sealed class PgRoutineTests
         var node = ParseWhole<CreateRoutineStatement>(NestedTagSql);
         var statement = Assert.IsType<PlpgsqlReturnStatement>(Assert.Single(Assert.IsType<PlpgsqlBlock>(node.Body).Statements));
         Assert.Equal("$$a$$", Text(NestedTagSql, statement.Value!.Span));
-        Assert.Equal(SyntaxKind.EndOfFile, node.BodyTokens[^1].Kind);
-        Assert.Equal(NestedTagSql.LastIndexOf("$fn$", StringComparison.Ordinal), node.BodyTokens[^1].Position);
+        Assert.Equal(SyntaxKind.EndOfFile, node.Postgres!.BodyTokens[^1].Kind);
+        Assert.Equal(NestedTagSql.LastIndexOf("$fn$", StringComparison.Ordinal), node.Postgres!.BodyTokens[^1].Position);
     }
 
     private const string BrokenBodySql =
@@ -472,7 +472,7 @@ public sealed class PgRoutineTests
         Assert.Equal("sql", Text(Sql, node.SqlKeyword));
         Assert.IsType<ReturnStatement>(node.Body);
         Assert.Equal(ThreeItems, node.Characteristics.Count);
-        Assert.Null(SqlAssert.Parse<CreateRoutineStatement>(Sql).OrKeyword);
+        Assert.Null(SqlAssert.Parse<CreateRoutineStatement>(Sql).Postgres?.OrKeyword);
     }
 
     // ---- Visitor ----

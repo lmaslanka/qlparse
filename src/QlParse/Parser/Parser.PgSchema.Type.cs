@@ -133,25 +133,26 @@ internal sealed partial class Parser
         if (TokenEquals(withKeyword, Keyword.Without))
         {
             var functionKeyword = ExpectIdent(Keyword.Function);
-            return new CastConversion(null, functionKeyword, null, null, [], null, functionKeyword.Span);
+            return new CastConversion(null, new PgCreateCastExtras { FunctionKeyword = functionKeyword }, functionKeyword.Span);
         }
 
         if (IdentifierEquals(Keyword.Inout))
         {
             var inout = Advance();
-            return new CastConversion(null, null, inout, null, [], null, inout.Span);
+            return new CastConversion(null, new PgCreateCastExtras { InoutKeyword = inout }, inout.Span);
         }
 
         var routine = ParseRoutineDesignator();
         if (_current.Kind != SyntaxKind.OpenParen)
         {
-            return new CastConversion(routine, null, null, null, [], null, routine.Span);
+            return new CastConversion(routine, null, routine.Span);
         }
 
         var openParen = Advance();
         IReadOnlyList<PgRoutineArgument> arguments = _current.Kind == SyntaxKind.CloseParen ? [] : ParsePgRoutineArguments();
         var closeParen = Expect(SyntaxKind.CloseParen);
-        return new CastConversion(routine, null, null, openParen, arguments, closeParen, closeParen.Span);
+        var extras = new PgCreateCastExtras { ArgumentsOpenParen = openParen, Arguments = arguments, ArgumentsCloseParen = closeParen };
+        return new CastConversion(routine, extras, closeParen.Span);
     }
 
     // CREATE COLLATION [IF NOT EXISTS] name {(LOCALE = ..., PROVIDER = ..., ...) | FROM existing}

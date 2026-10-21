@@ -8,6 +8,5 @@ public sealed class SequenceOption
     public SyntaxToken? WithKeyword { get; init; }
     public SyntaxToken? ByKeyword { get; init; }
     public Expression? Value { get; init; }
-    public SyntaxToken? NameKeyword { get; init; }
-    public IReadOnlyList<SyntaxToken>? Target { get; init; }
+    public PgSequenceOptionExtras? Postgres { get; init; }
 }

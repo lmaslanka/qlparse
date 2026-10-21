@@ -20,9 +20,5 @@ public sealed class CreateViewStatement : Query
     public SyntaxToken? Levels { get; init; }
     public SyntaxToken? CheckKeyword { get; init; }
     public SyntaxToken? OptionKeyword { get; init; }
-    public SyntaxToken? OrKeyword { get; init; }
-    public SyntaxToken? ReplaceKeyword { get; init; }
-    public SyntaxToken? TemporaryKeyword { get; init; }
-    public SyntaxToken? OptionsWithKeyword { get; init; }
-    public StorageParameterList? Options { get; init; }
+    public PgCreateViewExtras? Postgres { get; init; }
 }

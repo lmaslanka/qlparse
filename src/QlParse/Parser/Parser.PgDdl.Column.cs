@@ -2,12 +2,8 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    internal readonly record struct PgTypeConversion(
-        SyntaxToken? CollateKeyword,
-        IReadOnlyList<SyntaxToken>? Collation,
-        SyntaxToken? UsingKeyword,
-        Expression? Using,
-        SourceSpan? End);
+    // Extras is null when neither COLLATE nor USING is present.
+    internal readonly record struct PgTypeConversion(PgAlterColumnExtras? Extras, SourceSpan? End);
 
     // `[COLLATE collation] [USING expression]` after ALTER COLUMN ... TYPE.
     internal PgTypeConversion ParsePgTypeConversion()
@@ -29,7 +25,16 @@ internal sealed partial class Parser
         }
 
         var end = usingExpression?.Span ?? collation?[^1].Span;
-        return new PgTypeConversion(collateKeyword, collation, usingKeyword, usingExpression, end);
+        var extras = end is null
+            ? null
+            : new PgAlterColumnExtras
+            {
+                CollateKeyword = collateKeyword,
+                Collation = collation,
+                UsingKeyword = usingKeyword,
+                Using = usingExpression,
+            };
+        return new PgTypeConversion(extras, end);
     }
 
     // `ALTER [COLUMN] c TYPE t` shorthand and `ALTER [COLUMN] c RESET (...)`.
@@ -54,8 +59,11 @@ internal sealed partial class Parser
             AlterKeyword = alterKeyword,
             ColumnKeyword = columnKeyword,
             Name = name,
-            ResetKeyword = resetKeyword,
-            Parameters = parameters,
+            Postgres = new PgAlterColumnExtras
+            {
+                ResetKeyword = resetKeyword,
+                Parameters = parameters,
+            },
         };
     }
 
@@ -72,7 +80,7 @@ internal sealed partial class Parser
                 ColumnKeyword = head.ColumnKeyword,
                 Name = head.Name,
                 SetKeyword = setKeyword,
-                Parameters = parameters,
+                Postgres = new PgAlterColumnExtras { Parameters = parameters },
             };
         }
 
@@ -87,8 +95,11 @@ internal sealed partial class Parser
                 ColumnKeyword = head.ColumnKeyword,
                 Name = head.Name,
                 SetKeyword = setKeyword,
-                AttributeKeyword = statisticsKeyword,
-                AttributeValue = value,
+                Postgres = new PgAlterColumnExtras
+                {
+                    AttributeKeyword = statisticsKeyword,
+                    AttributeValue = value,
+                },
             };
         }
 
@@ -106,8 +117,11 @@ internal sealed partial class Parser
             ColumnKeyword = head.ColumnKeyword,
             Name = head.Name,
             SetKeyword = setKeyword,
-            AttributeKeyword = attributeKeyword,
-            AttributeName = attributeName,
+            Postgres = new PgAlterColumnExtras
+            {
+                AttributeKeyword = attributeKeyword,
+                AttributeName = attributeName,
+            },
         };
     }
 
@@ -123,8 +137,11 @@ internal sealed partial class Parser
             ColumnKeyword = head.ColumnKeyword,
             Name = head.Name,
             DropKeyword = dropKeyword,
-            ExpressionKeyword = expressionKeyword,
-            IfExists = ifExists,
+            Postgres = new PgAlterColumnExtras
+            {
+                ExpressionKeyword = expressionKeyword,
+                IfExists = ifExists,
+            },
         };
     }
 
@@ -144,7 +161,7 @@ internal sealed partial class Parser
             ColumnKeyword = head.ColumnKeyword,
             Name = head.Name,
             AddKeyword = addKeyword,
-            Identity = identity,
+            Postgres = new PgAlterColumnExtras { Identity = identity },
         };
     }
 
@@ -170,7 +187,13 @@ internal sealed partial class Parser
             var owned = Advance();
             var byKeyword = Expect(SyntaxKind.ByKeyword);
             var target = ParseQualifiedName();
-            return new SequenceOption { Span = SourceSpan.From(owned, target[^1]), Name = owned, ByKeyword = byKeyword, Target = target };
+            return new SequenceOption
+            {
+                Span = SourceSpan.From(owned, target[^1]),
+                Name = owned,
+                ByKeyword = byKeyword,
+                Postgres = new PgSequenceOptionExtras { Target = target },
+            };
         }
 
         if (IdentifierEquals(Keyword.Restart))
@@ -190,8 +213,11 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(sequenceKeyword, sequenceName[^1]),
             Name = sequenceKeyword,
-            NameKeyword = nameKeyword,
-            Target = sequenceName,
+            Postgres = new PgSequenceOptionExtras
+            {
+                NameKeyword = nameKeyword,
+                Target = sequenceName,
+            },
         };
     }
 

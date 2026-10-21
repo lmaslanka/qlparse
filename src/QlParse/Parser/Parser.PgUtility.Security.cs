@@ -292,15 +292,29 @@ internal sealed partial class Parser
             CommentKeyword = commentKeyword,
             OnKeyword = onKeyword,
             Kind = kind[0],
-            ExtraKindKeywords = kind.Count > 1 ? kind[1..] : [],
             Name = target.Name,
+            IsKeyword = isKeyword,
+            Value = value,
+            Postgres = BuildPgCommentExtras(kind, target, tableClause),
+        };
+    }
+
+    // Null for the ISO shape `COMMENT ON kind name IS ...`.
+    private static PgCommentExtras? BuildPgCommentExtras(List<SyntaxToken> kind, ObjectSignature target, CommentTargetClause tableClause)
+    {
+        if (kind.Count == 1 && target.OpenParen is null && tableClause.OnKeyword is null)
+        {
+            return null;
+        }
+
+        return new PgCommentExtras
+        {
+            ExtraKindKeywords = kind.Count > 1 ? kind[1..] : [],
             OpenParen = target.OpenParen,
             ArgumentTypes = target.ArgumentTypes,
             CloseParen = target.CloseParen,
             TargetOnKeyword = tableClause.OnKeyword,
             TableName = tableClause.TableName,
-            IsKeyword = isKeyword,
-            Value = value,
         };
     }
 

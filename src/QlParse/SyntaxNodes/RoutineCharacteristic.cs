@@ -6,6 +6,5 @@ public sealed class RoutineCharacteristic
     public SyntaxToken? NotKeyword { get; init; }
     public required SyntaxToken Name { get; init; }
     public IReadOnlyList<SyntaxToken> Tail { get; init; } = [];
-    public IReadOnlyList<DataType> Types { get; init; } = [];
-    public IReadOnlyList<OptionValue> Values { get; init; } = [];
+    public PgRoutineCharacteristicExtras? Postgres { get; init; }
 }

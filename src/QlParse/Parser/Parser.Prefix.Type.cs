@@ -52,11 +52,16 @@ internal sealed partial class Parser
             WithKeyword = withKeyword,
             TimeKeyword = timeKeyword,
             Zone = zone,
-            IntervalQualifier = intervalQualifier,
-            ArrayBounds = arrayBounds,
             Collections = collections,
+            Postgres = BuildPgDataTypeExtras(intervalQualifier, arrayBounds),
         };
     }
+
+    // Both are only ever parsed under the Postgres flag, so ISO types never allocate the extras.
+    private static PgDataTypeExtras? BuildPgDataTypeExtras(IntervalQualifier? intervalQualifier, IReadOnlyList<ArrayBound> arrayBounds) =>
+        intervalQualifier is null && arrayBounds.Count == 0
+            ? null
+            : new PgDataTypeExtras { IntervalQualifier = intervalQualifier, ArrayBounds = arrayBounds };
 
     private static SourceSpan ParseDataTypeEnd(
         SyntaxToken name,

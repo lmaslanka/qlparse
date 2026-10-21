@@ -37,33 +37,59 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, PgPreviousToken()),
             CreateKeyword = createKeyword,
-            OrKeyword = orKeyword,
-            ReplaceKeyword = replaceKeyword,
             RoutineKeyword = routineKeyword,
             Name = name,
             OpenParen = parameters.OpenParen,
             Parameters = parameters.Parameters,
             CloseParen = parameters.CloseParen,
             ReturnsKeyword = returns.ReturnsKeyword,
-            SetofKeyword = returns.SetofKeyword,
             ReturnsType = returns.Type,
-            ReturnsTypeAttribute = returns.TypeAttribute,
-            ReturnsTable = returns.Table,
             ReturnsAsKeyword = returns.AsKeyword,
             ReturnsLocator = returns.Locator,
             Characteristics = options.Characteristics,
-            AsKeyword = options.AsKeyword,
-            Definition = options.Definition,
-            LinkSymbol = options.LinkSymbol,
             SqlKeyword = isoBody.SqlKeyword,
             Body = body.Body ?? isoBody.Body,
             ExternalKeyword = isoBody.ExternalKeyword,
             NameKeyword = isoBody.NameKeyword,
             ExternalName = isoBody.ExternalName,
+            Postgres = BuildPgCreateRoutineExtras(orKeyword, replaceKeyword, returns, options, body),
+        };
+    }
+
+    // Null unless at least one Postgres-only clause is present (a plain ISO-shaped routine parsed
+    // under the Postgres flag gets none).
+    private static PgCreateRoutineExtras? BuildPgCreateRoutineExtras(
+        SyntaxToken? orKeyword,
+        SyntaxToken? replaceKeyword,
+        PgReturnsClause returns,
+        PgRoutineOptions options,
+        PgRoutineBody body)
+    {
+        if (orKeyword is null && !HasPgReturns(returns) && !HasPgDefinition(options, body))
+        {
+            return null;
+        }
+
+        return new PgCreateRoutineExtras
+        {
+            OrKeyword = orKeyword,
+            ReplaceKeyword = replaceKeyword,
+            SetofKeyword = returns.SetofKeyword,
+            ReturnsTypeAttribute = returns.TypeAttribute,
+            ReturnsTable = returns.Table,
+            AsKeyword = options.AsKeyword,
+            Definition = options.Definition,
+            LinkSymbol = options.LinkSymbol,
             BodyTokens = body.Tokens,
             BodyTrivia = body.Trivia,
         };
     }
+
+    private static bool HasPgReturns(PgReturnsClause returns) =>
+        returns.SetofKeyword is not null || returns.TypeAttribute is not null || returns.Table is not null;
+
+    private static bool HasPgDefinition(PgRoutineOptions options, PgRoutineBody body) =>
+        options.AsKeyword is not null || options.Definition is not null || body.Tokens.Count > 0;
 
     private PgParameterList ParsePgParameterList()
     {
@@ -98,9 +124,9 @@ internal sealed partial class Parser
             Mode = mode,
             Name = name,
             Type = type,
-            TypeAttribute = typeAttribute,
-            DefaultToken = defaultToken,
-            Default = defaultValue,
+            Postgres = typeAttribute is null && defaultToken is null
+                ? null
+                : new PgRoutineParameterExtras { TypeAttribute = typeAttribute, DefaultToken = defaultToken, Default = defaultValue },
         };
     }
 

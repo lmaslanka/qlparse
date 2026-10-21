@@ -160,8 +160,7 @@ internal sealed partial class Parser
             AlterKeyword = alterKeyword,
             IndexKeyword = indexKeyword,
             Name = [],
-            AllInTablespace = allInTablespace,
-            RelationAction = action,
+            Postgres = new PgAlterIndexExtras { AllInTablespace = allInTablespace, RelationAction = action },
         };
     }
 
@@ -177,11 +176,10 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(alterKeyword, action.Span),
             AlterKeyword = alterKeyword,
-            MaterializedKeyword = materializedKeyword,
             ViewKeyword = viewKeyword,
             Name = [],
-            AllInTablespace = allInTablespace,
             Action = action,
+            Postgres = new PgAlterViewExtras { MaterializedKeyword = materializedKeyword, AllInTablespace = allInTablespace },
         };
     }
 
@@ -199,8 +197,7 @@ internal sealed partial class Parser
             Name = name,
             ToKeyword = toKeyword,
             NewName = [],
-            OwnerKeyword = ownerKeyword,
-            Owner = owner,
+            Postgres = new PgAlterSchemaExtras { OwnerKeyword = ownerKeyword, Owner = owner },
         };
     }
 
@@ -213,10 +210,9 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, targets.End),
             DropKeyword = dropKeyword,
             SchemaKeyword = schemaKeyword,
-            IfExists = targets.IfExists,
             Name = targets.Name,
-            AdditionalNames = targets.AdditionalNames,
             Behavior = targets.Behavior,
+            Postgres = BuildPgDropExtras(targets),
         };
     }
 }

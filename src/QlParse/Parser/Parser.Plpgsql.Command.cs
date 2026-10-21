@@ -224,9 +224,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(getKeyword, items[^1].Span),
             GetKeyword = getKeyword,
-            ScopeKeyword = scope,
             DiagnosticsKeyword = diagnosticsKeyword,
             Items = items,
+            Postgres = scope is null ? null : new PgGetDiagnosticsExtras { ScopeKeyword = scope },
         };
     }
 }

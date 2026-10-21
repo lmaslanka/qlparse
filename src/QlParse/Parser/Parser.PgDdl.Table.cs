@@ -74,6 +74,48 @@ internal sealed partial class Parser
             end);
     }
 
+    // Null unless at least one Postgres-only CREATE TABLE clause is present.
+    internal static PgCreateTableExtras? BuildPgCreateTableExtras(
+        SyntaxToken? unlogged,
+        ExistenceCheck? ifNotExists,
+        PartitionOfClause? partitionOf,
+        PgTableTail tail)
+    {
+        if (unlogged is null && ifNotExists is null && partitionOf is null && !HasPgTableClauses(tail))
+        {
+            return null;
+        }
+
+        return new PgCreateTableExtras
+        {
+            UnloggedKeyword = unlogged,
+            IfNotExists = ifNotExists,
+            PartitionOf = partitionOf,
+            InheritsKeyword = tail.InheritsKeyword,
+            InheritsOpen = tail.InheritsOpen,
+            Inherits = tail.Inherits,
+            InheritsClose = tail.InheritsClose,
+            PartitionBy = tail.PartitionBy,
+            UsingKeyword = tail.UsingKeyword,
+            AccessMethod = tail.AccessMethod,
+            StorageWithKeyword = tail.StorageWithKeyword,
+            StorageParameters = tail.StorageParameters,
+            WithoutKeyword = tail.WithoutKeyword,
+            OidsKeyword = tail.OidsKeyword,
+            TablespaceKeyword = tail.TablespaceKeyword,
+            Tablespace = tail.Tablespace,
+        };
+    }
+
+    // ON COMMIT is ISO and stays on the statement, so it does not count here.
+    private static bool HasPgTableClauses(PgTableTail tail) =>
+        tail.InheritsKeyword is not null
+        || tail.PartitionBy is not null
+        || tail.UsingKeyword is not null
+        || tail.StorageWithKeyword is not null
+        || tail.WithoutKeyword is not null
+        || tail.TablespaceKeyword is not null;
+
     private PgInherits ParsePgInherits()
     {
         if (!IdentifierEquals(Keyword.Inherits))

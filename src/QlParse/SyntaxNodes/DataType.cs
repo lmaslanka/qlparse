@@ -12,12 +12,11 @@ public sealed class DataType
     public SyntaxToken? WithKeyword { get; init; }
     public SyntaxToken? TimeKeyword { get; init; }
     public SyntaxToken? Zone { get; init; }
-    public IntervalQualifier? IntervalQualifier { get; init; }
-    public IReadOnlyList<ArrayBound> ArrayBounds { get; init; } = [];
     public IReadOnlyList<CollectionSuffix> Collections { get; init; } = [];
     public IReadOnlyList<FieldDefinition>? Fields { get; init; }
     public DataType? ReferencedType { get; init; }
     public SyntaxToken? ScopeKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? ScopeName { get; init; }
     public SyntaxToken? Modifier { get; init; }
+    public PgDataTypeExtras? Postgres { get; init; }
 }

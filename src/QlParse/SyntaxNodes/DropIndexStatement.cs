@@ -8,7 +8,5 @@ public sealed class DropIndexStatement : Query
     public SyntaxToken? OnKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? TableName { get; init; }
     public SyntaxToken? Behavior { get; init; }
-    public SyntaxToken? ConcurrentlyKeyword { get; init; }
-    public ExistenceCheck? IfExists { get; init; }
-    public IReadOnlyList<IReadOnlyList<SyntaxToken>> AdditionalNames { get; init; } = [];
+    public PgDropIndexExtras? Postgres { get; init; }
 }

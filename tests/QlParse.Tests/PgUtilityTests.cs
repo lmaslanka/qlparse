@@ -55,8 +55,8 @@ public sealed class PgUtilityTests
         var begin = Whole<BeginTransactionStatement>(sql);
         Assert.Equal("transaction", Text(sql, begin.TransactionKeyword));
         Assert.Equal(ThreeItems, begin.Modes.Count);
-        Assert.NotNull(begin.Modes[^1].NotKeyword);
-        Assert.NotNull(begin.Modes[^1].DeferrableKeyword);
+        Assert.NotNull(begin.Modes[^1].Postgres!.NotKeyword);
+        Assert.NotNull(begin.Modes[^1].Postgres!.DeferrableKeyword);
         Assert.NotNull(Whole<BeginTransactionStatement>("begin work").TransactionKeyword);
         Assert.Equal(TwoItems, Whole<BeginTransactionStatement>("begin read write deferrable").Modes.Count);
         Assert.Single(Whole<BeginTransactionStatement>("begin isolation level read committed").Modes);
@@ -82,7 +82,7 @@ public sealed class PgUtilityTests
     {
         var start = Whole<StartTransactionStatement>("start transaction read only deferrable");
         Assert.Equal(TwoItems, start.Modes.Count);
-        Assert.NotNull(start.Modes[1].DeferrableKeyword);
+        Assert.NotNull(start.Modes[1].Postgres!.DeferrableKeyword);
         SqlAssert.ParseFails("start transaction deferrable");
     }
 
@@ -222,8 +222,8 @@ public sealed class PgUtilityTests
     {
         Assert.NotNull(Whole<SetTimeZoneStatement>("set time zone 'UTC'").Value);
         Assert.NotNull(Whole<SetTimeZoneStatement>("set time zone local").LocalKeyword);
-        Assert.NotNull(Whole<SetTimeZoneStatement>("set time zone default").DefaultKeyword);
-        Assert.NotNull(Whole<SetTimeZoneStatement>("set local time zone 'Europe/Warsaw'").ScopeKeyword);
+        Assert.NotNull(Whole<SetTimeZoneStatement>("set time zone default").Postgres!.DefaultKeyword);
+        Assert.NotNull(Whole<SetTimeZoneStatement>("set local time zone 'Europe/Warsaw'").Postgres!.ScopeKeyword);
         SqlAssert.ParseFails("set local time zone 'UTC'");
     }
 
@@ -231,13 +231,13 @@ public sealed class PgUtilityTests
     public void Parses_role_authorization_schema_and_constraints_sets()
     {
         Whole<SetRoleStatement>("set role admin");
-        Assert.NotNull(Whole<SetRoleStatement>("set local role none").ScopeKeyword);
+        Assert.NotNull(Whole<SetRoleStatement>("set local role none").Postgres!.ScopeKeyword);
         Whole<SetSessionAuthorizationStatement>("set session authorization default");
         Whole<SetSchemaStatement>("set schema 'x'");
         Assert.NotNull(Whole<SetConstraintsStatement>("set constraints all deferred").AllKeyword);
         Assert.NotNull(Whole<SetConstraintsStatement>("set constraints c1, c2 immediate").Names);
         Whole<SetTransactionStatement>("set transaction isolation level repeatable read");
-        Assert.NotNull(Whole<SetTransactionStatement>("set transaction read write not deferrable").Modes[1].DeferrableKeyword);
+        Assert.NotNull(Whole<SetTransactionStatement>("set transaction read write not deferrable").Modes[1].Postgres!.DeferrableKeyword);
     }
 
     [Fact]
@@ -445,8 +445,8 @@ public sealed class PgUtilityTests
     public void Parses_drop_role_list()
     {
         var drop = Whole<DropRoleStatement>("drop role if exists a, b");
-        Assert.NotNull(drop.IfKeyword);
-        Assert.Equal(TwoItems, drop.Names.Count);
+        Assert.NotNull(drop.Postgres!.IfKeyword);
+        Assert.Equal(TwoItems, drop.Postgres!.Names.Count);
         Whole<DropRoleStatement>("drop user u");
         Whole<DropRoleStatement>("drop group g");
         SqlAssert.ParseFails("drop role if exists a, b");
@@ -457,9 +457,9 @@ public sealed class PgUtilityTests
     {
         const string sql = "grant select on all tables in schema s1, s2 to r";
         var grant = Whole<GrantPrivilegeStatement>(sql);
-        Assert.NotNull(grant.Object.AllKeyword);
+        Assert.NotNull(grant.Object.Postgres!.AllKeyword);
         Assert.Equal(Tables, Text(sql, grant.Object.Kind));
-        Assert.Equal(TwoItems, grant.Object.Targets.Count);
+        Assert.Equal(TwoItems, grant.Object.Postgres!.Targets.Count);
         Assert.Equal(new SourceSpan(SpanStart.Sixteen, 27), grant.Object.Span);
         SqlAssert.ParseFails(sql);
     }
@@ -494,7 +494,7 @@ public sealed class PgUtilityTests
     public void Parses_grant_function_signature()
     {
         var grant = Whole<GrantPrivilegeStatement>("grant execute on function f(int, text) to r");
-        Assert.Equal(TwoItems, grant.Object.Targets[0].ArgumentTypes.Count);
+        Assert.Equal(TwoItems, grant.Object.Postgres!.Targets[0].ArgumentTypes.Count);
         SqlAssert.ParseFails("grant execute on function f(int) to r");
         SqlAssert.ParseFails("grant connect on database d to r");
     }
@@ -639,10 +639,10 @@ public sealed class PgUtilityTests
     {
         const string sql = "comment on function s.f(int, text) is 'f'";
         var function = Whole<CommentStatement>(sql);
-        Assert.Equal(TwoItems, function.ArgumentTypes.Count);
+        Assert.Equal(TwoItems, function.Postgres!.ArgumentTypes.Count);
         var trigger = Whole<CommentStatement>("comment on trigger tr on s.t is 'x'");
-        Assert.NotNull(trigger.TargetOnKeyword);
-        Assert.Equal(TwoItems, trigger.TableName!.Count);
+        Assert.NotNull(trigger.Postgres!.TargetOnKeyword);
+        Assert.Equal(TwoItems, trigger.Postgres!.TableName!.Count);
         Whole<CommentStatement>("comment on policy p on t is 'x'");
         Whole<CommentStatement>("comment on constraint c on t is 'x'");
         Whole<CommentStatement>("comment on constraint c on domain d is 'x'");

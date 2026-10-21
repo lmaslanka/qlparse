@@ -49,7 +49,7 @@ public sealed partial class PgGapTests
         const string sql = "alter table t set without oids, set access method heap";
         var alter = WalkPg<AlterTableStatement>(sql);
         AssertSpan(sql, Assert.IsType<SetWithoutOidsAction>(alter.Action).Span, "set without oids");
-        Assert.IsType<SetAccessMethodAction>(Assert.Single(alter.AdditionalActions));
+        Assert.IsType<SetAccessMethodAction>(Assert.Single(alter.Postgres!.AdditionalActions));
         SqlAssert.ParseFails(sql);
     }
 
@@ -96,7 +96,7 @@ public sealed partial class PgGapTests
         const string sql = "create table t (r tsrange, exclude using gist (r with operator(pg_catalog.&&)))";
         var table = WalkPg<CreateTableStatement>(sql);
         var constraint = Assert.IsType<TableConstraint>(table.Elements![1]);
-        var element = Assert.Single(constraint.Exclusion!.Elements);
+        var element = Assert.Single(constraint.Postgres!.Exclusion!.Elements);
         AssertSpan(sql, element.Span, "r with operator(pg_catalog.&&)");
         AssertSpan(sql, element.Operator.Span, "&&");
         Assert.Single(element.QualifiedOperator!.SchemaParts);
@@ -108,7 +108,7 @@ public sealed partial class PgGapTests
     {
         const string sql = "alter table t add constraint c exclude using gist (r with operator(public.&&), p with =)";
         var add = Assert.IsType<AddConstraintAction>(WalkPg<AlterTableStatement>(sql).Action);
-        var elements = add.Constraint.Exclusion!.Elements;
+        var elements = add.Constraint.Postgres!.Exclusion!.Elements;
         Assert.NotNull(elements[0].QualifiedOperator);
         Assert.Null(elements[1].QualifiedOperator);
     }
@@ -121,8 +121,8 @@ public sealed partial class PgGapTests
         const string sql = "alter index all in tablespace x set tablespace y";
         var alter = WalkPg<AlterIndexStatement>(sql);
         Assert.Empty(alter.Name);
-        AssertSpan(sql, alter.AllInTablespace!.Span, "all in tablespace x");
-        AssertSpan(sql, Assert.IsType<SetTablespaceAction>(alter.RelationAction).Span, "set tablespace y");
+        AssertSpan(sql, alter.Postgres!.AllInTablespace!.Span, "all in tablespace x");
+        AssertSpan(sql, Assert.IsType<SetTablespaceAction>(alter.Postgres!.RelationAction).Span, "set tablespace y");
         SqlAssert.ParseFails(sql);
     }
 
@@ -131,8 +131,8 @@ public sealed partial class PgGapTests
     {
         const string sql = "alter materialized view all in tablespace x owned by r set tablespace y nowait";
         var alter = WalkPg<AlterViewStatement>(sql);
-        Assert.NotNull(alter.MaterializedKeyword);
-        AssertSpan(sql, alter.AllInTablespace!.Span, "all in tablespace x owned by r");
+        Assert.NotNull(alter.Postgres!.MaterializedKeyword);
+        AssertSpan(sql, alter.Postgres!.AllInTablespace!.Span, "all in tablespace x owned by r");
         var action = Assert.IsType<AlterViewRelationAction>(alter.Action);
         AssertSpan(sql, action.Span, "set tablespace y nowait");
         SqlAssert.ParseFails(sql);
@@ -167,7 +167,7 @@ public sealed partial class PgGapTests
         var index = WalkPg<CreateIndexStatement>(CollatedIndexSql);
         var column = Assert.Single(index.Columns);
         Assert.IsType<CollateExpression>(column.Expression);
-        AssertSpan(CollatedIndexSql, column.OperatorClass![0].Span, "text_pattern_ops");
+        AssertSpan(CollatedIndexSql, column.Postgres!.OperatorClass![0].Span, "text_pattern_ops");
         SqlAssert.ParseFails(CollatedIndexSql);
     }
 
@@ -178,7 +178,7 @@ public sealed partial class PgGapTests
     {
         const string sql = "drop table if exists a cascade";
         var drop = WalkPg<DropTableStatement>(sql);
-        AssertSpan(sql, drop.IfExists!.Span, "if exists");
+        AssertSpan(sql, drop.Postgres!.IfExists!.Span, "if exists");
         AssertSpan(sql, Assert.NotNull(drop.Behavior).Span, CascadeText);
     }
 
@@ -187,8 +187,8 @@ public sealed partial class PgGapTests
     {
         const string sql = "drop schema if exists a, b cascade";
         var drop = WalkPg<DropSchemaStatement>(sql);
-        AssertSpan(sql, drop.IfExists!.Span, "if exists");
-        AssertSpan(sql, Assert.Single(drop.AdditionalNames)[0].Span, "b");
+        AssertSpan(sql, drop.Postgres!.IfExists!.Span, "if exists");
+        AssertSpan(sql, Assert.Single(drop.Postgres!.AdditionalNames)[0].Span, "b");
         AssertSpan(sql, Assert.NotNull(drop.Behavior).Span, CascadeText);
         SqlAssert.ParseFails(sql);
         Assert.Null(WalkPg<DropSchemaStatement>("drop schema a").Behavior);
@@ -211,7 +211,7 @@ public sealed partial class PgGapTests
         var owner = WalkPg<AlterSchemaStatement>(sql);
         Assert.Null(owner.RenameKeyword);
         Assert.Empty(owner.NewName);
-        AssertSpan(sql, Assert.NotNull(owner.Owner).Span, RoleText);
+        AssertSpan(sql, Assert.NotNull(owner.Postgres!.Owner).Span, RoleText);
         SqlAssert.ParseFails(sql);
 
         Assert.Single(WalkPg<AlterSchemaStatement>("alter schema s rename to t").NewName);
@@ -241,7 +241,7 @@ public sealed partial class PgGapTests
         var alter = WalkPg<PgAlterStatement>(sql);
         Assert.Equal(Count.Two, alter.Actions.Count);
         var column = Assert.IsType<AlterColumnAction>(Assert.IsType<PgForeignTableAction>(alter.Actions[0]).Action);
-        AssertSpan(sql, column.Options!.Span, "options (add x 'y')");
+        AssertSpan(sql, column.Postgres!.Options!.Span, "options (add x 'y')");
         Assert.IsType<PgOwnerAction>(alter.Actions[1]);
     }
 
@@ -304,7 +304,7 @@ public sealed partial class PgGapTests
     {
         const string sql = "alter domain d add constraint c check (value > 0) not valid";
         var add = Assert.IsType<AddDomainConstraintAction>(WalkPg<AlterDomainStatement>(sql).Action);
-        AssertSpan(sql, Assert.NotNull(add.ValidKeyword).Span, "valid");
+        AssertSpan(sql, Assert.NotNull(add.Postgres!.ValidKeyword).Span, "valid");
         AssertSpan(sql, add.Constraint.Span, "constraint c check (value > 0)");
         SqlAssert.ParseFails(sql);
     }

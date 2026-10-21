@@ -494,20 +494,20 @@ public sealed class PgSchemaTests
         const string Sql = "create cast (bigint as int4) with function int4(bigint) as assignment";
         var cast = ParseWhole<CreateCastStatement>(Sql);
         Assert.Equal("int4", Text(Sql, cast.Routine!.Name[0]));
-        Assert.Single(cast.Arguments);
-        Assert.Equal("(", Text(Sql, cast.ArgumentsOpenParen));
-        Assert.Equal(")", Text(Sql, cast.ArgumentsCloseParen));
+        Assert.Single(cast.Postgres!.Arguments);
+        Assert.Equal("(", Text(Sql, cast.Postgres!.ArgumentsOpenParen));
+        Assert.Equal(")", Text(Sql, cast.Postgres!.ArgumentsCloseParen));
         SqlAssert.ParseFails(Sql);
 
         const string Without = "create cast (text as mytype) without function as implicit";
         var without = ParseWhole<CreateCastStatement>(Without);
         Assert.Null(without.Routine);
-        Assert.NotNull(without.FunctionKeyword);
+        Assert.NotNull(without.Postgres!.FunctionKeyword);
         Assert.Equal("implicit", Text(Without, without.AssignmentKeyword));
         SqlAssert.ParseFails(Without);
 
         const string Inout = "create cast (mytype as text) with inout";
-        Assert.NotNull(ParseWhole<CreateCastStatement>(Inout).InoutKeyword);
+        Assert.NotNull(ParseWhole<CreateCastStatement>(Inout).Postgres!.InoutKeyword);
         SqlAssert.ParseFails(Inout);
         Assert.NotNull(SqlAssert.ParsePg<CreateCastStatement>("create cast (integer as emp_id) with function int_to_emp as assignment").Routine);
     }
@@ -705,12 +705,12 @@ public sealed class PgSchemaTests
     {
         const string Sql = "create constraint trigger ct after insert on t from ref not deferrable for each row execute procedure f('a', 1)";
         var trigger = ParseWhole<CreateTriggerStatement>(Sql);
-        Assert.NotNull(trigger.ConstraintKeyword);
-        Assert.Equal("ref", Text(Sql, Assert.Single(trigger.ReferencedTable!)));
-        Assert.NotNull(trigger.DeferrableNotKeyword);
+        Assert.NotNull(trigger.Postgres!.ConstraintKeyword);
+        Assert.Equal("ref", Text(Sql, Assert.Single(trigger.Postgres!.ReferencedTable!)));
+        Assert.NotNull(trigger.Postgres!.DeferrableNotKeyword);
         Assert.Equal(TwoItems, Assert.IsType<PgExecuteFunctionClause>(trigger.Body).Arguments.Count);
         const string Deferred = "create constraint trigger ct after insert on t deferrable initially deferred for each row execute procedure f()";
-        Assert.Equal("deferred", Text(Deferred, ParseWhole<CreateTriggerStatement>(Deferred).InitiallyWhen));
+        Assert.Equal("deferred", Text(Deferred, ParseWhole<CreateTriggerStatement>(Deferred).Postgres!.InitiallyWhen));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -719,10 +719,10 @@ public sealed class PgSchemaTests
     {
         const string Sql = "create or replace trigger tr before insert or update of a, b or delete or truncate on t execute procedure f()";
         var trigger = ParseWhole<CreateTriggerStatement>(Sql);
-        Assert.NotNull(trigger.ReplaceKeyword);
-        Assert.Equal(ThreeItems, trigger.AdditionalEvents.Count);
-        Assert.Equal("or update of a, b", Text(Sql, trigger.AdditionalEvents[0].Span));
-        Assert.Equal("truncate", Text(Sql, trigger.AdditionalEvents[^1].Event));
+        Assert.NotNull(trigger.Postgres!.ReplaceKeyword);
+        Assert.Equal(ThreeItems, trigger.Postgres!.AdditionalEvents.Count);
+        Assert.Equal("or update of a, b", Text(Sql, trigger.Postgres!.AdditionalEvents[0].Span));
+        Assert.Equal("truncate", Text(Sql, trigger.Postgres!.AdditionalEvents[^1].Event));
         Assert.Equal("procedure", Text(Sql, Assert.IsType<PgExecuteFunctionClause>(trigger.Body).FunctionKeyword));
         Assert.NotNull(ParseWhole<CreateTriggerStatement>("create trigger tr instead of insert on v for each row execute function f()").OfKeyword);
         SqlAssert.ParseFails(Sql);
@@ -775,11 +775,11 @@ public sealed class PgSchemaTests
 
         const string Drop = "drop trigger if exists tr on t cascade";
         var drop = ParseWhole<DropTriggerStatement>(Drop);
-        Assert.NotNull(drop.ExistsKeyword);
-        Assert.Equal(NameT, Text(Drop, Assert.Single(drop.TableName!)));
-        Assert.Equal(Cascade, Text(Drop, drop.Behavior));
+        Assert.NotNull(drop.Postgres!.ExistsKeyword);
+        Assert.Equal(NameT, Text(Drop, Assert.Single(drop.Postgres!.TableName!)));
+        Assert.Equal(Cascade, Text(Drop, drop.Postgres!.Behavior));
         SqlAssert.ParseFails(Drop);
-        Assert.Null(SqlAssert.ParsePg<DropTriggerStatement>("drop trigger sch.tr").OnKeyword);
+        Assert.Null(SqlAssert.ParsePg<DropTriggerStatement>("drop trigger sch.tr").Postgres?.OnKeyword);
     }
 
     [Fact]

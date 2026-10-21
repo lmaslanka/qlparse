@@ -183,6 +183,13 @@ internal sealed partial class Parser
         return new PgDropTargets(ifExists, name, additionalNames, behavior, end);
     }
 
+    // IF EXISTS or a second name; null otherwise.
+    internal static PgDropExtras? BuildPgDropExtras(PgDropTargets targets) =>
+        HasPgDropExtras(targets) ? new PgDropExtras { IfExists = targets.IfExists, AdditionalNames = targets.AdditionalNames } : null;
+
+    private static bool HasPgDropExtras(PgDropTargets targets) =>
+        targets.IfExists is not null || targets.AdditionalNames.Count > 0;
+
     internal DropTableStatement ParsePgDropTable(SyntaxToken dropKeyword, SyntaxToken tableKeyword)
     {
         var targets = ParsePgDropTargets();
@@ -191,10 +198,9 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, targets.End),
             DropKeyword = dropKeyword,
             TableKeyword = tableKeyword,
-            IfExists = targets.IfExists,
             Name = targets.Name,
-            AdditionalNames = targets.AdditionalNames,
             Behavior = targets.Behavior,
+            Postgres = BuildPgDropExtras(targets),
         };
     }
 
@@ -205,12 +211,17 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(dropKeyword, targets.End),
             DropKeyword = dropKeyword,
-            MaterializedKeyword = materializedKeyword,
             ViewKeyword = viewKeyword,
-            IfExists = targets.IfExists,
             Name = targets.Name,
-            AdditionalNames = targets.AdditionalNames,
             Behavior = targets.Behavior,
+            Postgres = materializedKeyword is null && !HasPgDropExtras(targets)
+                ? null
+                : new PgDropViewExtras
+                {
+                    MaterializedKeyword = materializedKeyword,
+                    IfExists = targets.IfExists,
+                    AdditionalNames = targets.AdditionalNames,
+                },
         };
     }
 
@@ -222,10 +233,9 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, targets.End),
             DropKeyword = dropKeyword,
             SequenceKeyword = sequenceKeyword,
-            IfExists = targets.IfExists,
             Name = targets.Name,
-            AdditionalNames = targets.AdditionalNames,
             Behavior = targets.Behavior,
+            Postgres = BuildPgDropExtras(targets),
         };
     }
 
@@ -252,13 +262,18 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, end),
             DropKeyword = dropKeyword,
             IndexKeyword = indexKeyword,
-            ConcurrentlyKeyword = concurrently,
-            IfExists = targets.IfExists,
             Name = targets.Name,
-            AdditionalNames = targets.AdditionalNames,
             OnKeyword = onKeyword,
             TableName = tableName,
             Behavior = behavior,
+            Postgres = concurrently is null && !HasPgDropExtras(targets)
+                ? null
+                : new PgDropIndexExtras
+                {
+                    ConcurrentlyKeyword = concurrently,
+                    IfExists = targets.IfExists,
+                    AdditionalNames = targets.AdditionalNames,
+                },
         };
     }
 

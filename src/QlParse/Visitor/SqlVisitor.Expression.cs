@@ -75,14 +75,9 @@ public partial class SqlVisitor
             VisitDataType(node.ReferencedType);
         }
 
-        if (node.IntervalQualifier is not null)
+        if (node.Postgres is not null)
         {
-            VisitIntervalQualifier(node.IntervalQualifier);
-        }
-
-        foreach (var bound in node.ArrayBounds)
-        {
-            VisitArrayBound(bound);
+            VisitPgDataTypeExtras(node.Postgres);
         }
     }
 

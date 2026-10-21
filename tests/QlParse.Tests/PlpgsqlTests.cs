@@ -131,7 +131,7 @@ public sealed class PlpgsqlTests
         var row = Assert.IsType<PlpgsqlVariableDeclaration>(declarations[Fifth]);
         Assert.Equal("rowtype", Text(DeclarationsSql, row.TypeAttribute!.Attribute));
         Assert.Equal("refcursor", Text(DeclarationsSql, Assert.IsType<PlpgsqlVariableDeclaration>(declarations[^Third]).Type.Span));
-        Assert.Single(Assert.IsType<PlpgsqlVariableDeclaration>(declarations[^1]).Type.ArrayBounds);
+        Assert.Single(Assert.IsType<PlpgsqlVariableDeclaration>(declarations[^1]).Type.Postgres!.ArrayBounds);
     }
 
     private const string CursorDeclarationsSql =
@@ -462,9 +462,9 @@ public sealed class PlpgsqlTests
         Assert.Equal("get diagnostics n = row_count, ctx := pg_context", Located(ExecuteSql, diagnostics, "get diagnostics"));
         Assert.Equal(TwoItems, diagnostics.Items.Count);
         Assert.Equal("pg_context", Text(ExecuteSql, diagnostics.Items[1].Name));
-        Assert.Null(diagnostics.ScopeKeyword);
+        Assert.Null(diagnostics.Postgres?.ScopeKeyword);
         var stacked = Statement<GetDiagnosticsStatement>(ExecuteSql, Fifth);
-        Assert.Equal("stacked", Text(ExecuteSql, stacked.ScopeKeyword));
+        Assert.Equal("stacked", Text(ExecuteSql, stacked.Postgres!.ScopeKeyword));
     }
 
     // ---- Cursors ----

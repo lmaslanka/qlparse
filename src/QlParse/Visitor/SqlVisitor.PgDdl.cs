@@ -107,8 +107,8 @@ public partial class SqlVisitor
         return true;
     }
 
-    // Postgres children of ISO DDL nodes; each is null/empty unless the statement was parsed under Postgres.
-    private void VisitPgCreateTableParts(CreateTableStatement node)
+    // Postgres-only parts of ISO DDL nodes; each extras object is null unless a Postgres clause was parsed.
+    public virtual void VisitPgCreateTableExtras(PgCreateTableExtras node)
     {
         if (node.PartitionOf is not null)
         {
@@ -121,7 +121,7 @@ public partial class SqlVisitor
         }
     }
 
-    private void VisitPgTableConstraintParts(TableConstraint node)
+    public virtual void VisitPgTableConstraintExtras(PgTableConstraintExtras node)
     {
         if (node.Exclusion is not null)
         {
@@ -129,7 +129,7 @@ public partial class SqlVisitor
         }
     }
 
-    private void VisitPgAlterColumnParts(AlterColumnAction node)
+    public virtual void VisitPgAlterColumnExtras(PgAlterColumnExtras node)
     {
         if (node.Using is not null)
         {
@@ -147,11 +147,19 @@ public partial class SqlVisitor
         }
     }
 
-    private void VisitPgAlterTableParts(AlterTableStatement node)
+    public virtual void VisitPgAlterTableExtras(PgAlterTableExtras node)
     {
         foreach (var action in node.AdditionalActions)
         {
             Visit(action);
+        }
+    }
+
+    public virtual void VisitPgAlterIndexExtras(PgAlterIndexExtras node)
+    {
+        if (node.RelationAction is not null)
+        {
+            Visit(node.RelationAction);
         }
     }
 
