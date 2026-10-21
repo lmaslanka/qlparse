@@ -213,23 +213,23 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `CREATE TRIGGER ... REFERENCING OLD TABLE AS ... NEW TABLE AS ...` (transition tables)
 - [x] `CREATE CONSTRAINT TRIGGER`
 - [x] `CREATE EVENT TRIGGER name ON event WHEN ... EXECUTE FUNCTION ...`
-- [ ] Trigger function special variables (`NEW` `OLD` `TG_OP` `TG_TABLE_NAME` `TG_WHEN` `TG_ARGV`)
+- [x] Trigger function special variables (`NEW` `OLD` `TG_OP` `TG_TABLE_NAME` `TG_WHEN` `TG_ARGV`)
 - [x] `EXECUTE FUNCTION` vs deprecated `EXECUTE PROCEDURE` on `CREATE TRIGGER`
 
 ## Procedural language (PL/pgSQL)
-- [ ] `DO [LANGUAGE lang] $$ ... $$` anonymous code blocks
-- [ ] `CREATE [OR REPLACE] FUNCTION ... LANGUAGE plpgsql`
-- [ ] `CREATE [OR REPLACE] PROCEDURE ... LANGUAGE plpgsql`
-- [ ] Function attributes: `IMMUTABLE` `STABLE` `VOLATILE` `STRICT` `PARALLEL {SAFE|RESTRICTED|UNSAFE}` `COST` `ROWS` `SECURITY DEFINER|INVOKER` `LEAKPROOF` `SET config_param`
-- [ ] `RETURNS SETOF type` / `RETURNS TABLE (...)`
-- [ ] `RAISE [DEBUG|LOG|INFO|NOTICE|WARNING|EXCEPTION] 'msg', args USING option = expr`
-- [ ] `PERFORM query`
-- [ ] `%TYPE` / `%ROWTYPE` attribute references
-- [ ] `FOREACH var [SLICE n] IN ARRAY expr LOOP`
-- [ ] `EXECUTE 'sql' INTO var USING params` (dynamic SQL in PL/pgSQL)
-- [ ] `ASSERT condition [, 'message']`
-- [ ] `GET DIAGNOSTICS var = {ROW_COUNT|PG_CONTEXT|...}` (PL/pgSQL item names)
-- [ ] `REFCURSOR` variables and `FOR row IN query LOOP`
+- [x] `DO [LANGUAGE lang] $$ ... $$` anonymous code blocks
+- [x] `CREATE [OR REPLACE] FUNCTION ... LANGUAGE plpgsql`
+- [x] `CREATE [OR REPLACE] PROCEDURE ... LANGUAGE plpgsql`
+- [x] Function attributes: `IMMUTABLE` `STABLE` `VOLATILE` `STRICT` `PARALLEL {SAFE|RESTRICTED|UNSAFE}` `COST` `ROWS` `SECURITY DEFINER|INVOKER` `LEAKPROOF` `SET config_param`
+- [x] `RETURNS SETOF type` / `RETURNS TABLE (...)`
+- [x] `RAISE [DEBUG|LOG|INFO|NOTICE|WARNING|EXCEPTION] 'msg', args USING option = expr`
+- [x] `PERFORM query`
+- [x] `%TYPE` / `%ROWTYPE` attribute references
+- [x] `FOREACH var [SLICE n] IN ARRAY expr LOOP`
+- [x] `EXECUTE 'sql' INTO var USING params` (dynamic SQL in PL/pgSQL)
+- [x] `ASSERT condition [, 'message']`
+- [x] `GET DIAGNOSTICS var = {ROW_COUNT|PG_CONTEXT|...}` (PL/pgSQL item names)
+- [x] `REFCURSOR` variables and `FOR row IN query LOOP`
 
 ## Privileges and roles
 - [x] `CREATE ROLE ... WITH LOGIN|SUPERUSER|CREATEDB|CREATEROLE|REPLICATION|BYPASSRLS|CONNECTION LIMIT n|PASSWORD|VALID UNTIL`
