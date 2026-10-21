@@ -67,6 +67,22 @@ internal sealed partial class Parser
             : (SyntaxToken?)null;
         var arguments = ParseFunctionCallArguments();
         var closeParen = Expect(SyntaxKind.CloseParen);
+        return quantifier is null && IsTsqlGraphPathWithinGroup()
+            ? ParseTsqlGraphPathAggregate(name, openParen, arguments, closeParen)
+            : ParseTsqlFunctionCallTail(new TsqlCallHead(name, openParen, quantifier, arguments, closeParen));
+    }
+
+    private readonly record struct TsqlCallHead(
+        SyntaxToken Name,
+        SyntaxToken OpenParen,
+        SyntaxToken? Quantifier,
+        IReadOnlyList<Expression> Arguments,
+        SyntaxToken CloseParen);
+
+    // The clauses after a call's argument list: WITHIN GROUP, IGNORE / RESPECT NULLS and OVER.
+    private Expression ParseTsqlFunctionCallTail(TsqlCallHead head)
+    {
+        var (name, openParen, quantifier, arguments, closeParen) = head;
         var withinGroup = IsWithinGroup() ? ParseWithinGroup() : null;
         var nullTreatment = ParseOptionalNullTreatment();
         WindowSpecification? over = _current.Kind == SyntaxKind.OverKeyword ? ParseOver() : null;

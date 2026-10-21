@@ -32,5 +32,12 @@ public sealed class TableConstraint : TableElement
     public SyntaxToken? DeferrableKeyword { get; init; }
     public SyntaxToken? InitiallyKeyword { get; init; }
     public SyntaxToken? InitiallyWhen { get; init; }
-    public PgTableConstraintExtras? Postgres { get; init; }
+
+    // Postgres and SQL Server extras share one slot (no node carries both), so the T-SQL holder adds nothing
+    // to ISO instances.
+    private readonly object? _dialect;
+
+    public PgTableConstraintExtras? Postgres { get => _dialect as PgTableConstraintExtras; init => _dialect ??= value; }
+
+    public TsqlTableConstraintExtras? SqlServer { get => _dialect as TsqlTableConstraintExtras; init => _dialect ??= value; }
 }

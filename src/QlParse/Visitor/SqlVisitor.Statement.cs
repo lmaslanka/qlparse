@@ -407,7 +407,7 @@ public partial class SqlVisitor
                 VisitRowLevelSecurityAction(node);
                 break;
             default:
-                if (!TryVisitPgDdlAlterTableAction(action))
+                if (!TryVisitPgDdlAlterTableAction(action) && !TryVisitTsqlDdlAlterTableAction(action))
                 {
                     throw new SwitchExpressionException(action);
                 }

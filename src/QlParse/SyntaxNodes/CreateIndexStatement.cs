@@ -14,5 +14,12 @@ public sealed class CreateIndexStatement : Query
     public required SyntaxToken CloseParen { get; init; }
     public SyntaxToken? WhereKeyword { get; init; }
     public Expression? Where { get; init; }
-    public PgCreateIndexExtras? Postgres { get; init; }
+
+    // Postgres and SQL Server extras share one slot (no node carries both), so the T-SQL holder adds nothing
+    // to ISO instances.
+    private readonly object? _dialect;
+
+    public PgCreateIndexExtras? Postgres { get => _dialect as PgCreateIndexExtras; init => _dialect ??= value; }
+
+    public TsqlCreateIndexExtras? SqlServer { get => _dialect as TsqlCreateIndexExtras; init => _dialect ??= value; }
 }

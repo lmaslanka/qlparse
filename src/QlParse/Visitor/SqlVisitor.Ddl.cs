@@ -42,7 +42,7 @@ public partial class SqlVisitor
                 VisitGraphTable(node);
                 break;
             default:
-                if (!TryVisitTableSourcePgDml(table) && !TryVisitTsqlDmlTableSource(table))
+                if (!TryVisitTableSourcePgDml(table) && !TryVisitTsqlDmlTableSource(table) && !TryVisitTsqlDdlTableSource(table))
                 {
                     throw new SwitchExpressionException(table);
                 }
@@ -237,6 +237,11 @@ public partial class SqlVisitor
         {
             VisitPgCreateTableExtras(node.Postgres);
         }
+
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlCreateTableExtras(node.SqlServer);
+        }
     }
 
     public virtual void Visit(TableElement element)
@@ -259,7 +264,12 @@ public partial class SqlVisitor
                 VisitPeriodDefinition(node);
                 break;
             default:
-                throw new SwitchExpressionException(element);
+                if (!TryVisitTsqlDdlTableElement(element))
+                {
+                    throw new SwitchExpressionException(element);
+                }
+
+                break;
         }
     }
 
@@ -289,6 +299,11 @@ public partial class SqlVisitor
         {
             VisitTableConstraint(constraint);
         }
+
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlColumnExtras(node.SqlServer);
+        }
     }
 
     public virtual void VisitLikeClause(LikeClause node)
@@ -316,6 +331,11 @@ public partial class SqlVisitor
         if (node.Postgres is not null)
         {
             VisitPgTableConstraintExtras(node.Postgres);
+        }
+
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlTableConstraintExtras(node.SqlServer);
         }
     }
 
@@ -604,6 +624,11 @@ public partial class SqlVisitor
         if (node.Where is not null)
         {
             Visit(node.Where);
+        }
+
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlCreateIndexExtras(node.SqlServer);
         }
     }
 

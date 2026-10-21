@@ -78,7 +78,7 @@ internal sealed partial class Parser
     {
         var createKeyword = Advance();
         var orKeyword = Advance();
-        var view = ParseCreateView();
+        var view = ParseTsqlCreateView();
         return new TsqlCreateOrAlterViewStatement
         {
             Span = SourceSpan.From(createKeyword.Span, view.Span),

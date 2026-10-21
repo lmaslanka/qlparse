@@ -46,16 +46,16 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `CURSOR` type for cursor variables and `OUTPUT` parameters
 - [x] `VECTOR(n)` (2025)
 - [x] Native `JSON` type (2025 / Azure SQL)
-- [ ] Alias types via `CREATE TYPE name FROM base_type [NULL|NOT NULL]`
-- [ ] User-defined table types via `CREATE TYPE name AS TABLE (...)`
-- [ ] CLR user-defined types via `CREATE TYPE name EXTERNAL NAME assembly.class`
+- [x] Alias types via `CREATE TYPE name FROM base_type [NULL|NOT NULL]`
+- [x] User-defined table types via `CREATE TYPE name AS TABLE (...)`
+- [x] CLR user-defined types via `CREATE TYPE name EXTERNAL NAME assembly.class`
 
 ## Operators and predicates
 - [x] Legacy outer-join operators (`*=` `=*`; parse-only, removed in compatibility level 90+)
 - [x] `IS [NOT] DISTINCT FROM` (2022)
 - [x] `LIKE` character-class patterns (`[a-z]` `[^x]`; lexical only, inside the pattern string)
 - [x] `CONTAINS(...)` / `FREETEXT(...)` full-text predicates
-- [ ] `MATCH (node-edge->node ...)` graph predicate (see Graph tables)
+- [x] `MATCH (node-edge->node ...)` graph predicate (see Graph tables)
 
 ## Functions
 
@@ -188,58 +188,58 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ## Schema / DDL
 
 ### Tables
-- [ ] `IDENTITY [(seed, increment)]` column property
-- [ ] Computed columns (`col AS expr [PERSISTED [NOT NULL]]`)
-- [ ] `ON {filegroup|partition_scheme(col)|"default"}` / `TEXTIMAGE_ON` / `FILESTREAM_ON`
-- [ ] Column options `FILESTREAM` `SPARSE` `ROWGUIDCOL` `COLUMN_SET FOR ALL_SPARSE_COLUMNS` `COLLATE`
-- [ ] `WITH (DATA_COMPRESSION = {NONE|ROW|PAGE|COLUMNSTORE} [ON PARTITIONS (...)], ...)`
-- [ ] System-versioned temporal tables (`PERIOD FOR SYSTEM_TIME (start, end)`, `GENERATED ALWAYS AS ROW START|END [HIDDEN]`, `WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ..., HISTORY_RETENTION_PERIOD = ...))`)
-- [ ] Memory-optimized tables (`WITH (MEMORY_OPTIMIZED = ON, DURABILITY = SCHEMA_AND_DATA)`)
-- [ ] Ledger tables (`WITH (LEDGER = ON [(APPEND_ONLY = ON)])`)
-- [ ] Graph tables (`CREATE TABLE ... AS NODE` / `AS EDGE`)
-- [ ] `CREATE TABLE #temp` / `##temp` and table variables in `DECLARE`
+- [x] `IDENTITY [(seed, increment)]` column property
+- [x] Computed columns (`col AS expr [PERSISTED [NOT NULL]]`)
+- [x] `ON {filegroup|partition_scheme(col)|"default"}` / `TEXTIMAGE_ON` / `FILESTREAM_ON`
+- [x] Column options `FILESTREAM` `SPARSE` `ROWGUIDCOL` `COLUMN_SET FOR ALL_SPARSE_COLUMNS` `COLLATE`
+- [x] `WITH (DATA_COMPRESSION = {NONE|ROW|PAGE|COLUMNSTORE} [ON PARTITIONS (...)], ...)`
+- [x] System-versioned temporal tables (`PERIOD FOR SYSTEM_TIME (start, end)`, `GENERATED ALWAYS AS ROW START|END [HIDDEN]`, `WITH (SYSTEM_VERSIONING = ON (HISTORY_TABLE = ..., HISTORY_RETENTION_PERIOD = ...))`)
+- [x] Memory-optimized tables (`WITH (MEMORY_OPTIMIZED = ON, DURABILITY = SCHEMA_AND_DATA)`)
+- [x] Ledger tables (`WITH (LEDGER = ON [(APPEND_ONLY = ON)])`)
+- [x] Graph tables (`CREATE TABLE ... AS NODE` / `AS EDGE`)
+- [x] `CREATE TABLE #temp` / `##temp` and table variables in `DECLARE`
 - [x] `CREATE OR ALTER` for views, procedures, functions, triggers
-- [ ] `DROP {TABLE|VIEW|PROCEDURE|...} IF EXISTS a, b, c`
-- [ ] `ALTER TABLE ... ALTER COLUMN col type [NULL|NOT NULL] [WITH (ONLINE = ON)]`
-- [ ] `ALTER TABLE ... ADD col ...` without `COLUMN` keyword, multiple comma-separated adds
-- [ ] `ALTER TABLE ... DROP [COLUMN|CONSTRAINT] a, b`
-- [ ] `ALTER TABLE ... [WITH {CHECK|NOCHECK}] {CHECK|NOCHECK} CONSTRAINT {ALL|name}`
-- [ ] `ALTER TABLE ... {ENABLE|DISABLE} TRIGGER {ALL|name}`
-- [ ] `ALTER TABLE ... SWITCH [PARTITION n] TO target [PARTITION m]`
-- [ ] `ALTER TABLE ... SET (LOCK_ESCALATION = ..., SYSTEM_VERSIONING = ...)`
-- [ ] `ALTER TABLE ... REBUILD [PARTITION = ...] WITH (...)`
+- [x] `DROP {TABLE|VIEW|PROCEDURE|...} IF EXISTS a, b, c`
+- [x] `ALTER TABLE ... ALTER COLUMN col type [NULL|NOT NULL] [WITH (ONLINE = ON)]`
+- [x] `ALTER TABLE ... ADD col ...` without `COLUMN` keyword, multiple comma-separated adds
+- [x] `ALTER TABLE ... DROP [COLUMN|CONSTRAINT] a, b`
+- [x] `ALTER TABLE ... [WITH {CHECK|NOCHECK}] {CHECK|NOCHECK} CONSTRAINT {ALL|name}`
+- [x] `ALTER TABLE ... {ENABLE|DISABLE} TRIGGER {ALL|name}`
+- [x] `ALTER TABLE ... SWITCH [PARTITION n] TO target [PARTITION m]`
+- [x] `ALTER TABLE ... SET (LOCK_ESCALATION = ..., SYSTEM_VERSIONING = ...)`
+- [x] `ALTER TABLE ... REBUILD [PARTITION = ...] WITH (...)`
 - [x] `sp_rename` style renames via `EXEC` (no dedicated `RENAME` syntax)
 
 ### Partitioning
-- [ ] `CREATE PARTITION FUNCTION fn (type) AS RANGE {LEFT|RIGHT} FOR VALUES (...)`
-- [ ] `CREATE PARTITION SCHEME ps AS PARTITION fn [ALL] TO (filegroups)`
-- [ ] `ALTER PARTITION FUNCTION ... {SPLIT|MERGE} RANGE (value)`
-- [ ] `ALTER PARTITION SCHEME ... NEXT USED filegroup`
+- [x] `CREATE PARTITION FUNCTION fn (type) AS RANGE {LEFT|RIGHT} FOR VALUES (...)`
+- [x] `CREATE PARTITION SCHEME ps AS PARTITION fn [ALL] TO (filegroups)`
+- [x] `ALTER PARTITION FUNCTION ... {SPLIT|MERGE} RANGE (value)`
+- [x] `ALTER PARTITION SCHEME ... NEXT USED filegroup`
 - [x] `$PARTITION.fn(expr)`
 
 ### Indexes
-- [ ] `CREATE [UNIQUE] {CLUSTERED|NONCLUSTERED} INDEX`
-- [ ] `CREATE [CLUSTERED|NONCLUSTERED] COLUMNSTORE INDEX` (with `ORDER (...)`)
-- [ ] Filtered indexes (`CREATE INDEX ... WHERE predicate`)
-- [ ] `INCLUDE (...)`
-- [ ] `WITH (FILLFACTOR, PAD_INDEX, ONLINE, SORT_IN_TEMPDB, DROP_EXISTING, RESUMABLE, MAXDOP, ...)`
-- [ ] `CREATE [PRIMARY] XML INDEX ... [USING XML INDEX ... FOR {VALUE|PATH|PROPERTY}]`
-- [ ] `CREATE SPATIAL INDEX ... USING {GEOMETRY_GRID|GEOGRAPHY_GRID|...}`
-- [ ] `CREATE JSON INDEX` / `CREATE VECTOR INDEX` (2025)
-- [ ] Memory-optimized hash indexes (`INDEX ix HASH (col) WITH (BUCKET_COUNT = n)`)
-- [ ] Inline index definitions inside `CREATE TABLE`
-- [ ] `ALTER INDEX {name|ALL} ON t {REBUILD|REORGANIZE|DISABLE|RESUME|PAUSE|ABORT|SET (...)}`
-- [ ] `DROP INDEX ix ON t` / legacy `DROP INDEX t.ix`
-- [ ] `CREATE STATISTICS` / `UPDATE STATISTICS ... WITH FULLSCAN` / `DROP STATISTICS`
+- [x] `CREATE [UNIQUE] {CLUSTERED|NONCLUSTERED} INDEX`
+- [x] `CREATE [CLUSTERED|NONCLUSTERED] COLUMNSTORE INDEX` (with `ORDER (...)`)
+- [x] Filtered indexes (`CREATE INDEX ... WHERE predicate`)
+- [x] `INCLUDE (...)`
+- [x] `WITH (FILLFACTOR, PAD_INDEX, ONLINE, SORT_IN_TEMPDB, DROP_EXISTING, RESUMABLE, MAXDOP, ...)`
+- [x] `CREATE [PRIMARY] XML INDEX ... [USING XML INDEX ... FOR {VALUE|PATH|PROPERTY}]`
+- [x] `CREATE SPATIAL INDEX ... USING {GEOMETRY_GRID|GEOGRAPHY_GRID|...}`
+- [x] `CREATE JSON INDEX` / `CREATE VECTOR INDEX` (2025)
+- [x] Memory-optimized hash indexes (`INDEX ix HASH (col) WITH (BUCKET_COUNT = n)`)
+- [x] Inline index definitions inside `CREATE TABLE`
+- [x] `ALTER INDEX {name|ALL} ON t {REBUILD|REORGANIZE|DISABLE|RESUME|PAUSE|ABORT|SET (...)}`
+- [x] `DROP INDEX ix ON t` / legacy `DROP INDEX t.ix`
+- [x] `CREATE STATISTICS` / `UPDATE STATISTICS ... WITH FULLSCAN` / `DROP STATISTICS`
 
 ### Views
-- [ ] `WITH SCHEMABINDING` / `ENCRYPTION` / `VIEW_METADATA`
-- [ ] Indexed views (`CREATE UNIQUE CLUSTERED INDEX` on a schema-bound view)
+- [x] `WITH SCHEMABINDING` / `ENCRYPTION` / `VIEW_METADATA`
+- [x] Indexed views (`CREATE UNIQUE CLUSTERED INDEX` on a schema-bound view)
 
 ### Sequences and synonyms
 - [x] `NEXT VALUE FOR seq [OVER (ORDER BY ...)]`
 - [x] `sp_sequence_get_range` via `EXEC`
-- [ ] `CREATE SYNONYM name FOR [server.][db.][schema.]object`
+- [x] `CREATE SYNONYM name FOR [server.][db.][schema.]object`
 
 ### Databases, schemas, and storage
 - [x] `CREATE DATABASE ... ON [PRIMARY] (NAME = ..., FILENAME = ..., SIZE = ...) LOG ON (...) [COLLATE ...] [WITH ...]`
@@ -259,17 +259,17 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `CREATE EXTERNAL MODEL` (2025)
 
 ### Graph tables
-- [ ] `AS NODE` / `AS EDGE` table declarations and `$node_id` `$edge_id` `$from_id` `$to_id` pseudo-columns
-- [ ] `MATCH` patterns (`a-(e)->b`, `a<-(e)-b`, `SHORTEST_PATH(...)` with `+` / `{1,n}` quantifiers)
-- [ ] Graph aggregate helpers (`LAST_NODE()`, `STRING_AGG(...) WITHIN GROUP (GRAPH PATH)`)
+- [x] `AS NODE` / `AS EDGE` table declarations and `$node_id` `$edge_id` `$from_id` `$to_id` pseudo-columns
+- [x] `MATCH` patterns (`a-(e)->b`, `a<-(e)-b`, `SHORTEST_PATH(...)` with `+` / `{1,n}` quantifiers)
+- [x] Graph aggregate helpers (`LAST_NODE()`, `STRING_AGG(...) WITHIN GROUP (GRAPH PATH)`)
 
 ## Constraints
-- [ ] `PRIMARY KEY` / `UNIQUE` with `CLUSTERED|NONCLUSTERED` and `WITH (...)` index options
-- [ ] Named inline `DEFAULT` constraints (`col int CONSTRAINT df_x DEFAULT 0`)
-- [ ] `ALTER TABLE ... ADD [CONSTRAINT name] DEFAULT expr FOR col`
-- [ ] `NOT FOR REPLICATION`
-- [ ] `ALTER TABLE ... WITH NOCHECK ADD CONSTRAINT ...`
-- [ ] Edge constraints (`CONSTRAINT ec CONNECTION (Node1 TO Node2) ON DELETE CASCADE`)
+- [x] `PRIMARY KEY` / `UNIQUE` with `CLUSTERED|NONCLUSTERED` and `WITH (...)` index options
+- [x] Named inline `DEFAULT` constraints (`col int CONSTRAINT df_x DEFAULT 0`)
+- [x] `ALTER TABLE ... ADD [CONSTRAINT name] DEFAULT expr FOR col`
+- [x] `NOT FOR REPLICATION`
+- [x] `ALTER TABLE ... WITH NOCHECK ADD CONSTRAINT ...`
+- [x] Edge constraints (`CONSTRAINT ec CONNECTION (Node1 TO Node2) ON DELETE CASCADE`)
 
 ## Triggers
 - [x] `CREATE [OR ALTER] TRIGGER ... ON t [WITH ...] {FOR|AFTER|INSTEAD OF} {INSERT|UPDATE|DELETE}[, ...] [NOT FOR REPLICATION] AS ...`
@@ -315,8 +315,8 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `DENY` statement
 - [x] `EXECUTE AS {CALLER|SELF|OWNER|USER = '...'|LOGIN = '...'}` / `REVERT [WITH COOKIE = @c]`
 - [x] Row-level security (`CREATE SECURITY POLICY ... ADD {FILTER|BLOCK} PREDICATE fn(col) ON t [AFTER INSERT|...] WITH (STATE = ON)`)
-- [ ] Dynamic data masking (`col ... MASKED WITH (FUNCTION = 'partial(1,"xx",1)')`, `ALTER COLUMN ... ADD|DROP MASKED`)
-- [ ] Always Encrypted (`ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY = k, ENCRYPTION_TYPE = ..., ALGORITHM = '...')`, `CREATE COLUMN MASTER KEY` / `COLUMN ENCRYPTION KEY`)
+- [x] Dynamic data masking (`col ... MASKED WITH (FUNCTION = 'partial(1,"xx",1)')`, `ALTER COLUMN ... ADD|DROP MASKED`)
+- [x] Always Encrypted (`ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY = k, ENCRYPTION_TYPE = ..., ALGORITHM = '...')`, `CREATE COLUMN MASTER KEY` / `COLUMN ENCRYPTION KEY`)
 - [x] Keys and certificates (`CREATE MASTER KEY`, `CREATE CERTIFICATE`, `CREATE SYMMETRIC|ASYMMETRIC KEY`, `OPEN|CLOSE SYMMETRIC KEY`, `ADD SIGNATURE`)
 - [x] Credentials and auditing (`CREATE [DATABASE SCOPED] CREDENTIAL`, `CREATE SERVER AUDIT`, `CREATE DATABASE AUDIT SPECIFICATION`)
 
