@@ -11,7 +11,7 @@ internal sealed partial class Parser
         {
             if (_current.Kind == SyntaxKind.TablesampleKeyword)
             {
-                table = ParseSample(table);
+                table = IsSqlServer ? ParseTsqlSample(table) : ParseSample(table);
                 continue;
             }
 
@@ -21,7 +21,7 @@ internal sealed partial class Parser
                 continue;
             }
 
-            return table;
+            return IsSqlServer ? ParseTsqlTableSourceTail(table) : table;
         }
     }
 
@@ -69,12 +69,8 @@ internal sealed partial class Parser
             return ParseGraphTable();
         }
 
-        if (IsPtfInvocation())
-        {
-            return ParsePtf();
-        }
-
-        return null;
+        // SQL Server has no polymorphic table functions; its calls (VECTOR_SEARCH(TABLE = ...)) parse as routines.
+        return IsPtfInvocation() && !IsSqlServer ? ParsePtf() : null;
     }
 
     private JoinedTable ParseJoinedTable()
@@ -319,16 +315,16 @@ internal sealed partial class Parser
 
     private TableSource ParseTableReference()
     {
-        var nameParts = new List<SyntaxToken> { ExpectTableNameStart() };
+        var nameParts = new List<SyntaxToken> { ExpectTableNamePart() };
         while (_current.Kind == SyntaxKind.Dot)
         {
             Advance();
-            nameParts.Add(Expect(SyntaxKind.Identifier));
+            nameParts.Add(ExpectTableNamePart());
         }
 
         if (_current.Kind == SyntaxKind.OpenParen)
         {
-            return ParseRoutineTable(nameParts);
+            return ParseDialectRoutineTable(nameParts);
         }
 
         var systemTime = ParseSystemTime();
@@ -380,6 +376,15 @@ internal sealed partial class Parser
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private TableSource ParseDialectRoutineTable(List<SyntaxToken> nameParts) =>
+        IsSqlServer ? ParseTsqlRoutineTable(nameParts) : ParseRoutineTable(nameParts);
+
+    // SQL Server also takes `@table`, `db..t` and `.schema.t` here (see ExpectTsqlNamePart).
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private SyntaxToken ExpectTableNamePart() =>
+        _current.Kind == SyntaxKind.Identifier ? Advance() : ExpectTsqlNamePart();
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool IsBareTableAlias() =>
         _current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize) && !IsPgReservedClauseWord();
 
@@ -391,6 +396,11 @@ internal sealed partial class Parser
     private SystemTimeClause? ParseSystemTime()
     {
         if (_current.Kind != SyntaxKind.ForKeyword || !NextEquals(Keyword.SystemTime))
+        {
+            return null;
+        }
+
+        if (IsSqlServer && IsTsqlSystemTimeContainedIn())
         {
             return null;
         }
@@ -574,7 +584,7 @@ internal sealed partial class Parser
         var joins = new List<JoinClause>();
         while (IsJoinStart())
         {
-            joins.Add(ParseJoin());
+            joins.Add(IsSqlServer ? ParseTsqlJoin() : ParseJoin());
         }
 
         return joins;
@@ -700,5 +710,6 @@ internal sealed partial class Parser
         _current.Kind is SyntaxKind.NaturalKeyword or SyntaxKind.InnerKeyword or SyntaxKind.LeftKeyword
             or SyntaxKind.RightKeyword or SyntaxKind.FullKeyword or SyntaxKind.CrossKeyword
             or SyntaxKind.JoinKeyword
-        || (_current.Kind == SyntaxKind.UnionKeyword && NextKind == SyntaxKind.JoinKeyword);
+        || (_current.Kind == SyntaxKind.UnionKeyword && NextKind == SyntaxKind.JoinKeyword)
+        || (_current.Kind == SyntaxKind.OuterKeyword && IsSqlServer);
 }

@@ -153,7 +153,7 @@ public sealed partial class TsqlProcTests
         Assert.Equal("@r", Text(sql, Assert.NotNull(statement.ReturnVariable)));
         Assert.Equal(Two, Present(statement.ReturnTable).Elements.Count);
         var body = Assert.IsType<TsqlBlockStatement>(statement.Body);
-        Assert.IsType<InsertStatement>(body.Statements[0]);
+        Assert.IsType<TsqlInsertStatement>(body.Statements[0]);
         Assert.Null(Assert.IsType<TsqlReturnStatement>(body.Statements[1]).Value);
     }
 

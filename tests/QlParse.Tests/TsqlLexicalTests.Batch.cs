@@ -47,9 +47,9 @@ public sealed partial class TsqlLexicalTests
         Assert.Collection(
             batch.Statements,
             statement => Assert.IsType<SelectStatement>(statement),
-            statement => Assert.IsType<InsertStatement>(statement),
-            statement => Assert.IsType<UpdateStatement>(statement),
-            statement => Assert.IsType<DeleteStatement>(statement),
+            statement => Assert.IsType<TsqlInsertStatement>(statement),
+            statement => Assert.IsType<TsqlUpdateStatement>(statement),
+            statement => Assert.IsType<TsqlDeleteStatement>(statement),
             statement => Assert.IsType<SelectStatement>(statement));
         Assert.Empty(batch.Semicolons);
         Assert.Null(batch.Separator);
@@ -75,7 +75,7 @@ public sealed partial class TsqlLexicalTests
         var select = Assert.IsType<SelectStatement>(batch.Statements[0]);
         Assert.Equal("x", SpanText(sql, Assert.NotNull(select.SelectList[0].Alias).Span));
         Assert.Equal("y", SpanText(sql, Assert.NotNull(Assert.IsType<TableReference>(select.From).Alias).Span));
-        Assert.IsType<DeleteStatement>(batch.Statements[1]);
+        Assert.IsType<TsqlDeleteStatement>(batch.Statements[1]);
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public sealed partial class TsqlLexicalTests
     public void Merge_needs_a_terminator()
     {
         Assert.Contains("MERGE", ParseError("merge into t using s on t.id = s.id when matched then delete"), StringComparison.Ordinal);
-        SqlAssert.ParseTsql<MergeStatement>(TerminatedMerge);
+        SqlAssert.ParseTsql<TsqlMergeStatement>(TerminatedMerge);
     }
 
     [Theory]

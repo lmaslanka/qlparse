@@ -160,7 +160,7 @@ public sealed partial class TsqlProcTests
     public void Parses_while_with_single_statement_body()
     {
         var loop = SqlAssert.ParseTsql<TsqlWhileStatement>("while (select count(*) from t) > 0 delete from t where id = 1");
-        Assert.IsType<DeleteStatement>(loop.Body);
+        Assert.IsType<TsqlDeleteStatement>(loop.Body);
         FailsInIso("while 1 = 1 break");
     }
 

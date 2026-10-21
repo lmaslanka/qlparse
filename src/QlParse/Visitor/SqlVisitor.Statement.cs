@@ -497,7 +497,12 @@ public partial class SqlVisitor
                 VisitMergeDoNothingAction(node);
                 break;
             default:
-                throw new SwitchExpressionException(action);
+                if (!TryVisitTsqlDmlMergeAction(action))
+                {
+                    throw new SwitchExpressionException(action);
+                }
+
+                break;
         }
     }
 
