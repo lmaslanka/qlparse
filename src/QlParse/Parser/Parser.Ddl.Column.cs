@@ -368,7 +368,9 @@ internal sealed partial class Parser
                 EnsureColumnValueNotSet(defaultClause, identity, generated);
                 ParseGenerated(out var identityToken, out var generatedToken);
                 identity = identityToken;
-                generated = generatedToken;
+                generated = generatedToken?.CloseParen is not null && IsPostgres
+                    ? ParsePgGenerationStorage(generatedToken)
+                    : generatedToken;
                 continue;
             }
 
@@ -397,6 +399,30 @@ internal sealed partial class Parser
         }
 
         return new ColumnTail(defaultClause, identity, generated, collateKeyword, collation, scopeKeyword, scopeName, items);
+    }
+
+    // Postgres generated columns end with a STORED or VIRTUAL keyword after the ISO generation clause.
+    private GeneratedColumn ParsePgGenerationStorage(GeneratedColumn generated)
+    {
+        if (!IdentifierEquals(Keyword.Stored) && !IdentifierEquals(Keyword.Virtual))
+        {
+            return generated;
+        }
+
+        var storageKeyword = Advance();
+        return new GeneratedColumn
+        {
+            Span = SourceSpan.From(generated.Span, storageKeyword),
+            GeneratedKeyword = generated.GeneratedKeyword,
+            AlwaysKeyword = generated.AlwaysKeyword,
+            ByKeyword = generated.ByKeyword,
+            DefaultKeyword = generated.DefaultKeyword,
+            AsKeyword = generated.AsKeyword,
+            OpenParen = generated.OpenParen,
+            Expression = generated.Expression,
+            CloseParen = generated.CloseParen,
+            StorageKeyword = storageKeyword,
+        };
     }
 
     private void EnsureColumnValueNotSet(DefaultClause? defaultClause, IdentityColumn? identity, GeneratedColumn? generated)
