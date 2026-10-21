@@ -446,6 +446,11 @@ public partial class SqlVisitor
             return;
         }
 
+        if (TryVisitPgOperatorExpression(expression))
+        {
+            return;
+        }
+
         throw new SwitchExpressionException(expression);
     }
 

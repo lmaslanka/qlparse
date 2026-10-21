@@ -160,6 +160,11 @@ public enum SyntaxKind
     CloseBrace,
     CaretToken,
     DollarToken,
+    OperatorToken,
+    PercentToken,
+    EqualsGreaterToken,
+    ColonEqualsToken,
+    PositionalParameter,
     LineCommentTrivia,
     BlockCommentTrivia,
 }
