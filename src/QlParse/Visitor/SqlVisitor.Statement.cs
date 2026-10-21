@@ -464,7 +464,10 @@ public partial class SqlVisitor
             VisitSequenceOption(node.IdentityOption);
         }
 
-        VisitPgAlterColumnParts(node);
+        if (node.Postgres is not null)
+        {
+            VisitPgAlterColumnExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitMergeWhenClause(MergeWhenClause node)

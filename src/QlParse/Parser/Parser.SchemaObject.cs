@@ -255,13 +255,14 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, end),
             CreateKeyword = createKeyword,
-            PersistenceKeyword = persistence,
             SequenceKeyword = sequenceKeyword,
-            IfNotExists = ifNotExists,
             Name = name,
             AsKeyword = asKeyword,
             DataType = dataType,
             Options = options,
+            Postgres = persistence is null && ifNotExists is null
+                ? null
+                : new PgCreateSequenceExtras { PersistenceKeyword = persistence, IfNotExists = ifNotExists },
         };
     }
 
@@ -330,20 +331,15 @@ internal sealed partial class Parser
             UniqueKeyword = unique,
             ClusteredKeyword = clustered,
             IndexKeyword = indexKeyword,
-            ConcurrentlyKeyword = head.Concurrently,
-            IfNotExists = head.IfNotExists,
             Name = name,
             OnKeyword = onKeyword,
-            OnlyKeyword = only,
             TableName = tableName,
-            UsingKeyword = usingKeyword,
-            Method = method,
             OpenParen = openParen,
             Columns = columns,
             CloseParen = closeParen,
-            Options = options,
             WhereKeyword = whereKeyword,
             Where = where,
+            Postgres = IsPostgres ? BuildPgCreateIndexExtras(head, only, usingKeyword, method, options) : null,
         };
     }
 
@@ -368,11 +364,11 @@ internal sealed partial class Parser
                 Span = SourceSpan.From(alterKeyword, newName[^1]),
                 AlterKeyword = alterKeyword,
                 IndexKeyword = indexKeyword,
-                IfExists = ifExists,
                 Name = name,
                 RenameKeyword = renameKeyword,
                 ToKeyword = toKeyword,
                 NewName = newName,
+                Postgres = ifExists is null ? null : new PgAlterIndexExtras { IfExists = ifExists },
             };
         }
 
@@ -504,8 +500,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(expression.Span, end),
             Expression = expression,
-            OperatorClass = operatorClass.Name,
-            OperatorClassParameters = operatorClass.Parameters,
+            Postgres = operatorClass.Name is null
+                ? null
+                : new PgIndexColumnExtras { OperatorClass = operatorClass.Name, OperatorClassParameters = operatorClass.Parameters },
             Direction = direction,
             NullsKeyword = nullsKeyword,
             NullsOrder = nullsOrder,

@@ -13,8 +13,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create index i on t using gin (a)";
         var index = ParseWhole<CreateIndexStatement>(Sql);
-        Assert.Equal("gin", Text(Sql, index.Method));
-        Assert.Equal("using", Text(Sql, index.UsingKeyword));
+        Assert.Equal("gin", Text(Sql, index.Postgres!.Method));
+        Assert.Equal("using", Text(Sql, index.Postgres!.UsingKeyword));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -27,7 +27,7 @@ public sealed partial class PgDdlTests
     public void Parses_every_index_method(string method)
     {
         var sql = $"create index i on t using {method} (a)";
-        Assert.Equal(method, Text(sql, ParseWhole<CreateIndexStatement>(sql).Method));
+        Assert.Equal(method, Text(sql, ParseWhole<CreateIndexStatement>(sql).Postgres!.Method));
     }
 
     [Fact]
@@ -35,9 +35,9 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create index concurrently if not exists i on only t (a)";
         var index = ParseWhole<CreateIndexStatement>(Sql);
-        Assert.Equal(ConcurrentlyWord, Text(Sql, index.ConcurrentlyKeyword));
-        Assert.NotNull(index.IfNotExists);
-        Assert.Equal("only", Text(Sql, index.OnlyKeyword));
+        Assert.Equal(ConcurrentlyWord, Text(Sql, index.Postgres!.ConcurrentlyKeyword));
+        Assert.NotNull(index.Postgres!.IfNotExists);
+        Assert.Equal("only", Text(Sql, index.Postgres!.OnlyKeyword));
         Assert.Equal(IndexName, Text(Sql, index.Name[0]));
         SqlAssert.ParseFails(Sql);
     }
@@ -48,7 +48,7 @@ public sealed partial class PgDdlTests
         const string Sql = "create index concurrently on t (a)";
         var index = ParseWhole<CreateIndexStatement>(Sql);
         Assert.Empty(index.Name);
-        Assert.NotNull(index.ConcurrentlyKeyword);
+        Assert.NotNull(index.Postgres!.ConcurrentlyKeyword);
         Assert.Empty(ParseWhole<CreateIndexStatement>("create unique index on t (a)").Name);
         SqlAssert.ParseFails("create index on t (a)");
     }
@@ -58,7 +58,7 @@ public sealed partial class PgDdlTests
     {
         var index = SqlAssert.Parse<CreateIndexStatement>("create index concurrently on t (a)");
         Assert.Single(index.Name);
-        Assert.Null(index.ConcurrentlyKeyword);
+        Assert.Null(index.Postgres?.ConcurrentlyKeyword);
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create unique index i on t (a) include (b, c)";
         var index = ParseWhole<CreateIndexStatement>(Sql);
-        Assert.Equal(Count.Two, index.Options!.Include!.Count);
-        Assert.Equal("include (b, c)", Text(Sql, index.Options.Span));
+        Assert.Equal(Count.Two, index.Postgres!.Options!.Include!.Count);
+        Assert.Equal("include (b, c)", Text(Sql, index.Postgres!.Options.Span));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -78,7 +78,7 @@ public sealed partial class PgDdlTests
     public void Parses_operator_classes(string sql, string operatorClass)
     {
         var column = Assert.Single(ParseWhole<CreateIndexStatement>(sql).Columns);
-        Assert.Equal(operatorClass, Text(sql, column.OperatorClass![^1]));
+        Assert.Equal(operatorClass, Text(sql, column.Postgres!.OperatorClass![^1]));
         SqlAssert.ParseFails(sql);
     }
 
@@ -88,7 +88,7 @@ public sealed partial class PgDdlTests
         const string Sql = @"create index i on t using gist (a collate ""C"" gist_trgm_ops(siglen=32) desc nulls first)";
         var column = Assert.Single(ParseWhole<CreateIndexStatement>(Sql).Columns);
         Assert.IsType<CollateExpression>(column.Expression);
-        Assert.Equal("siglen=32", Text(Sql, Assert.Single(column.OperatorClassParameters!.Parameters).Span));
+        Assert.Equal("siglen=32", Text(Sql, Assert.Single(column.Postgres!.OperatorClassParameters!.Parameters).Span));
         Assert.Equal("first", Text(Sql, column.NullsOrder));
         Assert.Equal(@"a collate ""C"" gist_trgm_ops(siglen=32) desc nulls first", Text(Sql, column.Span));
         SqlAssert.ParseFails(Sql);
@@ -99,7 +99,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create unique index i on t (a) nulls not distinct with (fillfactor = 70) tablespace fast where a > 0";
         var index = ParseWhole<CreateIndexStatement>(Sql);
-        var options = index.Options!;
+        var options = index.Postgres!.Options!;
         Assert.NotNull(options.NullsNotKeyword);
         Assert.Single(options.Parameters!.Parameters);
         Assert.Equal(FastTablespace, Text(Sql, options.Tablespace));
@@ -112,8 +112,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "drop index concurrently if exists i, j cascade";
         var drop = ParseWhole<DropIndexStatement>(Sql);
-        Assert.Equal(ConcurrentlyWord, Text(Sql, drop.ConcurrentlyKeyword));
-        Assert.Single(drop.AdditionalNames);
+        Assert.Equal(ConcurrentlyWord, Text(Sql, drop.Postgres!.ConcurrentlyKeyword));
+        Assert.Single(drop.Postgres!.AdditionalNames);
         Assert.NotNull(drop.Behavior);
         SqlAssert.ParseFails(Sql);
     }
@@ -153,7 +153,7 @@ public sealed partial class PgDdlTests
     public void Parses_alter_index_actions(string sql, Type actionType)
     {
         var alter = ParseWhole<AlterIndexStatement>(sql);
-        Assert.IsType(actionType, alter.RelationAction);
+        Assert.IsType(actionType, alter.Postgres!.RelationAction);
         SqlAssert.ParseFails(sql);
     }
 
@@ -164,8 +164,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create or replace view v as select 1";
         var view = ParseWhole<CreateViewStatement>(Sql);
-        Assert.Equal("or", Text(Sql, view.OrKeyword));
-        Assert.Equal("replace", Text(Sql, view.ReplaceKeyword));
+        Assert.Equal("or", Text(Sql, view.Postgres!.OrKeyword));
+        Assert.Equal("replace", Text(Sql, view.Postgres!.ReplaceKeyword));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -175,7 +175,7 @@ public sealed partial class PgDdlTests
     [InlineData("create temp view v as select 1", "temp")]
     public void Parses_temporary_views(string sql, string expectedPersistence)
     {
-        Assert.Equal(expectedPersistence, Text(sql, ParseWhole<CreateViewStatement>(sql).TemporaryKeyword));
+        Assert.Equal(expectedPersistence, Text(sql, ParseWhole<CreateViewStatement>(sql).Postgres!.TemporaryKeyword));
         SqlAssert.ParseFails(sql);
     }
 
@@ -185,7 +185,7 @@ public sealed partial class PgDdlTests
         const string Sql = "create view v (a, b) with (security_barrier, check_option = local) as select 1, 2 with cascaded check option";
         var view = ParseWhole<CreateViewStatement>(Sql);
         Assert.Equal(Count.Two, view.Columns!.Count);
-        Assert.Equal(Count.Two, view.Options!.Parameters.Count);
+        Assert.Equal(Count.Two, view.Postgres!.Options!.Parameters.Count);
         Assert.Equal("cascaded", Text(Sql, view.Levels));
         SqlAssert.ParseFails(Sql);
     }
@@ -224,12 +224,12 @@ public sealed partial class PgDdlTests
     {
         const string Drop = "drop materialized view if exists mv, mv2 cascade";
         var drop = ParseWhole<DropViewStatement>(Drop);
-        Assert.Equal("materialized", Text(Drop, drop.MaterializedKeyword));
-        Assert.Single(drop.AdditionalNames);
+        Assert.Equal("materialized", Text(Drop, drop.Postgres!.MaterializedKeyword));
+        Assert.Single(drop.Postgres!.AdditionalNames);
         SqlAssert.ParseFails(Drop);
         const string Alter = "alter materialized view if exists mv set tablespace fast";
         var alter = ParseWhole<AlterViewStatement>(Alter);
-        Assert.NotNull(alter.MaterializedKeyword);
+        Assert.NotNull(alter.Postgres!.MaterializedKeyword);
         Assert.IsType<SetTablespaceAction>(Assert.IsType<AlterViewRelationAction>(alter.Action).Action);
         SqlAssert.ParseFails(Alter);
         Assert.IsType<AlterViewColumnAction>(ParseWhole<AlterViewStatement>("alter materialized view mv alter column a set statistics 10").Action);
@@ -307,7 +307,7 @@ public sealed partial class PgDdlTests
         var alter = ParseWhole<AlterSequenceStatement>(sql);
         var option = Assert.Single(alter.Options);
         Assert.Equal("owned", Text(sql, option.Name));
-        Assert.Equal(targetParts, option.Target!.Count);
+        Assert.Equal(targetParts, option.Postgres!.Target!.Count);
         SqlAssert.ParseFails(sql);
     }
 
@@ -338,13 +338,13 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create temp sequence if not exists s start 1 increment 2 cache 10 no cycle owned by t.id";
         var sequence = ParseWhole<CreateSequenceStatement>(Sql);
-        Assert.Equal("temp", Text(Sql, sequence.PersistenceKeyword));
-        Assert.NotNull(sequence.IfNotExists);
+        Assert.Equal("temp", Text(Sql, sequence.Postgres!.PersistenceKeyword));
+        Assert.NotNull(sequence.Postgres!.IfNotExists);
         Assert.Equal(Count.Five, sequence.Options.Count);
         Assert.Null(sequence.Options[0].WithKeyword);
         Assert.Equal("owned by t.id", Text(Sql, sequence.Options[^1].Span));
         SqlAssert.ParseFails(Sql);
-        Assert.NotNull(ParseWhole<CreateSequenceStatement>("create unlogged sequence s").PersistenceKeyword);
+        Assert.NotNull(ParseWhole<CreateSequenceStatement>("create unlogged sequence s").Postgres!.PersistenceKeyword);
     }
 
     // ---- Tablespaces ----

@@ -93,6 +93,39 @@ internal sealed partial class Parser
         }
     }
 
+    // Null unless NOT VALID or NO INHERIT is present (always so under ISO).
+    internal static PgTableConstraintExtras? BuildPgConstraintExtras(PgConstraintAttributes attributes) =>
+        attributes.End is null
+            ? null
+            : new PgTableConstraintExtras
+            {
+                InheritNoKeyword = attributes.InheritNoKeyword,
+                InheritKeyword = attributes.InheritKeyword,
+                ValidNotKeyword = attributes.ValidNotKeyword,
+                ValidKeyword = attributes.ValidKeyword,
+            };
+
+    // PRIMARY KEY / UNIQUE: also USING INDEX name and index parameters.
+    internal static PgTableConstraintExtras? BuildPgConstraintExtras(PgConstraintAttributes attributes, UniqueKeyColumns key)
+    {
+        if (attributes.End is null && key.UsingIndex.Name is null && key.IndexParameters is null)
+        {
+            return null;
+        }
+
+        return new PgTableConstraintExtras
+        {
+            IndexParameters = key.IndexParameters,
+            UsingKeyword = key.UsingIndex.UsingKeyword,
+            IndexKeyword = key.UsingIndex.IndexKeyword,
+            IndexName = key.UsingIndex.Name,
+            InheritNoKeyword = attributes.InheritNoKeyword,
+            InheritKeyword = attributes.InheritKeyword,
+            ValidNotKeyword = attributes.ValidNotKeyword,
+            ValidKeyword = attributes.ValidKeyword,
+        };
+    }
+
     // Column-level `NULL`: Postgres accepts it as an explicit (no-op) nullability constraint.
     internal TableConstraint ParsePgNullConstraint(SyntaxToken start, SyntaxToken? constraintKeyword, SyntaxToken? constraintName)
     {
@@ -208,15 +241,18 @@ internal sealed partial class Parser
             Span = SourceSpan.From(start, end),
             ConstraintKeyword = constraintKeyword,
             ConstraintName = constraintName,
-            Exclusion = exclusion,
+            Postgres = new PgTableConstraintExtras
+            {
+                Exclusion = exclusion,
+                InheritNoKeyword = attributes.InheritNoKeyword,
+                InheritKeyword = attributes.InheritKeyword,
+                ValidNotKeyword = attributes.ValidNotKeyword,
+                ValidKeyword = attributes.ValidKeyword,
+            },
             DeferrableNotKeyword = deferrableNot,
             DeferrableKeyword = deferrable,
             InitiallyKeyword = initially,
             InitiallyWhen = initiallyWhen,
-            InheritNoKeyword = attributes.InheritNoKeyword,
-            InheritKeyword = attributes.InheritKeyword,
-            ValidNotKeyword = attributes.ValidNotKeyword,
-            ValidKeyword = attributes.ValidKeyword,
         };
     }
 

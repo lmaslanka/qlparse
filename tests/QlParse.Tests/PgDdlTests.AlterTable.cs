@@ -38,8 +38,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "alter table t alter column a set statistics -1";
         var action = ParseColumnAction(Sql);
-        Assert.Equal("statistics", Text(Sql, action.AttributeKeyword));
-        Assert.Equal("-1", Text(Sql, action.AttributeValue!.Span));
+        Assert.Equal("statistics", Text(Sql, action.Postgres!.AttributeKeyword));
+        Assert.Equal("-1", Text(Sql, action.Postgres!.AttributeValue!.Span));
         Assert.Equal("alter column a set statistics -1", Text(Sql, action.Span));
         SqlAssert.ParseFails(Sql);
     }
@@ -81,8 +81,8 @@ public sealed partial class PgDdlTests
     public void Parses_alter_column_set_storage_and_compression(string sql, string attribute, string value)
     {
         var action = ParseColumnAction(sql);
-        Assert.Equal(attribute, Text(sql, action.AttributeKeyword));
-        Assert.Equal(value, Text(sql, action.AttributeName));
+        Assert.Equal(attribute, Text(sql, action.Postgres!.AttributeKeyword));
+        Assert.Equal(value, Text(sql, action.Postgres!.AttributeName));
         SqlAssert.ParseFails(sql);
     }
 
@@ -92,8 +92,8 @@ public sealed partial class PgDdlTests
         const string Sql = "alter table t alter column a set data type bigint using a::bigint";
         var action = ParseColumnAction(Sql);
         Assert.NotNull(action.DataKeyword);
-        Assert.IsType<ColonCastExpression>(action.Using);
-        Assert.Equal("a::bigint", Text(Sql, action.Using!.Span));
+        Assert.IsType<ColonCastExpression>(action.Postgres!.Using);
+        Assert.Equal("a::bigint", Text(Sql, action.Postgres!.Using!.Span));
         Assert.Equal("alter column a set data type bigint using a::bigint", Text(Sql, action.Span));
         SqlAssert.ParseFails(Sql);
     }
@@ -105,8 +105,8 @@ public sealed partial class PgDdlTests
         var action = ParseColumnAction(Sql);
         Assert.Null(action.SetKeyword);
         Assert.Equal("type", Text(Sql, action.TypeKeyword));
-        Assert.Single(action.Collation!);
-        Assert.NotNull(action.Using);
+        Assert.Single(action.Postgres!.Collation!);
+        Assert.NotNull(action.Postgres!.Using);
         SqlAssert.ParseFails(Sql);
         Assert.NotNull(ParseColumnAction("alter table t alter a type bigint").DataType);
     }
@@ -117,7 +117,7 @@ public sealed partial class PgDdlTests
         var alter = SqlAssert.Parse<AlterTableStatement>("alter table t alter column a set data type bigint");
         var action = Assert.IsType<AlterColumnAction>(alter.Action);
         Assert.NotNull(action.DataType);
-        Assert.Null(action.Using);
+        Assert.Null(action.Postgres?.Using);
     }
 
     [Fact]
@@ -125,9 +125,9 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "alter table if exists only t * drop column if exists b cascade";
         var alter = ParseWhole<AlterTableStatement>(Sql);
-        Assert.NotNull(alter.IfExists);
-        Assert.Equal("only", Text(Sql, alter.OnlyKeyword));
-        Assert.Equal("*", Text(Sql, alter.Star));
+        Assert.NotNull(alter.Postgres!.IfExists);
+        Assert.Equal("only", Text(Sql, alter.Postgres!.OnlyKeyword));
+        Assert.Equal("*", Text(Sql, alter.Postgres!.Star));
         var drop = Assert.IsType<DropColumnAction>(alter.Action);
         Assert.Equal("if exists", Text(Sql, drop.IfExists!.Span));
         Assert.Equal("cascade", Text(Sql, drop.Behavior));
@@ -139,7 +139,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "alter table all in tablespace old owned by bob, carol set tablespace fast nowait";
         var alter = ParseWhole<AlterTableStatement>(Sql);
-        var all = alter.AllInTablespace!;
+        var all = alter.Postgres!.AllInTablespace!;
         Assert.Equal("old", Text(Sql, all.Tablespace));
         Assert.Equal(Count.Two, all.Roles.Count);
         Assert.Equal("all in tablespace old owned by bob, carol", Text(Sql, all.Span));
@@ -155,9 +155,9 @@ public sealed partial class PgDdlTests
         var alter = ParseWhole<AlterTableStatement>(Sql);
         var add = Assert.IsType<AddColumnAction>(alter.Action);
         Assert.NotNull(add.IfNotExists);
-        Assert.Equal(Count.Two, alter.AdditionalActions.Count);
-        Assert.Equal("drop column b", Text(Sql, alter.AdditionalActions[0].Span));
-        Assert.IsType<AlterColumnAction>(alter.AdditionalActions[1]);
+        Assert.Equal(Count.Two, alter.Postgres!.AdditionalActions.Count);
+        Assert.Equal("drop column b", Text(Sql, alter.Postgres!.AdditionalActions[0].Span));
+        Assert.IsType<AlterColumnAction>(alter.Postgres!.AdditionalActions[1]);
         SqlAssert.ParseFails(Sql);
     }
 
@@ -223,15 +223,15 @@ public sealed partial class PgDdlTests
         Assert.NotNull(ParseColumnAction("alter table t alter column a set not null").NotKeyword);
         Assert.NotNull(ParseColumnAction("alter table t alter column a drop not null").DropKeyword);
         const string Add = "alter table t alter column id add generated always as identity (start with 1 cache 10)";
-        var identity = ParseColumnAction(Add).Identity!;
+        var identity = ParseColumnAction(Add).Postgres!.Identity!;
         Assert.Equal(Count.Two, identity.Options.Count);
         Assert.Equal("generated always as identity (start with 1 cache 10)", Text(Add, identity.Span));
         SqlAssert.ParseFails(Add);
         const string DropIdentity = "alter table t alter column a drop identity if exists";
-        Assert.NotNull(ParseColumnAction(DropIdentity).IfExists);
+        Assert.NotNull(ParseColumnAction(DropIdentity).Postgres!.IfExists);
         SqlAssert.ParseFails(DropIdentity);
         const string DropExpression = "alter table t alter column a drop expression";
-        Assert.NotNull(ParseColumnAction(DropExpression).ExpressionKeyword);
+        Assert.NotNull(ParseColumnAction(DropExpression).Postgres!.ExpressionKeyword);
         SqlAssert.ParseFails(DropExpression);
     }
 
@@ -239,10 +239,10 @@ public sealed partial class PgDdlTests
     public void Parses_alter_column_attribute_options()
     {
         const string Set = "alter table t alter column a set (n_distinct = 100)";
-        Assert.Single(ParseColumnAction(Set).Parameters!.Parameters);
+        Assert.Single(ParseColumnAction(Set).Postgres!.Parameters!.Parameters);
         SqlAssert.ParseFails(Set);
         const string Reset = "alter table t alter column a reset (n_distinct)";
-        Assert.NotNull(ParseColumnAction(Reset).ResetKeyword);
+        Assert.NotNull(ParseColumnAction(Reset).Postgres!.ResetKeyword);
         SqlAssert.ParseFails(Reset);
     }
 
@@ -284,7 +284,7 @@ public sealed partial class PgDdlTests
         const string Sql = "create table t (r tsrange, room int, exclude using gist (room with =, r with &&) include (x) where (room > 0))";
         var table = ParseWhole<CreateTableStatement>(Sql);
         var constraint = Assert.IsType<TableConstraint>(table.Elements![Count.Two]);
-        var exclusion = constraint.Exclusion!;
+        var exclusion = constraint.Postgres!.Exclusion!;
         Assert.Equal("gist", Text(Sql, exclusion.Method));
         Assert.Equal(Count.Two, exclusion.Elements.Count);
         Assert.Equal(SyntaxKind.EqualsToken, exclusion.Elements[0].Operator.Kind);
@@ -301,10 +301,10 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "alter table t add constraint no_overlap exclude using gist (r with &&) deferrable initially deferred";
         var constraint = ParseAction<AddConstraintAction>(Sql).Constraint;
-        Assert.NotNull(constraint.Exclusion);
+        Assert.NotNull(constraint.Postgres!.Exclusion);
         Assert.Equal("deferred", Text(Sql, constraint.InitiallyWhen));
         SqlAssert.ParseFails(Sql);
-        Assert.NotNull(ParseAction<AddConstraintAction>("alter table t add exclude (r with &&)").Constraint.Exclusion);
+        Assert.NotNull(ParseAction<AddConstraintAction>("alter table t add exclude (r with &&)").Constraint.Postgres!.Exclusion);
     }
 
     [Fact]
@@ -312,10 +312,10 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "alter table t add constraint fk foreign key (a) references p (id) not valid";
         var constraint = ParseAction<AddConstraintAction>(Sql).Constraint;
-        Assert.Equal("valid", Text(Sql, constraint.ValidKeyword));
+        Assert.Equal("valid", Text(Sql, constraint.Postgres!.ValidKeyword));
         Assert.Equal("constraint fk foreign key (a) references p (id) not valid", Text(Sql, constraint.Span));
         SqlAssert.ParseFails(Sql);
-        Assert.NotNull(ParseAction<AddConstraintAction>("alter table t add check (a > 0) not valid").Constraint.ValidNotKeyword);
+        Assert.NotNull(ParseAction<AddConstraintAction>("alter table t add check (a > 0) not valid").Constraint.Postgres!.ValidNotKeyword);
     }
 
     [Fact]
@@ -337,7 +337,7 @@ public sealed partial class PgDdlTests
         var columnCheck = Assert.Single(column.Constraints);
         Assert.Equal("check (a > 0) no inherit", Text(Sql, columnCheck.Span));
         var tableCheck = Assert.IsType<TableConstraint>(table.Elements[1]);
-        Assert.NotNull(tableCheck.InheritNoKeyword);
+        Assert.NotNull(tableCheck.Postgres!.InheritNoKeyword);
         SqlAssert.ParseFails(Sql);
     }
 
@@ -349,7 +349,7 @@ public sealed partial class PgDdlTests
         var constraint = Assert.Single(column.Constraints);
         Assert.Equal("full", Text(Sql, constraint.MatchType));
         var action = Assert.Single(constraint.Actions);
-        Assert.Single(action.Columns!);
+        Assert.Single(action.Postgres!.Columns!);
         Assert.Equal("on delete set null (a)", Text(Sql, action.Span));
         Assert.NotNull(constraint.DeferrableKeyword);
         SqlAssert.ParseFails(Sql);
@@ -363,7 +363,7 @@ public sealed partial class PgDdlTests
         var unique = Assert.Single(Assert.IsType<ColumnDefinition>(table.Elements![0]).Constraints);
         Assert.NotNull(unique.NullsNotKeyword);
         var primary = Assert.IsType<TableConstraint>(table.Elements[1]);
-        var parameters = primary.IndexParameters!;
+        var parameters = primary.Postgres!.IndexParameters!;
         Assert.Single(parameters.Include!);
         Assert.Single(parameters.Parameters!.Parameters);
         Assert.Equal(FastTablespace, Text(Sql, parameters.Tablespace));
@@ -377,7 +377,7 @@ public sealed partial class PgDdlTests
         const string Sql = "create table t (a int primary key using index tablespace fast)";
         var column = Assert.IsType<ColumnDefinition>(ParseWhole<CreateTableStatement>(Sql).Elements![0]);
         var constraint = Assert.Single(column.Constraints);
-        Assert.Equal("index", Text(Sql, constraint.IndexParameters!.IndexKeyword));
+        Assert.Equal("index", Text(Sql, constraint.Postgres!.IndexParameters!.IndexKeyword));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -387,7 +387,7 @@ public sealed partial class PgDdlTests
     public void Parses_add_constraint_using_index(string sql)
     {
         var constraint = ParseAction<AddConstraintAction>(sql).Constraint;
-        Assert.Equal(IndexName, Text(sql, constraint.IndexName));
+        Assert.Equal(IndexName, Text(sql, constraint.Postgres!.IndexName));
         Assert.Null(constraint.Columns);
         SqlAssert.ParseFails(sql);
     }
@@ -397,8 +397,7 @@ public sealed partial class PgDdlTests
     {
         var table = SqlAssert.Parse<CreateTableStatement>("create table t (a int, unique (a) deferrable, check (a > 0))");
         var unique = Assert.IsType<TableConstraint>(table.Elements![1]);
-        Assert.Null(unique.IndexParameters);
-        Assert.Null(unique.ValidKeyword);
+        Assert.Null(unique.Postgres);
         Assert.NotNull(unique.DeferrableKeyword);
     }
 

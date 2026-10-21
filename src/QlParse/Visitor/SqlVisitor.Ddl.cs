@@ -228,7 +228,10 @@ public partial class SqlVisitor
             Visit(node.Query);
         }
 
-        VisitPgCreateTableParts(node);
+        if (node.Postgres is not null)
+        {
+            VisitPgCreateTableExtras(node.Postgres);
+        }
     }
 
     public virtual void Visit(TableElement element)
@@ -305,7 +308,10 @@ public partial class SqlVisitor
             Visit(node.Check);
         }
 
-        VisitPgTableConstraintParts(node);
+        if (node.Postgres is not null)
+        {
+            VisitPgTableConstraintExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitDefaultClause(DefaultClause node) => Visit(node.Value);
@@ -337,7 +343,10 @@ public partial class SqlVisitor
     public virtual void VisitAlterTableStatement(AlterTableStatement node)
     {
         Visit(node.Action);
-        VisitPgAlterTableParts(node);
+        if (node.Postgres is not null)
+        {
+            VisitPgAlterTableExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitDropTableStatement(DropTableStatement node)
@@ -498,9 +507,9 @@ public partial class SqlVisitor
     public virtual void VisitRoutineParameter(RoutineParameter node)
     {
         VisitDataType(node.Type);
-        if (node.Default is not null)
+        if (node.Postgres is not null)
         {
-            Visit(node.Default);
+            VisitPgRoutineParameterExtras(node.Postgres);
         }
     }
 
@@ -595,9 +604,9 @@ public partial class SqlVisitor
 
     public virtual void VisitAlterIndexStatement(AlterIndexStatement node)
     {
-        if (node.RelationAction is not null)
+        if (node.Postgres is not null)
         {
-            Visit(node.RelationAction);
+            VisitPgAlterIndexExtras(node.Postgres);
         }
     }
 

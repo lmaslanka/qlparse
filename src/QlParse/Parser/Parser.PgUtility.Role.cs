@@ -102,10 +102,8 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, names[^1]),
             DropKeyword = dropKeyword,
             RoleKeyword = roleKeyword,
-            IfKeyword = ifKeyword,
-            ExistsKeyword = existsKeyword,
             Name = names[0],
-            Names = names,
+            Postgres = new PgDropRoleExtras { IfKeyword = ifKeyword, ExistsKeyword = existsKeyword, Names = names },
         };
     }
 

@@ -31,7 +31,7 @@ internal sealed partial class Parser
             AlterKeyword = head.AlterKeyword,
             ColumnKeyword = head.ColumnKeyword,
             Name = head.Name,
-            Options = options,
+            Postgres = new PgAlterColumnExtras { Options = options },
         };
     }
 

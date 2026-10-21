@@ -314,7 +314,7 @@ public sealed partial class PgGapTests
         const string sql = "set transaction snapshot '000003A1-1'";
         var set = WalkPg<SetTransactionStatement>(sql);
         Assert.Empty(set.Modes);
-        AssertSpan(sql, Assert.NotNull(set.SnapshotId).Span, "'000003A1-1'");
+        AssertSpan(sql, Assert.NotNull(set.Postgres!.SnapshotId).Span, "'000003A1-1'");
         SqlAssert.ParseFails(sql);
     }
 

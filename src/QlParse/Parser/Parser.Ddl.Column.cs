@@ -120,10 +120,7 @@ internal sealed partial class Parser
             DataKeyword = dataKeyword,
             TypeKeyword = typeKeyword,
             DataType = dataType,
-            CollateKeyword = conversion.CollateKeyword,
-            Collation = conversion.Collation,
-            UsingKeyword = conversion.UsingKeyword,
-            Using = conversion.Using,
+            Postgres = conversion.Extras,
         };
     }
 
@@ -207,7 +204,7 @@ internal sealed partial class Parser
                 Name = name,
                 DropKeyword = dropKeyword,
                 IdentityKeyword = identityToken,
-                IfExists = identityIfExists,
+                Postgres = identityIfExists is null ? null : new PgAlterColumnExtras { IfExists = identityIfExists },
             };
         }
 
@@ -470,7 +467,7 @@ internal sealed partial class Parser
             OpenParen = generated.OpenParen,
             Expression = generated.Expression,
             CloseParen = generated.CloseParen,
-            StorageKeyword = storageKeyword,
+            Postgres = new PgGeneratedColumnExtras { StorageKeyword = storageKeyword },
         };
     }
 

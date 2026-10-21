@@ -72,8 +72,7 @@ internal sealed partial class Parser
         return new TransactionMode
         {
             Span = SourceSpan.From(notKeyword ?? deferrable, deferrable),
-            NotKeyword = notKeyword,
-            DeferrableKeyword = deferrable,
+            Postgres = new PgTransactionModeExtras { NotKeyword = notKeyword, DeferrableKeyword = deferrable },
         };
     }
 
@@ -379,15 +378,17 @@ internal sealed partial class Parser
         {
             var word = Advance();
             var isLocal = TokenEquals(word, Keyword.Local);
+            SyntaxToken? defaultKeyword = isLocal ? null : word;
             return new SetTimeZoneStatement
             {
                 Span = SourceSpan.From(setKeyword, word),
                 SetKeyword = setKeyword,
-                ScopeKeyword = scope,
                 TimeKeyword = timeKeyword,
                 ZoneKeyword = zoneKeyword,
                 LocalKeyword = isLocal ? word : null,
-                DefaultKeyword = isLocal ? null : word,
+                Postgres = scope is null && defaultKeyword is null
+                    ? null
+                    : new PgSetTimeZoneExtras { ScopeKeyword = scope, DefaultKeyword = defaultKeyword },
             };
         }
 
@@ -396,10 +397,10 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(setKeyword, value.Span),
             SetKeyword = setKeyword,
-            ScopeKeyword = scope,
             TimeKeyword = timeKeyword,
             ZoneKeyword = zoneKeyword,
             Value = value,
+            Postgres = scope is null ? null : new PgSetTimeZoneExtras { ScopeKeyword = scope },
         };
     }
 
@@ -413,9 +414,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(setKeyword, value),
             SetKeyword = setKeyword,
-            ScopeKeyword = scope,
             RoleKeyword = roleKeyword,
             Value = value,
+            Postgres = new PgSetRoleExtras { ScopeKeyword = scope },
         };
     }
 

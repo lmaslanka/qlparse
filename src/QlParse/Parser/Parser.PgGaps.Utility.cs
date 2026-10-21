@@ -6,7 +6,7 @@ namespace QlParse;
 internal sealed partial class Parser
 {
     // `, {ADMIN | INHERIT | SET} {OPTION | TRUE | FALSE} ...` after a role grant's first WITH option.
-    internal List<PgRoleGrantOption> ParsePgRoleGrantOptions()
+    internal IReadOnlyList<PgRoleGrantOption> ParsePgRoleGrantOptions()
     {
         var options = new List<PgRoleGrantOption>();
         while (_current.Kind == SyntaxKind.Comma)
@@ -80,8 +80,7 @@ internal sealed partial class Parser
             LocalKeyword = localKeyword,
             TransactionKeyword = transactionKeyword,
             Modes = [],
-            SnapshotKeyword = snapshotKeyword,
-            SnapshotId = snapshotId,
+            Postgres = new PgSetTransactionExtras { SnapshotKeyword = snapshotKeyword, SnapshotId = snapshotId },
         };
     }
 

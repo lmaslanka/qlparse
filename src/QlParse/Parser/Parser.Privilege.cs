@@ -610,11 +610,14 @@ internal sealed partial class Parser
         return new PrivilegeObject
         {
             Span = SourceSpan.From(all, schemas[^1].Span),
-            AllKeyword = all,
             Kind = kind,
-            InKeyword = inKeyword,
-            SchemaKeyword = schemaKeyword,
-            Targets = schemas,
+            Postgres = new PgPrivilegeObjectExtras
+            {
+                AllKeyword = all,
+                InKeyword = inKeyword,
+                SchemaKeyword = schemaKeyword,
+                Targets = schemas,
+            },
         };
     }
 
@@ -626,9 +629,8 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(start, targets[^1].Span),
             Kind = kind.Count > 0 ? kind[0] : null,
-            ExtraKindKeywords = kind.Count > 1 ? kind[1..] : [],
             Name = targets[0].Name,
-            Targets = targets,
+            Postgres = new PgPrivilegeObjectExtras { ExtraKindKeywords = kind.Count > 1 ? kind[1..] : [], Targets = targets },
         };
     }
 

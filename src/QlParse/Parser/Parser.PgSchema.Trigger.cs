@@ -76,6 +76,35 @@ internal sealed partial class Parser
         return new PgTriggerConstraint(fromKeyword, referencedTable, notKeyword, deferrable, initially, initiallyWhen);
     }
 
+    // Null unless at least one Postgres-only CREATE TRIGGER clause is present.
+    internal static PgCreateTriggerExtras? BuildPgCreateTriggerExtras(
+        PgTriggerPrefix prefix,
+        IReadOnlyList<PgTriggerEvent> additionalEvents,
+        PgTriggerConstraint constraint)
+    {
+        if (prefix.OrKeyword is null && prefix.ConstraintKeyword is null && additionalEvents.Count == 0 && !HasPgTriggerConstraint(constraint))
+        {
+            return null;
+        }
+
+        return new PgCreateTriggerExtras
+        {
+            OrKeyword = prefix.OrKeyword,
+            ReplaceKeyword = prefix.ReplaceKeyword,
+            ConstraintKeyword = prefix.ConstraintKeyword,
+            AdditionalEvents = additionalEvents,
+            FromKeyword = constraint.FromKeyword,
+            ReferencedTable = constraint.ReferencedTable,
+            DeferrableNotKeyword = constraint.NotKeyword,
+            DeferrableKeyword = constraint.DeferrableKeyword,
+            InitiallyKeyword = constraint.InitiallyKeyword,
+            InitiallyWhen = constraint.InitiallyWhen,
+        };
+    }
+
+    private static bool HasPgTriggerConstraint(PgTriggerConstraint constraint) =>
+        constraint.FromKeyword is not null || constraint.DeferrableKeyword is not null || constraint.InitiallyKeyword is not null;
+
     internal bool IsPgExecuteFunctionStart() =>
         IdentifierEquals(Keyword.Execute) && (NextEquals(Keyword.Function) || NextEquals(Keyword.Procedure));
 

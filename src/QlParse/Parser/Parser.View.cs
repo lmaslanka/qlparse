@@ -54,9 +54,6 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, end),
             CreateKeyword = createKeyword,
-            OrKeyword = pgHead.OrKeyword,
-            ReplaceKeyword = pgHead.ReplaceKeyword,
-            TemporaryKeyword = pgHead.TemporaryKeyword,
             RecursiveKeyword = recursive,
             ViewKeyword = viewKeyword,
             Name = name,
@@ -68,14 +65,13 @@ internal sealed partial class Parser
             Columns = columns,
             ColumnsClose = columnsClose,
             Elements = elements,
-            OptionsWithKeyword = optionsWith,
-            Options = options,
             AsKeyword = asKeyword,
             Query = query,
             WithKeyword = withKeyword,
             Levels = levels,
             CheckKeyword = checkKeyword,
             OptionKeyword = optionKeyword,
+            Postgres = IsPostgres ? BuildPgCreateViewExtras(pgHead, optionsWith, options) : null,
         };
     }
 
@@ -120,11 +116,12 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(alterKeyword, action.Span),
             AlterKeyword = alterKeyword,
-            MaterializedKeyword = materialized,
             ViewKeyword = viewKeyword,
-            IfExists = ifExists,
             Name = name,
             Action = action,
+            Postgres = materialized is null && ifExists is null
+                ? null
+                : new PgAlterViewExtras { MaterializedKeyword = materialized, IfExists = ifExists },
         };
     }
 
@@ -416,14 +413,8 @@ internal sealed partial class Parser
         };
     }
 
-    internal readonly record struct CastConversion(
-        RoutineDesignator? Routine,
-        SyntaxToken? FunctionKeyword,
-        SyntaxToken? InoutKeyword,
-        SyntaxToken? ArgumentsOpenParen,
-        IReadOnlyList<PgRoutineArgument> Arguments,
-        SyntaxToken? ArgumentsCloseParen,
-        SourceSpan End);
+    // Extras holds the Postgres-only conversion forms (WITHOUT FUNCTION, WITH INOUT, argument types).
+    internal readonly record struct CastConversion(RoutineDesignator? Routine, PgCreateCastExtras? Extras, SourceSpan End);
 
     internal CreateCastStatement ParseCreateCast()
     {
@@ -459,20 +450,16 @@ internal sealed partial class Parser
             CloseParen = closeParen,
             WithKeyword = withKeyword,
             Routine = conversion.Routine,
-            FunctionKeyword = conversion.FunctionKeyword,
-            InoutKeyword = conversion.InoutKeyword,
-            ArgumentsOpenParen = conversion.ArgumentsOpenParen,
-            Arguments = conversion.Arguments,
-            ArgumentsCloseParen = conversion.ArgumentsCloseParen,
             AssignmentAsKeyword = assignmentAs,
             AssignmentKeyword = assignment,
+            Postgres = conversion.Extras,
         };
     }
 
     private CastConversion ParseIsoCastConversion()
     {
         var routine = ParseRoutineDesignator();
-        return new CastConversion(routine, null, null, null, [], null, routine.Span);
+        return new CastConversion(routine, null, routine.Span);
     }
 
     internal CreateTransformStatement ParseCreateTransform()
@@ -714,8 +701,9 @@ internal sealed partial class Parser
             Span = SourceSpan.From(addKeyword, notValid.ValidKeyword?.Span ?? constraint.Span),
             AddKeyword = addKeyword,
             Constraint = constraint,
-            ValidNotKeyword = notValid.NotKeyword,
-            ValidKeyword = notValid.ValidKeyword,
+            Postgres = notValid.ValidKeyword is null
+                ? null
+                : new PgAddDomainConstraintExtras { ValidNotKeyword = notValid.NotKeyword, ValidKeyword = notValid.ValidKeyword },
         };
     }
 }

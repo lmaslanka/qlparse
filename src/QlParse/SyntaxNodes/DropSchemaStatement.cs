@@ -8,6 +8,5 @@ public sealed class DropSchemaStatement : Query
 
     // Null only for Postgres, where CASCADE / RESTRICT is optional.
     public SyntaxToken? Behavior { get; init; }
-    public ExistenceCheck? IfExists { get; init; }
-    public IReadOnlyList<IReadOnlyList<SyntaxToken>> AdditionalNames { get; init; } = [];
+    public PgDropExtras? Postgres { get; init; }
 }

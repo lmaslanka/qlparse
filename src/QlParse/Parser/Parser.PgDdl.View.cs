@@ -27,6 +27,19 @@ internal sealed partial class Parser
     // Postgres allows a view column list without the ISO `) AS` lookahead, e.g. before WITH (...).
     internal bool IsPgViewColumnList() => IsPostgres && _current.Kind == SyntaxKind.OpenParen;
 
+    // Null unless OR REPLACE, TEMPORARY or WITH (options) is present.
+    internal static PgCreateViewExtras? BuildPgCreateViewExtras(PgViewHead head, SyntaxToken? optionsWith, StorageParameterList? options) =>
+        head.OrKeyword is null && head.TemporaryKeyword is null && optionsWith is null
+            ? null
+            : new PgCreateViewExtras
+            {
+                OrKeyword = head.OrKeyword,
+                ReplaceKeyword = head.ReplaceKeyword,
+                TemporaryKeyword = head.TemporaryKeyword,
+                OptionsWithKeyword = optionsWith,
+                Options = options,
+            };
+
     internal (SyntaxToken? WithKeyword, StorageParameterList? Options) TryParsePgViewOptions() =>
         IsPostgres ? TryParsePgWithParameters() : default;
 

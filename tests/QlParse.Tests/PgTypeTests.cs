@@ -198,7 +198,7 @@ public sealed class PgTypeTests
     public void Parses_interval_field_restrictions(string type)
     {
         var dataType = ColumnType(type);
-        Assert.NotNull(dataType.IntervalQualifier);
+        Assert.NotNull(dataType.Postgres!.IntervalQualifier);
         Assert.Equal(type, Text($"create table t (a {type})", dataType.Span));
         SqlAssert.ParseFails($"create table t (a {type})");
     }
@@ -208,7 +208,7 @@ public sealed class PgTypeTests
     {
         const string Sql = "select x::interval day to second(3)";
         var type = SqlAssert.ExprPg<ColonCastExpression>("x::interval day to second(3)").Type;
-        var qualifier = type.IntervalQualifier!;
+        var qualifier = type.Postgres!.IntervalQualifier!;
         Assert.Equal("day", Text(Sql, qualifier.Start.Name.Span));
         Assert.Equal("second(3)", Text(Sql, qualifier.End!.Span));
         Assert.NotNull(qualifier.End.Precision);
@@ -220,7 +220,7 @@ public sealed class PgTypeTests
     {
         var table = SqlAssert.ParsePg<CreateTableStatement>("create table t (a interval default '1 day', b interval not null)");
         var first = Assert.IsType<ColumnDefinition>(table.Elements![0]);
-        Assert.Null(first.Type!.IntervalQualifier);
+        Assert.Null(first.Type!.Postgres?.IntervalQualifier);
         Assert.NotNull(first.Default);
         Assert.Single(Assert.IsType<ColumnDefinition>(table.Elements[1]).Constraints);
     }
@@ -241,7 +241,7 @@ public sealed class PgTypeTests
     public void Parses_array_types(string type, int dimensions)
     {
         var dataType = ColumnType(type);
-        Assert.Equal(dimensions, dataType.ArrayBounds.Count);
+        Assert.Equal(dimensions, dataType.Postgres!.ArrayBounds.Count);
         Assert.Empty(dataType.Collections);
         Assert.Equal(type, Text($"create table t (a {type})", dataType.Span));
         SqlAssert.ParseFails($"create table t (a {type})");
@@ -251,7 +251,7 @@ public sealed class PgTypeTests
     public void Parses_array_bound_sizes()
     {
         const string Sql = "create table t (a int[3][])";
-        var bounds = ColumnType("int[3][]").ArrayBounds;
+        var bounds = ColumnType("int[3][]").Postgres!.ArrayBounds;
         Assert.Equal(Count.Two, bounds.Count);
         Assert.Equal("[3]", Text(Sql, bounds[0].Span));
         Assert.Equal("3", Text(Sql, Assert.NotNull(bounds[0].Size).Span));
@@ -264,8 +264,8 @@ public sealed class PgTypeTests
     public void Parses_multiple_array_columns()
     {
         var table = SqlAssert.ParsePg<CreateTableStatement>(ArrayColumns);
-        Assert.Single(Assert.IsType<ColumnDefinition>(table.Elements![0]).Type!.ArrayBounds);
-        Assert.Equal(Count.Two, Assert.IsType<ColumnDefinition>(table.Elements[1]).Type!.ArrayBounds.Count);
+        Assert.Single(Assert.IsType<ColumnDefinition>(table.Elements![0]).Type!.Postgres!.ArrayBounds);
+        Assert.Equal(Count.Two, Assert.IsType<ColumnDefinition>(table.Elements[1]).Type!.Postgres!.ArrayBounds.Count);
         SqlAssert.ParseFails(ArrayColumns);
     }
 
@@ -276,7 +276,7 @@ public sealed class PgTypeTests
         const string Sql = $"select {Cast}";
         var cast = SqlAssert.ExprPg<ColonCastExpression>(Cast);
         Assert.IsType<LiteralExpression>(cast.Expression);
-        Assert.Single(cast.Type.ArrayBounds);
+        Assert.Single(cast.Type.Postgres!.ArrayBounds);
         Assert.Equal(Cast, Text(Sql, cast.Span));
         SqlAssert.ParseFails(Sql);
     }
@@ -285,7 +285,7 @@ public sealed class PgTypeTests
     public void Parses_array_cast_and_domain()
     {
         const string Domain = "create domain d as text[]";
-        Assert.Single(SqlAssert.ExprPg<CastExpression>("cast(x as int[])").Type.ArrayBounds);
+        Assert.Single(SqlAssert.ExprPg<CastExpression>("cast(x as int[])").Type.Postgres!.ArrayBounds);
         var domain = SqlAssert.ParsePg<CreateDomainStatement>(Domain);
         Assert.Equal("text[]", Text(Domain, domain.Type.Span));
         SqlAssert.ParseFails("select cast(x as int[])");
@@ -297,7 +297,7 @@ public sealed class PgTypeTests
     {
         const string Sql = "create function f(x int[]) returns int[] sql return x";
         var function = SqlAssert.ParsePg<CreateRoutineStatement>(Sql);
-        Assert.Single(Assert.Single(function.Parameters).Type.ArrayBounds);
+        Assert.Single(Assert.Single(function.Parameters).Type.Postgres!.ArrayBounds);
         Assert.Equal("int[]", Text(Sql, function.ReturnsType!.Span));
         SqlAssert.ParseFails(Sql);
     }
@@ -319,7 +319,7 @@ public sealed class PgTypeTests
         var table = SqlAssert.ParsePg<CreateTableStatement>(Sql);
         var plain = Assert.IsType<ColumnDefinition>(table.Elements![0]).Type!;
         Assert.Equal(SyntaxKind.ArrayKeyword, Assert.Single(plain.Collections).Keyword.Kind);
-        Assert.Empty(plain.ArrayBounds);
+        Assert.Null(plain.Postgres);
         var bounded = Assert.IsType<ColumnDefinition>(table.Elements[1]).Type!;
         Assert.Equal("int array[4]", Text(Sql, bounded.Span));
         Assert.NotNull(Assert.Single(bounded.Collections).Cardinality);
@@ -341,7 +341,7 @@ public sealed class PgTypeTests
         var column = Assert.IsType<ColumnDefinition>(table.Elements![1]);
         var generated = column.Generated!;
         Assert.IsType<BinaryExpression>(generated.Expression);
-        Assert.Equal("stored", Text(GeneratedStored, Assert.NotNull(generated.StorageKeyword).Span));
+        Assert.Equal("stored", Text(GeneratedStored, Assert.NotNull(generated.Postgres!.StorageKeyword).Span));
         Assert.Equal("generated always as (a * 2) stored", Text(GeneratedStored, generated.Span));
         Assert.Equal("b int generated always as (a * 2) stored", Text(GeneratedStored, column.Span));
         SqlAssert.ParseFails(GeneratedStored);
@@ -352,7 +352,7 @@ public sealed class PgTypeTests
     {
         var table = SqlAssert.ParsePg<CreateTableStatement>(GeneratedVirtual);
         var generated = Assert.IsType<ColumnDefinition>(table.Elements![1]).Generated!;
-        Assert.Equal("virtual", Text(GeneratedVirtual, Assert.NotNull(generated.StorageKeyword).Span));
+        Assert.Equal("virtual", Text(GeneratedVirtual, Assert.NotNull(generated.Postgres!.StorageKeyword).Span));
         Assert.Equal("generated always as (a * 2) virtual", Text(GeneratedVirtual, generated.Span));
         SqlAssert.ParseFails(GeneratedVirtual);
     }
@@ -362,7 +362,7 @@ public sealed class PgTypeTests
     {
         var table = SqlAssert.ParsePg<CreateTableStatement>("create table t (a int, b int generated always as (a + 1) stored not null)");
         var column = Assert.IsType<ColumnDefinition>(table.Elements![1]);
-        Assert.NotNull(column.Generated!.StorageKeyword);
+        Assert.NotNull(column.Generated!.Postgres!.StorageKeyword);
         Assert.Single(column.Constraints);
     }
 
@@ -371,7 +371,7 @@ public sealed class PgTypeTests
     {
         var table = SqlAssert.ParsePg<CreateTableStatement>("create table t (a int, b int generated always as (a + 1))");
         var generated = Assert.IsType<ColumnDefinition>(table.Elements![1]).Generated!;
-        Assert.Null(generated.StorageKeyword);
+        Assert.Null(generated.Postgres?.StorageKeyword);
         Assert.NotNull(generated.CloseParen);
     }
 
@@ -418,7 +418,7 @@ public sealed class PgTypeTests
         var column = ColumnType(name);
         Assert.Equal(name, Text(columnSql, column.Name.Span));
         Assert.Equal(name, Text(columnSql, column.Span));
-        Assert.Empty(column.ArrayBounds);
+        Assert.Null(column.Postgres);
 
         var castSql = $"select cast(x as {name})";
         Assert.Equal(name, Text(castSql, SqlAssert.ExprPg<CastExpression>($"cast(x as {name})").Type.Name.Span));

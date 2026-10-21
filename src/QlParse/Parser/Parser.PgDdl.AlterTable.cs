@@ -27,15 +27,34 @@ internal sealed partial class Parser
             Span = SourceSpan.From(alterKeyword, end),
             AlterKeyword = alterKeyword,
             TableKeyword = tableKeyword,
+            Name = target.Name,
+            Action = action,
+            Postgres = BuildPgAlterTableExtras(ifExists, target, additionalActions),
+        };
+    }
+
+    private static PgAlterTableExtras? BuildPgAlterTableExtras(
+        ExistenceCheck? ifExists,
+        PgAlterTableTarget target,
+        IReadOnlyList<AlterTableAction> additionalActions)
+    {
+        if (ifExists is null && additionalActions.Count == 0 && !HasPgAlterTableTarget(target))
+        {
+            return null;
+        }
+
+        return new PgAlterTableExtras
+        {
             IfExists = ifExists,
             AllInTablespace = target.AllInTablespace,
             OnlyKeyword = target.Only,
-            Name = target.Name,
             Star = target.Star,
-            Action = action,
             AdditionalActions = additionalActions,
         };
     }
+
+    private static bool HasPgAlterTableTarget(PgAlterTableTarget target) =>
+        target.AllInTablespace is not null || target.Only is not null || target.Star is not null;
 
     private readonly record struct PgAlterTableTarget(
         AllInTablespaceClause? AllInTablespace,

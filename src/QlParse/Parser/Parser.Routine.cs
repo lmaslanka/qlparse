@@ -21,9 +21,6 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, body.Span),
             CreateKeyword = createKeyword,
-            OrKeyword = prefix.OrKeyword,
-            ReplaceKeyword = prefix.ReplaceKeyword,
-            ConstraintKeyword = prefix.ConstraintKeyword,
             TriggerKeyword = triggerKeyword,
             Name = name,
             ActionTime = actionTimeClause.ActionTime,
@@ -31,15 +28,8 @@ internal sealed partial class Parser
             Event = events.Event,
             ColumnsOfKeyword = events.ColumnsOfKeyword,
             Columns = events.Columns,
-            AdditionalEvents = events.AdditionalEvents,
             OnKeyword = onKeyword,
             TableName = tableName,
-            FromKeyword = constraint.FromKeyword,
-            ReferencedTable = constraint.ReferencedTable,
-            DeferrableNotKeyword = constraint.NotKeyword,
-            DeferrableKeyword = constraint.DeferrableKeyword,
-            InitiallyKeyword = constraint.InitiallyKeyword,
-            InitiallyWhen = constraint.InitiallyWhen,
             ReferencingKeyword = referencingClause.ReferencingKeyword,
             Transitions = referencingClause.Transitions,
             ForKeyword = granularityClause.ForKeyword,
@@ -50,6 +40,7 @@ internal sealed partial class Parser
             When = whenClause.When,
             WhenClose = whenClause.WhenClose,
             Body = body,
+            Postgres = IsPostgres ? BuildPgCreateTriggerExtras(prefix, events.AdditionalEvents, constraint) : null,
         };
     }
 
@@ -172,12 +163,17 @@ internal sealed partial class Parser
             Span = SourceSpan.From(dropKeyword, end),
             DropKeyword = dropKeyword,
             TriggerKeyword = triggerKeyword,
-            IfKeyword = ifExists.IfKeyword,
-            ExistsKeyword = ifExists.ExistsKeyword,
             Name = name,
-            OnKeyword = tail.OnKeyword,
-            TableName = tail.TableName,
-            Behavior = tail.Behavior,
+            Postgres = ifExists.IfKeyword is null && tail.OnKeyword is null
+                ? null
+                : new PgDropTriggerExtras
+                {
+                    IfKeyword = ifExists.IfKeyword,
+                    ExistsKeyword = ifExists.ExistsKeyword,
+                    OnKeyword = tail.OnKeyword,
+                    TableName = tail.TableName,
+                    Behavior = tail.Behavior,
+                },
         };
     }
 

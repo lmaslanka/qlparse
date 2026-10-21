@@ -22,6 +22,33 @@ internal sealed partial class Parser
         return new PgIndexHead(concurrently, ifNotExists, ifNotExists is null && _current.Kind == SyntaxKind.OnKeyword);
     }
 
+    // Null unless at least one Postgres-only CREATE INDEX clause is present.
+    internal static PgCreateIndexExtras? BuildPgCreateIndexExtras(
+        PgIndexHead head,
+        SyntaxToken? only,
+        SyntaxToken? usingKeyword,
+        SyntaxToken? method,
+        IndexParameters? options)
+    {
+        if (head.Concurrently is null && head.IfNotExists is null && !HasPgIndexClauses(only, usingKeyword, options))
+        {
+            return null;
+        }
+
+        return new PgCreateIndexExtras
+        {
+            ConcurrentlyKeyword = head.Concurrently,
+            IfNotExists = head.IfNotExists,
+            OnlyKeyword = only,
+            UsingKeyword = usingKeyword,
+            Method = method,
+            Options = options,
+        };
+    }
+
+    private static bool HasPgIndexClauses(SyntaxToken? only, SyntaxToken? usingKeyword, IndexParameters? options) =>
+        only is not null || usingKeyword is not null || options is not null;
+
     internal SyntaxToken? TryParsePgOnly() =>
         IsPostgres && _current.Kind == SyntaxKind.OnlyKeyword ? Advance() : null;
 
@@ -63,9 +90,8 @@ internal sealed partial class Parser
             Span = SourceSpan.From(alterKeyword, action.Span),
             AlterKeyword = alterKeyword,
             IndexKeyword = indexKeyword,
-            IfExists = ifExists,
             Name = name,
-            RelationAction = action,
+            Postgres = new PgAlterIndexExtras { IfExists = ifExists, RelationAction = action },
         };
     }
 }

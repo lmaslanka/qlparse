@@ -8,7 +8,5 @@ public sealed class ReferentialAction
     public SyntaxToken? NoKeyword { get; init; }
     public SyntaxToken? SetKeyword { get; init; }
     public required SyntaxToken Action { get; init; }
-    public SyntaxToken? ColumnsOpen { get; init; }
-    public IReadOnlyList<SyntaxToken>? Columns { get; init; }
-    public SyntaxToken? ColumnsClose { get; init; }
+    public PgReferentialActionExtras? Postgres { get; init; }
 }

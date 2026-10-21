@@ -28,10 +28,10 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) inherits (p, s.q)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal(Count.Two, table.Inherits!.Count);
-        Assert.Equal(Count.Two, table.Inherits[1].Count);
-        Assert.Equal("inherits", Text(Sql, table.InheritsKeyword));
-        Assert.Equal(")", Text(Sql, table.InheritsClose));
+        Assert.Equal(Count.Two, table.Postgres!.Inherits!.Count);
+        Assert.Equal(Count.Two, table.Postgres!.Inherits[1].Count);
+        Assert.Equal("inherits", Text(Sql, table.Postgres!.InheritsKeyword));
+        Assert.Equal(")", Text(Sql, table.Postgres!.InheritsClose));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -40,7 +40,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create unlogged table t (a int)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal("unlogged", Text(Sql, table.UnloggedKeyword));
+        Assert.Equal("unlogged", Text(Sql, table.Postgres!.UnloggedKeyword));
         Assert.Null(table.TemporaryKeyword);
         SqlAssert.ParseFails(Sql);
     }
@@ -63,7 +63,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table if not exists t (a int)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal("if not exists", Text(Sql, table.IfNotExists!.Span));
+        Assert.Equal("if not exists", Text(Sql, table.Postgres!.IfNotExists!.Span));
         Assert.Equal(TableName, Text(Sql, table.Name[0]));
         SqlAssert.ParseFails(Sql);
     }
@@ -83,7 +83,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t with (fillfactor = 70) as select 1 with no data";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Single(table.StorageParameters!.Parameters);
+        Assert.Single(table.Postgres!.StorageParameters!.Parameters);
         Assert.NotNull(table.NoKeyword);
         Assert.Equal("data", Text(Sql, table.DataKeyword));
     }
@@ -105,12 +105,12 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) with (fillfactor = 70, toast.autovacuum_enabled = false)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        var parameters = table.StorageParameters!.Parameters;
+        var parameters = table.Postgres!.StorageParameters!.Parameters;
         Assert.Equal(Count.Two, parameters.Count);
         Assert.Equal("fillfactor = 70", Text(Sql, parameters[0].Span));
         Assert.Equal(Count.Two, parameters[1].Name.Count);
         Assert.Equal("false", Text(Sql, parameters[1].Value));
-        Assert.Equal("with", Text(Sql, table.StorageWithKeyword));
+        Assert.Equal("with", Text(Sql, table.Postgres!.StorageWithKeyword));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -119,8 +119,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) without oids";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal("oids", Text(Sql, table.OidsKeyword));
-        Assert.NotNull(table.WithoutKeyword);
+        Assert.Equal("oids", Text(Sql, table.Postgres!.OidsKeyword));
+        Assert.NotNull(table.Postgres!.WithoutKeyword);
         SqlAssert.ParseFails(Sql);
     }
 
@@ -129,8 +129,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) using heap";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal("heap", Text(Sql, table.AccessMethod));
-        Assert.Equal("using", Text(Sql, table.UsingKeyword));
+        Assert.Equal("heap", Text(Sql, table.Postgres!.AccessMethod));
+        Assert.Equal("using", Text(Sql, table.Postgres!.UsingKeyword));
         SqlAssert.ParseFails(Sql);
     }
 
@@ -139,7 +139,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) with (fillfactor = 70) on commit delete rows tablespace fast";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal(FastTablespace, Text(Sql, table.Tablespace));
+        Assert.Equal(FastTablespace, Text(Sql, table.Postgres!.Tablespace));
         Assert.Equal("rows", Text(Sql, table.RowsKeyword));
         SqlAssert.ParseFails(Sql);
     }
@@ -166,7 +166,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table t (a int) partition by range (a)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        var partitionBy = table.PartitionBy!;
+        var partitionBy = table.Postgres!.PartitionBy!;
         Assert.Equal("range", Text(Sql, partitionBy.Strategy));
         Assert.Equal("partition by range (a)", Text(Sql, partitionBy.Span));
         Assert.IsType<IdentifierExpression>(Assert.Single(partitionBy.Columns).Expression);
@@ -177,7 +177,7 @@ public sealed partial class PgDdlTests
     public void Parses_partition_by_list_expression()
     {
         const string Sql = "create table t (a int, b text) partition by list (lower(b))";
-        var partitionBy = ParseWhole<CreateTableStatement>(Sql).PartitionBy!;
+        var partitionBy = ParseWhole<CreateTableStatement>(Sql).Postgres!.PartitionBy!;
         Assert.Equal("list", Text(Sql, partitionBy.Strategy));
         Assert.Equal("lower(b)", Text(Sql, Assert.Single(partitionBy.Columns).Span));
         SqlAssert.ParseFails(Sql);
@@ -187,10 +187,10 @@ public sealed partial class PgDdlTests
     public void Parses_partition_by_hash_with_opclass_and_collation()
     {
         const string Sql = @"create table t (a int, b text) partition by hash (a, (b || 'x') text_pattern_ops, b collate ""C"")";
-        var partitionBy = ParseWhole<CreateTableStatement>(Sql).PartitionBy!;
+        var partitionBy = ParseWhole<CreateTableStatement>(Sql).Postgres!.PartitionBy!;
         Assert.Equal("hash", Text(Sql, partitionBy.Strategy));
         Assert.Equal(Count.Three, partitionBy.Columns.Count);
-        Assert.Equal("text_pattern_ops", Text(Sql, partitionBy.Columns[1].OperatorClass![0]));
+        Assert.Equal("text_pattern_ops", Text(Sql, partitionBy.Columns[1].Postgres!.OperatorClass![0]));
         Assert.Equal("(b || 'x') text_pattern_ops", Text(Sql, partitionBy.Columns[1].Span));
         Assert.IsType<CollateExpression>(partitionBy.Columns[Count.Two].Expression);
         SqlAssert.ParseFails(Sql);
@@ -201,7 +201,7 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table p1 partition of t for values in (1, 2)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        var partitionOf = table.PartitionOf!;
+        var partitionOf = table.Postgres!.PartitionOf!;
         Assert.Equal(TableName, Text(Sql, partitionOf.Parent[0]));
         Assert.Equal(Count.Two, partitionOf.Bound.Values.Count);
         Assert.Equal("for values in (1, 2)", Text(Sql, partitionOf.Bound.Span));
@@ -213,7 +213,7 @@ public sealed partial class PgDdlTests
     public void Parses_partition_of_for_values_from_to()
     {
         const string Sql = "create table p1 partition of t for values from (minvalue, 'a') to (100, maxvalue)";
-        var bound = ParseWhole<CreateTableStatement>(Sql).PartitionOf!.Bound;
+        var bound = ParseWhole<CreateTableStatement>(Sql).Postgres!.PartitionOf!.Bound;
         Assert.Equal(Count.Two, bound.Values.Count);
         Assert.Equal(Count.Two, bound.ToValues.Count);
         Assert.Equal("minvalue", Text(Sql, bound.Values[0].Span));
@@ -225,7 +225,7 @@ public sealed partial class PgDdlTests
     public void Parses_partition_of_for_values_with_modulus()
     {
         const string Sql = "create table p1 partition of t for values with (modulus 4, remainder 0)";
-        var bound = ParseWhole<CreateTableStatement>(Sql).PartitionOf!.Bound;
+        var bound = ParseWhole<CreateTableStatement>(Sql).Postgres!.PartitionOf!.Bound;
         var parameters = bound.HashParameters!.Parameters;
         Assert.Equal("modulus 4", Text(Sql, parameters[0].Span));
         Assert.Equal("0", Text(Sql, parameters[1].Value));
@@ -237,13 +237,13 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "create table p1 partition of t (a not null, b with options default 0, constraint c check (a > 0)) default partition by range (a)";
         var table = ParseWhole<CreateTableStatement>(Sql);
-        Assert.Equal("default", Text(Sql, table.PartitionOf!.Bound.DefaultKeyword));
+        Assert.Equal("default", Text(Sql, table.Postgres!.PartitionOf!.Bound.DefaultKeyword));
         Assert.Equal(Count.Three, table.Elements!.Count);
         var column = Assert.IsType<ColumnDefinition>(table.Elements[0]);
         Assert.Null(column.Type);
         Assert.Equal("a not null", Text(Sql, column.Span));
         Assert.IsType<TableConstraint>(table.Elements[Count.Two]);
-        Assert.NotNull(table.PartitionBy);
+        Assert.NotNull(table.Postgres!.PartitionBy);
         SqlAssert.ParseFails(Sql);
     }
 
@@ -254,8 +254,8 @@ public sealed partial class PgDdlTests
     {
         const string Sql = "drop table if exists a, s.b cascade";
         var drop = ParseWhole<DropTableStatement>(Sql);
-        Assert.NotNull(drop.IfExists);
-        Assert.Equal(Count.Two, Assert.Single(drop.AdditionalNames).Count);
+        Assert.NotNull(drop.Postgres!.IfExists);
+        Assert.Equal(Count.Two, Assert.Single(drop.Postgres!.AdditionalNames).Count);
         Assert.Equal("cascade", Text(Sql, drop.Behavior));
         SqlAssert.ParseFails(Sql);
     }
@@ -275,7 +275,7 @@ public sealed partial class PgDdlTests
     {
         var drop = SqlAssert.Parse<DropTableStatement>("drop table a restrict");
         Assert.NotNull(drop.Behavior);
-        Assert.Empty(drop.AdditionalNames);
+        Assert.Null(drop.Postgres);
     }
 
     [Fact]
@@ -283,12 +283,12 @@ public sealed partial class PgDdlTests
     {
         const string Views = "drop view if exists v, w restrict";
         var view = ParseWhole<DropViewStatement>(Views);
-        Assert.Single(view.AdditionalNames);
-        Assert.NotNull(view.IfExists);
+        Assert.Single(view.Postgres!.AdditionalNames);
+        Assert.NotNull(view.Postgres!.IfExists);
         SqlAssert.ParseFails(Views);
         const string Sequences = "drop sequence if exists s, u cascade";
         var sequence = ParseWhole<DropSequenceStatement>(Sequences);
-        Assert.Single(sequence.AdditionalNames);
+        Assert.Single(sequence.Postgres!.AdditionalNames);
         SqlAssert.ParseFails(Sequences);
     }
 

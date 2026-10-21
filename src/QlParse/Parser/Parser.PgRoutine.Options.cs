@@ -185,7 +185,13 @@ internal sealed partial class Parser
         }
         while (_current.Kind == SyntaxKind.Comma);
 
-        return new RoutineCharacteristic { Span = SourceSpan.From(name, types[^1].Span), Name = name, Tail = tail, Types = types };
+        return new RoutineCharacteristic
+        {
+            Span = SourceSpan.From(name, types[^1].Span),
+            Name = name,
+            Tail = tail,
+            Postgres = new PgRoutineCharacteristicExtras { Types = types },
+        };
     }
 
     private RoutineCharacteristic ParsePgRoutineSet()
@@ -211,7 +217,7 @@ internal sealed partial class Parser
             Span = SourceSpan.From(setKeyword, values.End),
             Name = setKeyword,
             Tail = tail,
-            Values = values.Values,
+            Postgres = values.Values.Count == 0 ? null : new PgRoutineCharacteristicExtras { Values = values.Values },
         };
     }
 
