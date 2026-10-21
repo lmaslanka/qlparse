@@ -448,7 +448,7 @@ public sealed class ParseDdlTests
         Assert.NotNull(cast.Source);
         Assert.NotNull(cast.AssignmentKeyword);
         var specific = SqlAssert.Parse<CreateCastStatement>("create cast (emp_id as integer) with specific function sch.to_int");
-        Assert.NotNull(specific.Routine.SpecificKeyword);
+        Assert.NotNull(specific.Routine?.SpecificKeyword);
         Assert.Null(specific.AssignmentKeyword);
 
         var transform = SqlAssert.Parse<CreateTransformStatement>("create transform for address my_group (to sql with function addr_to_sql, from sql with specific function sch.from_sql)");
