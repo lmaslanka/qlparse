@@ -5,14 +5,18 @@ internal sealed partial class Parser
     private readonly IReadOnlyList<SyntaxToken> _tokens;
     private readonly string _source;
     private int _index;
+    private readonly SqlOptions _flags;
     private SyntaxToken _current;
 
-    internal Parser(IReadOnlyList<SyntaxToken> tokens, string source)
+    internal Parser(IReadOnlyList<SyntaxToken> tokens, string source, SqlOptions flags)
     {
         _tokens = tokens;
         _source = source;
+        _flags = flags;
         InitializeCursor();
     }
+
+    private bool IsPostgres => (_flags & SqlOptions.Postgres) != 0;
 
     private void InitializeCursor()
     {
@@ -20,9 +24,9 @@ internal sealed partial class Parser
         _index = 1;
     }
 
-    public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source)
+    public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source, SqlOptions flags)
     {
-        var parser = new Parser(tokens, source);
+        var parser = new Parser(tokens, source, flags);
         var statements = new List<Query> { parser.ParseStatement() };
         var semicolons = new List<SyntaxToken>();
         while (parser._current.Kind == SyntaxKind.Semicolon)

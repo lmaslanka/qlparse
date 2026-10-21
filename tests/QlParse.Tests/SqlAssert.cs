@@ -27,4 +27,23 @@ internal static class SqlAssert
 
     public static T Expr<T>(string sql) where T : Expression =>
         Assert.IsType<T>(Expr(sql));
+
+    public static T ParsePg<T>(string sql) where T : Query
+    {
+        var result = Sql.Parse(sql, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        return Assert.IsType<T>(result.Root);
+    }
+
+    public static SelectStatement SelectPg(string sql) =>
+        ParsePg<SelectStatement>(sql);
+
+    public static Expression ExprPg(string sql) =>
+        SelectPg("select " + sql).SelectList[0].Expression;
+
+    public static T ExprPg<T>(string sql) where T : Expression =>
+        Assert.IsType<T>(ExprPg(sql));
+
+    public static void ParseFails(string sql, SqlOptions options = SqlOptions.None) =>
+        Assert.NotNull(Sql.Parse(sql, options).Error);
 }

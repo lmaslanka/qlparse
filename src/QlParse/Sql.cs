@@ -27,7 +27,7 @@ public static class Sql
             return new SqlParseResult
             {
                 Source = lexed.Source,
-                Root = Parser.Parse(lexed.Tokens, lexed.Source),
+                Root = Parser.Parse(lexed.Tokens, lexed.Source, lexed.Options),
                 Tokens = lexed.Tokens,
                 Trivia = lexed.Trivia,
                 Error = null,

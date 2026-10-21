@@ -46,6 +46,7 @@ internal sealed class Lexer
             return new SqlLexResult
             {
                 Source = source,
+                Options = flags,
                 Tokens = tokens,
                 Trivia = lexer.Trivia,
                 Error = null,
@@ -56,6 +57,7 @@ internal sealed class Lexer
             return new SqlLexResult
             {
                 Source = source,
+                Options = flags,
                 Tokens = tokens,
                 Trivia = lexer.Trivia,
                 Error = ex,

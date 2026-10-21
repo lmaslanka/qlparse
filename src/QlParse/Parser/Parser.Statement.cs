@@ -17,7 +17,12 @@ internal sealed partial class Parser
     internal Query ParseStatement()
     {
         var labeled = ParseLabeledStatement();
-        return labeled ?? ParseStatementByKind();
+        if (labeled is not null)
+        {
+            return labeled;
+        }
+
+        return IsPostgres ? TryParsePgStatement() ?? ParseStatementByKind() : ParseStatementByKind();
     }
 
     private Query ParseStatementByKind() => _current.Kind switch
