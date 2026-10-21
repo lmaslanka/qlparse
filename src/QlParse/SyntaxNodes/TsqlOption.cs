@@ -1,12 +1,13 @@
 namespace QlParse;
 
-// A module, atomic-block or durability option: words, then optionally `= value` (ENCRYPTION;
-// RETURNS NULL ON NULL INPUT; EXECUTE AS OWNER; INLINE = ON; TRANSACTION ISOLATION LEVEL = SNAPSHOT).
-// EXECUTE AS keeps its principal in Value without an EqualsToken.
+// One item of a SQL Server option list: `name [=] value`, a bare flag `name`, a bare value such as `'a'` in
+// `= ('a', 'b')`, or `name [=] (nested, ...)`. Name holds the option words (empty for a bare value) and Value
+// the value's tokens in source order (a sign, a number and its unit, `'logical' TO 'physical'`, several words).
 public sealed class TsqlOption
 {
     public required SourceSpan Span { get; init; }
-    public required IReadOnlyList<SyntaxToken> Name { get; init; }
+    public IReadOnlyList<SyntaxToken> Name { get; init; } = [];
     public SyntaxToken? EqualsToken { get; init; }
     public IReadOnlyList<SyntaxToken> Value { get; init; } = [];
+    public TsqlOptionList? Options { get; init; }
 }

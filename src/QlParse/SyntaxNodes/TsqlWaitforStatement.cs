@@ -1,6 +1,6 @@
 namespace QlParse;
 
-// WAITFOR {DELAY | TIME} value, or WAITFOR (statement) [, TIMEOUT value] around RECEIVE / GET CONVERSATION GROUP.
+// WAITFOR {DELAY | TIME} value, or WAITFOR (RECEIVE ... | GET CONVERSATION GROUP ...) [, TIMEOUT value].
 public sealed class TsqlWaitforStatement : Query
 {
     public required SyntaxToken WaitforKeyword { get; init; }

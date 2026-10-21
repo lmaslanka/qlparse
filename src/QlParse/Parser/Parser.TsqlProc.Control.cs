@@ -24,12 +24,7 @@ internal sealed partial class Parser
             return ParseTsqlAtomicBlock();
         }
 
-        if (NextEquals(Keyword.ProcDialog) || NextEquals(Keyword.ProcConversation))
-        {
-            return null;
-        }
-
-        return ParseTsqlBlock();
+        return IsTsqlBrokerBegin() ? null : ParseTsqlBlock();
     }
 
     internal TsqlBlockStatement ParseTsqlBlock()
@@ -252,7 +247,7 @@ internal sealed partial class Parser
         }
 
         var openParen = Advance();
-        var statement = ParseTsqlEmbeddedStatement();
+        var statement = ParseTsqlWaitforStatement();
         var closeParen = Expect(SyntaxKind.CloseParen);
         if (_current.Kind != SyntaxKind.Comma)
         {
@@ -280,6 +275,22 @@ internal sealed partial class Parser
             TimeoutKeyword = timeoutKeyword,
             Timeout = timeout,
         };
+    }
+
+    // RECEIVE ... or GET CONVERSATION GROUP ..., parsed by the Service Broker statements (workstream G).
+    private Query ParseTsqlWaitforStatement()
+    {
+        if (IdentifierEquals(Keyword.AdminReceive))
+        {
+            return ParseTsqlReceive();
+        }
+
+        if (IdentifierEquals(Keyword.Get) && NextEquals(Keyword.AdminConversation))
+        {
+            return ParseTsqlGetConversationGroup();
+        }
+
+        throw new SqlParseException($"Expected RECEIVE or GET CONVERSATION GROUP, found {_current.Kind}", _current.Position);
     }
 
     // THROW [error_number, message, state]

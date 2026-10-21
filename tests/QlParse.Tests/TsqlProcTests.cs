@@ -224,15 +224,43 @@ public sealed partial class TsqlProcTests
     }
 
     [Fact]
-    public void Parses_waitfor_around_a_statement_with_timeout()
+    public void Parses_waitfor_receive_with_timeout()
     {
-        const string sql = "waitfor (select 1), timeout 500";
+        const string sql = "waitfor (receive top (1) conversation_handle, message_body from dbo.target_queue), timeout 5000";
         var statement = SqlAssert.ParseTsql<TsqlWaitforStatement>(sql);
-        Assert.IsType<SelectStatement>(statement.Statement);
+        var receive = Assert.IsType<TsqlReceiveStatement>(statement.Statement);
+        Assert.Equal(["dbo", "target_queue"], Texts(sql, receive.Queue));
         Assert.Equal("timeout", Text(sql, Assert.NotNull(statement.TimeoutKeyword)));
-        Assert.Equal("500", Text(sql, Present(statement.Timeout).Span));
+        Assert.Equal("5000", Text(sql, Present(statement.Timeout).Span));
         Assert.Equal(sql, Text(sql, statement.Span));
-        Assert.Null(SqlAssert.ParseTsql<TsqlWaitforStatement>("waitfor (select 1)").Timeout);
+    }
+
+    [Fact]
+    public void Parses_waitfor_get_conversation_group()
+    {
+        const string sql = "waitfor (get conversation group @g from dbo.q)";
+        var statement = SqlAssert.ParseTsql<TsqlWaitforStatement>(sql);
+        Assert.IsType<TsqlGetConversationGroupStatement>(statement.Statement);
+        Assert.Null(statement.Timeout);
+        Assert.Equal(sql, Text(sql, statement.Span));
+        SqlAssert.ParseFails("waitfor (select 1)", SqlOptions.SqlServer);
+        SqlAssert.ParseFails("waitfor (receive * from q), 10", SqlOptions.SqlServer);
+    }
+
+    [Fact]
+    public void Service_broker_statements_are_not_blocks()
+    {
+        const string sql = "begin begin dialog @h from service s to service 't' on contract c send on conversation @h (N'x') end conversation @h end";
+        var block = SqlAssert.ParseTsql<TsqlBlockStatement>(sql);
+        Assert.Collection(
+            block.Statements,
+            statement => Assert.IsType<TsqlBeginDialogStatement>(statement),
+            statement => Assert.IsType<TsqlSendStatement>(statement),
+            statement => Assert.IsType<TsqlEndConversationStatement>(statement));
+        Assert.Equal(sql, Text(sql, block.Span));
+        SqlAssert.ParseTsql<TsqlBeginConversationTimerStatement>("begin conversation timer (@h) timeout = 60");
+        var conversation = SqlAssert.ParseTsql<TsqlBlockStatement>("begin conversation: print 1 end");
+        Assert.IsType<TsqlLabelStatement>(conversation.Statements[0]);
     }
 
     // ---- TRY / CATCH, THROW, RAISERROR, PRINT ----

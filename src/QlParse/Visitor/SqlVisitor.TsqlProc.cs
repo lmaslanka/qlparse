@@ -333,9 +333,4 @@ public partial class SqlVisitor
     {
         return;
     }
-
-    public virtual void VisitTsqlOption(TsqlOption node)
-    {
-        return;
-    }
 }

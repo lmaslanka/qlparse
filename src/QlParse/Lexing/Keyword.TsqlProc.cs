@@ -12,11 +12,9 @@ internal static partial class Keyword
     internal const string ProcAt = "at";
     internal const string ProcBreak = "break";
     internal const string ProcCatch = "catch";
-    internal const string ProcConversation = "conversation";
     internal const string ProcDataSource = "data_source";
     internal const string ProcDatabase = "database";
     internal const string ProcDelay = "delay";
-    internal const string ProcDialog = "dialog";
     internal const string ProcDisable = "disable";
     internal const string ProcDistributed = "distributed";
     internal const string ProcEnable = "enable";
