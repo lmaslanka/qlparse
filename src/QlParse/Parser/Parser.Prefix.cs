@@ -86,6 +86,7 @@ internal sealed partial class Parser
         {
             SyntaxKind.Identifier => ParseIdentifierPrefix(),
             SyntaxKind.QuestionMark => HostParameter(),
+            SyntaxKind.EmbeddedHost when IsSqlServer => ParseTsqlVariable(),
             SyntaxKind.EmbeddedHost => EmbeddedHost(),
             SyntaxKind.Number or SyntaxKind.String or SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword
                 or SyntaxKind.NullKeyword
@@ -93,7 +94,7 @@ internal sealed partial class Parser
             SyntaxKind.ExistsKeyword => ParseExists(),
             SyntaxKind.UniqueKeyword => ParseUnique(),
             SyntaxKind.OpenParen => ParseParen(),
-            _ => TryParsePgPrefix() ?? throw new SqlParseException($"Expected expression, found {_current.Kind}", _current.Position),
+            _ => TryParsePgPrefix() ?? TryParseTsqlPrefix() ?? throw new SqlParseException($"Expected expression, found {_current.Kind}", _current.Position),
         };
     }
 

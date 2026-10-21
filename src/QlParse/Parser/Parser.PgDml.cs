@@ -10,9 +10,14 @@ internal sealed partial class Parser
             ? ParseCopy()
             : null;
 
-    // Postgres reserves RETURNING, so it never starts a bare alias in Postgres mode.
+    // Postgres reserves RETURNING and SQL Server its reserved keywords, so neither starts a bare alias in
+    // that dialect. One mask test keeps the ISO path at the single check it always paid.
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal bool IsPgReservedClauseWord() => IsPostgres && IdentifierEquals(Keyword.Returning);
+    internal bool IsPgReservedClauseWord() =>
+        (_flags & (SqlOptions.Postgres | SqlOptions.SqlServer)) != 0 && IsDialectReservedClauseWord();
+
+    private bool IsDialectReservedClauseWord() =>
+        IsPostgres ? IdentifierEquals(Keyword.Returning) : IsTsqlReservedAliasWord();
 
     // A query, or (Postgres) a data-modifying statement in a WITH body / CTE / COPY source.
     internal Query ParsePgQueryOrDml(int minBindingPower)

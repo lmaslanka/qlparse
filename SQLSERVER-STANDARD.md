@@ -5,28 +5,28 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ## Lexical
 
 ### Identifiers and quoting
-- [ ] Bracket-delimited identifiers (`[My Table]`) with `]]` escape
+- [x] Bracket-delimited identifiers (`[My Table]`) with `]]` escape
 - [ ] Double-quoted identifiers under `QUOTED_IDENTIFIER ON` (default) vs. double-quoted strings under `OFF`
-- [ ] National character string literals (`N'...'`)
-- [ ] Binary literals (`0x0A1B`, empty `0x`)
-- [ ] Money literals with currency prefix (`$12.50`)
-- [ ] Local temporary object names (`#temp`) and global temporary names (`##temp`)
-- [ ] Local variables and parameters (`@name`) — reuse the existing `SqlOptions.AtParameters` lexing; `SqlServer` should imply it
-- [ ] System function tokens (`@@ROWCOUNT` `@@ERROR` …)
-- [ ] Unicode/extended identifier characters (`@`, `#`, `$`, `_` in regular identifiers)
+- [x] National character string literals (`N'...'`)
+- [x] Binary literals (`0x0A1B`, empty `0x`)
+- [x] Money literals with currency prefix (`$12.50`)
+- [x] Local temporary object names (`#temp`) and global temporary names (`##temp`)
+- [x] Local variables and parameters (`@name`) — reuse the existing `SqlOptions.AtParameters` lexing; `SqlServer` should imply it
+- [x] System function tokens (`@@ROWCOUNT` `@@ERROR` …)
+- [x] Unicode/extended identifier characters (`@`, `#`, `$`, `_` in regular identifiers)
 
 ### Comments and batches
-- [ ] Nested block comments (`/* outer /* inner */ still comment */`)
-- [ ] `GO [count]` batch separator (client-side; recognized only at the start of a line)
-- [ ] Optional statement terminators (statements separated by whitespace only, `;` required only before `WITH` CTEs, `MERGE`, `THROW`)
+- [x] Nested block comments (`/* outer /* inner */ still comment */`)
+- [x] `GO [count]` batch separator (client-side; recognized only at the start of a line)
+- [x] Optional statement terminators (statements separated by whitespace only, `;` required only before `WITH` CTEs, `MERGE`, `THROW`)
 
 ### Operators
-- [ ] Compound assignment operators (`+=` `-=` `*=` `/=` `%=` `&=` `|=` `^=`)
-- [ ] Non-ISO comparison operators (`!=` `!<` `!>`)
-- [ ] Modulo operator (`%`)
-- [ ] Bitwise operators (`&` `|` `^` `~`)
-- [ ] `+` as string concatenation operator
-- [ ] Scope-resolution operator for static type methods (`Type::Method()`)
+- [x] Compound assignment operators (`+=` `-=` `*=` `/=` `%=` `&=` `|=` `^=`)
+- [x] Non-ISO comparison operators (`!=` `!<` `!>`)
+- [x] Modulo operator (`%`)
+- [x] Bitwise operators (`&` `|` `^` `~`)
+- [x] `+` as string concatenation operator
+- [x] Scope-resolution operator for static type methods (`Type::Method()`)
 
 ## Data types
 - [ ] `VARCHAR(MAX)` `NVARCHAR(MAX)` `VARBINARY(MAX)`
@@ -51,9 +51,9 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] CLR user-defined types via `CREATE TYPE name EXTERNAL NAME assembly.class`
 
 ## Operators and predicates
-- [ ] Legacy outer-join operators (`*=` `=*`; parse-only, removed in compatibility level 90+)
-- [ ] `IS [NOT] DISTINCT FROM` (2022)
-- [ ] `LIKE` character-class patterns (`[a-z]` `[^x]`; lexical only, inside the pattern string)
+- [x] Legacy outer-join operators (`*=` `=*`; parse-only, removed in compatibility level 90+)
+- [x] `IS [NOT] DISTINCT FROM` (2022)
+- [x] `LIKE` character-class patterns (`[a-z]` `[^x]`; lexical only, inside the pattern string)
 - [ ] `CONTAINS(...)` / `FREETEXT(...)` full-text predicates
 - [ ] `MATCH (node-edge->node ...)` graph predicate (see Graph tables)
 
@@ -127,7 +127,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `PERCENTILE_CONT()` / `PERCENTILE_DISC()` with `WITHIN GROUP (...) OVER (PARTITION BY ...)`
 
 ### System and introspection
-- [ ] `@@ROWCOUNT` `@@ERROR` `@@IDENTITY` `@@TRANCOUNT` `@@SPID` `@@VERSION` `@@SERVERNAME` `@@FETCH_STATUS`
+- [x] `@@ROWCOUNT` `@@ERROR` `@@IDENTITY` `@@TRANCOUNT` `@@SPID` `@@VERSION` `@@SERVERNAME` `@@FETCH_STATUS`
 - [ ] `ROWCOUNT_BIG()` `SCOPE_IDENTITY()` `IDENT_CURRENT()`
 - [ ] `ERROR_NUMBER()` `ERROR_MESSAGE()` `ERROR_SEVERITY()` `ERROR_STATE()` `ERROR_LINE()` `ERROR_PROCEDURE()`
 - [ ] `OBJECT_ID()` `OBJECT_NAME()` `DB_ID()` `DB_NAME()` `SCHEMA_NAME()` `COL_LENGTH()`
@@ -215,7 +215,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `CREATE PARTITION SCHEME ps AS PARTITION fn [ALL] TO (filegroups)`
 - [ ] `ALTER PARTITION FUNCTION ... {SPLIT|MERGE} RANGE (value)`
 - [ ] `ALTER PARTITION SCHEME ... NEXT USED filegroup`
-- [ ] `$PARTITION.fn(expr)`
+- [x] `$PARTITION.fn(expr)`
 
 ### Indexes
 - [ ] `CREATE [UNIQUE] {CLUSTERED|NONCLUSTERED} INDEX`
@@ -368,6 +368,6 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ## System objects and pseudo-columns
 - [ ] `sys.*` catalog views, `INFORMATION_SCHEMA`, and `dm_*` DMVs as ordinary multi-part names
 - [ ] System stored procedures (`sp_*`, `xp_*`) called via `EXEC` without schema qualification
-- [ ] `$IDENTITY` / `$ROWGUID` pseudo-columns
-- [ ] `$PARTITION.fn(expr)`
-- [ ] Graph pseudo-columns (`$node_id` `$edge_id` `$from_id` `$to_id`)
+- [x] `$IDENTITY` / `$ROWGUID` pseudo-columns
+- [x] `$PARTITION.fn(expr)`
+- [x] Graph pseudo-columns (`$node_id` `$edge_id` `$from_id` `$to_id`)

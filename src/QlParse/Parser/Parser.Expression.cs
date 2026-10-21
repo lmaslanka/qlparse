@@ -148,7 +148,7 @@ internal sealed partial class Parser
             var member = Expect(SyntaxKind.Identifier);
             if (_current.Kind == SyntaxKind.OpenParen)
             {
-                return ParseMethodInvocation(left, dot, member);
+                return IsSqlServer ? ParseTsqlMemberCall(left, dot, member) : ParseMethodInvocation(left, dot, member);
             }
 
             return new MemberAccessExpression
@@ -630,7 +630,9 @@ internal sealed partial class Parser
 
     // Postgres places "any other operator" (custom operators, `||`, `->`, `@>`, ...) between comparison
     // and `+ -`, and `^` above `* / %`. The `when IsPostgres` arms only run for their own token kinds, so
-    // ISO dispatch is unchanged; OperatorToken and PercentToken are only ever lexed under Postgres.
+    // ISO dispatch is unchanged; OperatorToken and PercentToken are only ever lexed under Postgres (and
+    // PercentToken under SQL Server). SQL Server puts the bitwise `& | ^` at the `+ -` level and adds the
+    // comparisons `!< !>` and the legacy outer joins `*= =*`; those token kinds only exist under SQL Server.
     private int BindingPower(SyntaxKind kind) => kind switch
     {
         SyntaxKind.OrKeyword => OrBindingPower,
@@ -645,6 +647,10 @@ internal sealed partial class Parser
         SyntaxKind.PlusToken or SyntaxKind.MinusToken or SyntaxKind.ConcatToken => AddBindingPower,
         SyntaxKind.Star or SyntaxKind.SlashToken or SyntaxKind.PercentToken => MultiplyBindingPower,
         SyntaxKind.CaretToken when IsPostgres => ExponentBindingPower,
+        SyntaxKind.BarToken or SyntaxKind.CaretToken when IsSqlServer => AddBindingPower,
+        SyntaxKind.AmpersandToken => AddBindingPower,
+        SyntaxKind.NotLessToken or SyntaxKind.NotGreaterToken or SyntaxKind.EqualsStarToken => ComparisonBindingPower,
+        SyntaxKind.CompoundAssignmentToken when IsLegacyOuterJoinStar() => ComparisonBindingPower,
         SyntaxKind.JsonArrowToken or SyntaxKind.JsonTextArrowToken => ArrowBindingPower,
         _ => 0,
     };

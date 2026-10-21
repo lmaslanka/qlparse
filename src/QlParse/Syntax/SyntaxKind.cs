@@ -168,4 +168,15 @@ public enum SyntaxKind
     PositionalParameter,
     LineCommentTrivia,
     BlockCommentTrivia,
+
+    // SQL Server-only tokens; the lexer produces them only under SqlOptions.SqlServer.
+    BatchSeparator,
+    BinaryLiteral,
+    MoneyLiteral,
+    AmpersandToken,
+    TildeToken,
+    NotLessToken,
+    NotGreaterToken,
+    CompoundAssignmentToken,
+    EqualsStarToken,
 }
