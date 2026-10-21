@@ -34,7 +34,7 @@ internal sealed partial class Parser
 
             if (_current.Kind == SyntaxKind.Identifier)
             {
-                left = ParseQualifiedOperator(left);
+                left = ParseDialectIdentifierOperator(left);
                 continue;
             }
 
@@ -79,7 +79,7 @@ internal sealed partial class Parser
 
         if (_current.Kind == SyntaxKind.DoubleColonToken && ColonCastBindingPower >= minBindingPower)
         {
-            if (IsStaticMethodInvocation())
+            if (IsStaticMethodInvocation() || IsSqlServer)
             {
                 return ParseStaticMethod(left);
             }
@@ -643,7 +643,7 @@ internal sealed partial class Parser
         SyntaxKind.ConcatToken or SyntaxKind.JsonArrowToken or SyntaxKind.JsonTextArrowToken
             or SyntaxKind.BarToken or SyntaxKind.QuestionMark when IsPostgres => OtherOperatorBindingPower,
         SyntaxKind.OperatorToken => OtherOperatorBindingPower,
-        SyntaxKind.Identifier when IsPostgres && IsQualifiedOperatorStart() => OtherOperatorBindingPower,
+        SyntaxKind.Identifier when IsPostgresOrSqlServer => DialectIdentifierBindingPower(),
         SyntaxKind.PlusToken or SyntaxKind.MinusToken or SyntaxKind.ConcatToken => AddBindingPower,
         SyntaxKind.Star or SyntaxKind.SlashToken or SyntaxKind.PercentToken => MultiplyBindingPower,
         SyntaxKind.CaretToken when IsPostgres => ExponentBindingPower,
