@@ -29,7 +29,7 @@ A hand-written, lossless SQL lexer and parser for .NET — covering the full ISO
 - **Hand-written recursive-descent parser** — no parser generator, no reflection-based grammar, just a straightforward `Parser` split by grammar area for readability.
 - **Visitor API** — `SqlVisitor` walks the tree with one overridable `virtual` method per node type, so consumers only override what they care about.
 - **Precise diagnostics** — a syntax error is a `SqlParseException` carrying the exact character offset where parsing failed.
-- **Opt-in vendor dialects** — PostgreSQL-specific syntax (dollar-quoted strings, `E''` escape strings, `UESCAPE` clauses, and more) is gated behind `SqlOptions.Postgres` so standard SQL parsing is never affected unless you ask for it. See [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) for the full dialect roadmap.
+- **Opt-in vendor dialects** — the PostgreSQL dialect (9.x–18) is gated behind `SqlOptions.Postgres` so standard SQL parsing is never affected unless you ask for it: dollar quoting, `$1` parameters, custom operators, array types, `ON CONFLICT`/`RETURNING`, partitioning, row-level security, utility commands, and PL/pgSQL function bodies parsed into the tree. See [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) for the full coverage list.
 - **Zero dependencies** — the `QlParse` library itself references nothing beyond the .NET base class library.
 - **Architecture enforced by tests** — the folder/layering rules below aren't just convention; they're checked by an automated test suite. See [Architecture](#architecture).
 
@@ -120,7 +120,7 @@ foreach (var token in lexed.Tokens)
 // Standard SQL only (default)
 Sql.Parse(sql);
 
-// Enable PostgreSQL-specific lexing: $$dollar quoting$$, E'escape strings', UESCAPE clauses, ...
+// Enable the PostgreSQL dialect: $$dollar quoting$$, $1 parameters, ::casts, ON CONFLICT, PL/pgSQL bodies, ...
 Sql.Parse(sql, SqlOptions.Postgres);
 ```
 
@@ -131,7 +131,7 @@ Sql.Parse(sql, SqlOptions.Postgres);
 | Document | What it tracks |
 |---|---|
 | [SQL-STANDARD.md](SQL-STANDARD.md) | ISO/IEC 9075 (1992–2023) grammar coverage — what qlparse already accepts |
-| [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) | PostgreSQL-specific syntax beyond the ISO standard — a roadmap of what `SqlOptions.Postgres` will eventually cover |
+| [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) | PostgreSQL-specific syntax beyond the ISO standard covered by `SqlOptions.Postgres` |
 
 ## Project structure
 
@@ -168,7 +168,7 @@ QlParse is a single-assembly pipeline: `Lexing/` turns source text into tokens, 
 
 ## Roadmap
 
-- [ ] Implement the PostgreSQL dialect extensions tracked in [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) (strings/quoting is done; everything else is tracked but not yet implemented)
+- [x] Implement the PostgreSQL dialect extensions tracked in [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md)
 - [ ] Define and implement a SQL Server (T-SQL) dialect behind `SqlOptions.SqlServer`
 - [ ] Publish to NuGet.org
 
