@@ -13,5 +13,6 @@ internal sealed partial class Parser
 
     // SQL Server-only expression starts, reached from the prefix parser's fallback arm after the Postgres
     // hook, so ISO prefix dispatch is unchanged. Workstreams chain their own hook here.
-    internal Expression? TryParseTsqlPrefix() => IsSqlServer ? TryParseTsqlLexicalPrefix() ?? TryParseTsqlProcPrefix() : null;
+    internal Expression? TryParseTsqlPrefix() =>
+        IsSqlServer ? TryParseTsqlLexicalPrefix() ?? TryParseTsqlExpressionPrefix() ?? TryParseTsqlProcPrefix() : null;
 }

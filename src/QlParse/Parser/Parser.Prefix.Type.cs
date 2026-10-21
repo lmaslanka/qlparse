@@ -123,12 +123,12 @@ internal sealed partial class Parser
         }
 
         var openParen = Advance();
-        var precision = Expect(SyntaxKind.Number);
+        var precision = _current.Kind == SyntaxKind.Number ? Advance() : ExpectTypeLength();
         SyntaxToken? scale = null;
         if (_current.Kind == SyntaxKind.Comma)
         {
             Advance();
-            scale = Expect(SyntaxKind.Number);
+            scale = _current.Kind == SyntaxKind.Number ? Advance() : ExpectTypeScale();
         }
 
         var closeParen = Expect(SyntaxKind.CloseParen);
@@ -158,6 +158,11 @@ internal sealed partial class Parser
 
     private DataType ParseXmlType(SyntaxToken name)
     {
+        if (IsSqlServer)
+        {
+            return ParseTsqlXmlType(name);
+        }
+
         var openParen = Advance();
         if (!IdentifierEquals(Keyword.Document) && !IdentifierEquals(Keyword.Content) && !IdentifierEquals(Keyword.Sequence))
         {
