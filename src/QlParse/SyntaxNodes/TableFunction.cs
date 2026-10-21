@@ -8,9 +8,11 @@ public sealed class TableFunction : TableSource
     public IReadOnlyList<Expression> Arguments { get; init; } = [];
     public Query? Query { get; init; }
     public required SyntaxToken CloseParen { get; init; }
+    public OrdinalityClause? Ordinality { get; init; }
     public SyntaxToken? AsKeyword { get; init; }
     public SyntaxToken? Alias { get; init; }
     public SyntaxToken? ColumnOpenParen { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
+    public IReadOnlyList<FieldDefinition> ColumnDefinitions { get; init; } = [];
     public SyntaxToken? ColumnCloseParen { get; init; }
 }

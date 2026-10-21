@@ -6,9 +6,19 @@ public partial class SqlVisitor
 {
     public virtual void VisitSelectStatement(SelectStatement node)
     {
+        if (node.DistinctOn is not null)
+        {
+            VisitDistinctOnClause(node.DistinctOn);
+        }
+
         foreach (var item in node.SelectList)
         {
             VisitSelectItem(item);
+        }
+
+        if (node.IntoTable is not null)
+        {
+            VisitSelectIntoTable(node.IntoTable);
         }
 
         if (node.From is not null)
@@ -71,6 +81,7 @@ public partial class SqlVisitor
         {
             VisitLockClause(node.Lock);
         }
+
     }
 
     public virtual void VisitSelectItem(SelectItem node) => Visit(node.Expression);
@@ -91,7 +102,13 @@ public partial class SqlVisitor
 
     public virtual void VisitOrderByItem(OrderByItem node) => Visit(node.Expression);
 
-    public virtual void VisitLimitClause(LimitClause node) => Visit(node.Count);
+    public virtual void VisitLimitClause(LimitClause node)
+    {
+        if (node.Count is not null)
+        {
+            Visit(node.Count);
+        }
+    }
 
     public virtual void VisitOffsetClause(OffsetClause node) => Visit(node.Count);
 
@@ -105,7 +122,20 @@ public partial class SqlVisitor
 
     public virtual void VisitLockClause(LockClause node)
     {
-        return;
+        if (node.Modifier is not null)
+        {
+            VisitLockStrengthModifier(node.Modifier);
+        }
+
+        if (node.WaitPolicy is not null)
+        {
+            VisitLockWaitPolicy(node.WaitPolicy);
+        }
+
+        if (node.NextLock is not null)
+        {
+            VisitLockClause(node.NextLock);
+        }
     }
 
     public virtual void VisitCommaFrom(CommaFrom node)
@@ -264,6 +294,13 @@ public partial class SqlVisitor
         {
             Visit(node.Query);
         }
+
+        if (node.Ordinality is not null)
+        {
+            VisitOrdinalityClause(node.Ordinality);
+        }
+
+        VisitFieldDefinitions(node.ColumnDefinitions);
     }
 
     public virtual void VisitDirectSqlScript(DirectSqlScript node)

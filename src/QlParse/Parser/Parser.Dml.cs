@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace QlParse;
 
 internal sealed partial class Parser
@@ -7,36 +9,52 @@ internal sealed partial class Parser
         var insertKeyword = Advance();
         var intoKeyword = ExpectIdent(Keyword.Into);
         var tableName = ParseQualifiedName();
+        var alias = _current.Kind == SyntaxKind.AsKeyword && IsPostgres ? ParseInsertAlias() : default;
+        var source = ParseInsertSource();
+        var pg = IsPostgres ? ParsePgInsertTail() : default;
+        return new InsertStatement
+        {
+            Span = SourceSpan.From(insertKeyword.Span, pg.End ?? source.End),
+            InsertKeyword = insertKeyword,
+            IntoKeyword = intoKeyword,
+            TableName = tableName,
+            AsKeyword = alias.AsKeyword,
+            Alias = alias.Alias,
+            ColumnOpenParen = source.ColumnOpenParen,
+            Columns = source.Columns,
+            ColumnCloseParen = source.ColumnCloseParen,
+            Override = source.Override,
+            DefaultKeyword = source.DefaultKeyword,
+            ValuesKeyword = source.ValuesKeyword,
+            Query = source.Query,
+            OnConflict = pg.OnConflict,
+            Returning = pg.Returning,
+        };
+    }
+
+    private readonly record struct InsertSource(
+        SyntaxToken? ColumnOpenParen,
+        IReadOnlyList<SyntaxToken>? Columns,
+        SyntaxToken? ColumnCloseParen,
+        OverrideClause? Override,
+        SyntaxToken? DefaultKeyword,
+        SyntaxToken? ValuesKeyword,
+        Query? Query,
+        SourceSpan End);
+
+    private InsertSource ParseInsertSource()
+    {
         if (IdentifierEquals(Keyword.Default))
         {
             var defaultKeyword = Advance();
             var valuesKeyword = Expect(SyntaxKind.ValuesKeyword);
-            return new InsertStatement
-            {
-                Span = SourceSpan.From(insertKeyword, valuesKeyword),
-                InsertKeyword = insertKeyword,
-                IntoKeyword = intoKeyword,
-                TableName = tableName,
-                DefaultKeyword = defaultKeyword,
-                ValuesKeyword = valuesKeyword,
-            };
+            return new InsertSource(null, null, null, null, defaultKeyword, valuesKeyword, null, valuesKeyword.Span);
         }
 
         ParseOptionalColumnList(out var columnOpen, out var columns, out var columnClose);
         var overriding = ParseOverrideClause();
         var query = ParseQuery();
-        return new InsertStatement
-        {
-            Span = SourceSpan.From(insertKeyword, query.Span),
-            InsertKeyword = insertKeyword,
-            IntoKeyword = intoKeyword,
-            TableName = tableName,
-            ColumnOpenParen = columnOpen,
-            Columns = columns,
-            ColumnCloseParen = columnClose,
-            Override = overriding,
-            Query = query,
-        };
+        return new InsertSource(columnOpen, columns, columnClose, overriding, null, null, query, query.Span);
     }
 
     internal UpdateStatement ParseUpdate()
@@ -46,8 +64,10 @@ internal sealed partial class Parser
         var portion = ParsePortion();
         var setKeyword = Expect(SyntaxKind.SetKeyword);
         var assignments = ParseSetClauses();
+        var from = IsPostgres ? ParseFromClause() : EmptyFromClause;
         ParseDmlWhere(out var where, out var positioned);
-        var end = positioned?.Span ?? where?.Span ?? assignments[^1].Span;
+        var returning = IsPostgres ? ParseOptionalReturning() : null;
+        var end = returning?.Span ?? positioned?.Span ?? where?.Span ?? from.End ?? assignments[^1].Span;
         return new UpdateStatement
         {
             Span = SourceSpan.From(updateKeyword, end),
@@ -56,10 +76,17 @@ internal sealed partial class Parser
             Portion = portion,
             SetKeyword = setKeyword,
             Assignments = assignments,
+            FromKeyword = from.FromKeyword,
+            From = from.From,
+            Joins = from.Joins,
+            ExtraFrom = from.ExtraFrom,
             Where = where,
             Positioned = positioned,
+            Returning = returning,
         };
     }
+
+    private static readonly FromClause EmptyFromClause = new(null, null, [], [], null);
 
     internal DeleteStatement ParseDelete()
     {
@@ -67,8 +94,10 @@ internal sealed partial class Parser
         var fromKeyword = Expect(SyntaxKind.FromKeyword);
         var target = ParseTargetTable();
         var portion = ParsePortion();
+        var usingClause = _current.Kind == SyntaxKind.UsingKeyword && IsPostgres ? ParsePgUsingClause() : EmptyFromClause;
         ParseDmlWhere(out var where, out var positioned);
-        var end = positioned?.Span ?? where?.Span ?? target.Span;
+        var returning = IsPostgres ? ParseOptionalReturning() : null;
+        var end = returning?.Span ?? positioned?.Span ?? where?.Span ?? usingClause.End ?? target.Span;
         return new DeleteStatement
         {
             Span = SourceSpan.From(deleteKeyword, end),
@@ -76,8 +105,13 @@ internal sealed partial class Parser
             FromKeyword = fromKeyword,
             Target = target,
             Portion = portion,
+            UsingKeyword = usingClause.FromKeyword,
+            Using = usingClause.From,
+            UsingJoins = usingClause.Joins,
+            ExtraUsing = usingClause.ExtraFrom,
             Where = where,
             Positioned = positioned,
+            Returning = returning,
         };
     }
 
@@ -102,9 +136,10 @@ internal sealed partial class Parser
             whens.Add(ParseMergeWhen());
         }
 
+        var returning = IsPostgres ? ParseOptionalReturning() : null;
         return new MergeStatement
         {
-            Span = SourceSpan.From(mergeKeyword, whens[^1].Span),
+            Span = SourceSpan.From(mergeKeyword.Span, returning?.Span ?? whens[^1].Span),
             MergeKeyword = mergeKeyword,
             IntoKeyword = intoKeyword,
             Target = target,
@@ -114,37 +149,49 @@ internal sealed partial class Parser
             OnKeyword = onKeyword,
             Condition = condition,
             Whens = whens,
+            Returning = returning,
         };
     }
 
     internal TruncateStatement ParseTruncate()
     {
         var truncateKeyword = Advance();
-        var tableKeyword = ExpectIdent(Keyword.Table);
-        var tableName = ParseQualifiedName();
-        SyntaxToken? restart = null;
-        SyntaxToken? identity = null;
-        if (IdentifierEquals(Keyword.Continue) || IdentifierEquals(Keyword.Restart))
+        if (IsPostgres)
         {
-            restart = Advance();
-            if (!IdentifierEquals(Keyword.Identity))
-            {
-                throw new SqlParseException($"Expected IDENTITY, found {_current.Kind}", _current.Position);
-            }
-
-            identity = Advance();
+            return ParsePgTruncate(truncateKeyword);
         }
 
-        var end = identity ?? tableName[^1];
+        var tableKeyword = ExpectIdent(Keyword.Table);
+        var tableName = ParseQualifiedName();
+        var identity = ParseTruncateIdentity();
+        var end = identity.IdentityKeyword ?? tableName[^1];
         return new TruncateStatement
         {
             Span = SourceSpan.From(truncateKeyword, end),
             TruncateKeyword = truncateKeyword,
             TableKeyword = tableKeyword,
             TableName = tableName,
-            RestartKeyword = restart,
-            IdentityKeyword = identity,
+            RestartKeyword = identity.RestartKeyword,
+            IdentityKeyword = identity.IdentityKeyword,
         };
+    }
+
+    internal readonly record struct TruncateIdentity(SyntaxToken? RestartKeyword, SyntaxToken? IdentityKeyword);
+
+    private TruncateIdentity ParseTruncateIdentity()
+    {
+        if (!IdentifierEquals(Keyword.Continue) && !IdentifierEquals(Keyword.Restart))
+        {
+            return default;
+        }
+
+        var restart = Advance();
+        if (!IdentifierEquals(Keyword.Identity))
+        {
+            throw new SqlParseException($"Expected IDENTITY, found {_current.Kind}", _current.Position);
+        }
+
+        return new TruncateIdentity(restart, Advance());
     }
 
     private PortionClause? ParsePortion()
@@ -195,26 +242,14 @@ internal sealed partial class Parser
 
     private TargetTable ParseTargetTable()
     {
-        SyntaxToken? only = null;
-        SyntaxToken? open = null;
-        SyntaxToken? close = null;
-        IReadOnlyList<SyntaxToken> name;
-        SyntaxToken start;
-        if (_current.Kind == SyntaxKind.OnlyKeyword)
-        {
-            var onlyKeyword = Advance();
-            only = onlyKeyword;
-            open = Expect(SyntaxKind.OpenParen);
-            name = ParseQualifiedName();
-            close = Expect(SyntaxKind.CloseParen);
-            start = onlyKeyword;
-        }
-        else
-        {
-            name = ParseQualifiedName();
-            start = name[0];
-        }
+        var targetName = _current.Kind == SyntaxKind.OnlyKeyword ? ParseOnlyTargetName() : new TargetName(null, null, ParseQualifiedName(), null);
+        var only = targetName.OnlyKeyword;
+        var open = targetName.OpenParen;
+        var name = targetName.NameParts;
+        var close = targetName.CloseParen;
+        var start = only ?? name[0];
 
+        var star = _current.Kind == SyntaxKind.Star && IsPostgres ? Advance() : (SyntaxToken?)null;
         SyntaxToken? asKeyword = null;
         SyntaxToken? alias = null;
         if (_current.Kind == SyntaxKind.AsKeyword)
@@ -224,13 +259,13 @@ internal sealed partial class Parser
         }
         else
         {
-            if (_current.Kind == SyntaxKind.Identifier)
+            if (IsBareTargetAlias())
             {
                 alias = Advance();
             }
         }
 
-        var end = alias ?? close ?? name[^1];
+        var end = alias ?? star ?? close ?? name[^1];
         return new TargetTable
         {
             Span = SourceSpan.From(start, end),
@@ -238,9 +273,34 @@ internal sealed partial class Parser
             OpenParen = open,
             NameParts = name,
             CloseParen = close,
+            DescendantStar = star,
             AsKeyword = asKeyword,
             Alias = alias,
         };
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBareTargetAlias() => _current.Kind == SyntaxKind.Identifier && !IsPgReservedClauseWord();
+
+    private readonly record struct TargetName(
+        SyntaxToken? OnlyKeyword,
+        SyntaxToken? OpenParen,
+        IReadOnlyList<SyntaxToken> NameParts,
+        SyntaxToken? CloseParen);
+
+    // ONLY (name), or (Postgres) ONLY name.
+    private TargetName ParseOnlyTargetName()
+    {
+        var onlyKeyword = Advance();
+        if (_current.Kind != SyntaxKind.OpenParen && IsPostgres)
+        {
+            return new TargetName(onlyKeyword, null, ParseQualifiedName(), null);
+        }
+
+        var open = Expect(SyntaxKind.OpenParen);
+        var name = ParseQualifiedName();
+        var close = Expect(SyntaxKind.CloseParen);
+        return new TargetName(onlyKeyword, open, name, close);
     }
 
     private OverrideClause? ParseOverrideClause()

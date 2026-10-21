@@ -42,7 +42,12 @@ public partial class SqlVisitor
                 VisitGraphTable(node);
                 break;
             default:
-                throw new SwitchExpressionException(table);
+                if (!TryVisitTableSourcePgDml(table))
+                {
+                    throw new SwitchExpressionException(table);
+                }
+
+                break;
         }
     }
 
@@ -91,6 +96,11 @@ public partial class SqlVisitor
 
     public virtual void VisitCommonTableExpression(CommonTableExpression node)
     {
+        if (node.Materialization is not null)
+        {
+            VisitMaterializationClause(node.Materialization);
+        }
+
         Visit(node.Query);
         if (node.Cycle is not null)
         {
@@ -100,8 +110,15 @@ public partial class SqlVisitor
 
     public virtual void VisitCycleClause(CycleClause node)
     {
-        Visit(node.MarkValue);
-        Visit(node.DefaultValue);
+        if (node.MarkValue is not null)
+        {
+            Visit(node.MarkValue);
+        }
+
+        if (node.DefaultValue is not null)
+        {
+            Visit(node.DefaultValue);
+        }
     }
 
     public virtual void VisitInsertStatement(InsertStatement node)
@@ -110,6 +127,13 @@ public partial class SqlVisitor
         {
             Visit(node.Query);
         }
+
+        if (node.OnConflict is not null)
+        {
+            VisitOnConflictClause(node.OnConflict);
+        }
+
+        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitUpdateStatement(UpdateStatement node)
@@ -120,10 +144,13 @@ public partial class SqlVisitor
         }
 
         VisitSetClauses(node.Assignments);
+        VisitOptionalFrom(node.From, node.Joins, node.ExtraFrom);
         if (node.Where is not null)
         {
             VisitWhereClause(node.Where);
         }
+
+        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitDeleteStatement(DeleteStatement node)
@@ -133,10 +160,13 @@ public partial class SqlVisitor
             VisitPortionClause(node.Portion);
         }
 
+        VisitOptionalFrom(node.Using, node.UsingJoins, node.ExtraUsing);
         if (node.Where is not null)
         {
             VisitWhereClause(node.Where);
         }
+
+        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitMergeStatement(MergeStatement node)
@@ -148,6 +178,8 @@ public partial class SqlVisitor
         {
             VisitMergeWhenClause(when);
         }
+
+        VisitOptionalReturning(node.Returning);
     }
 
     public virtual void VisitTruncateStatement(TruncateStatement node)
