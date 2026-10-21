@@ -29,6 +29,7 @@ internal sealed partial class Parser
     {
         var createKeyword = Advance();
         var schemaKeyword = ExpectIdent(Keyword.Schema);
+        var ifNotExists = TryParsePgIfExists();
         IReadOnlyList<SyntaxToken>? name = null;
         SyntaxToken? authorizationKeyword = null;
         SyntaxToken? authorization = null;
@@ -74,6 +75,7 @@ internal sealed partial class Parser
             PathKeyword = pathKeyword,
             Path = path,
             Elements = elements,
+            IfNotExists = ifNotExists,
         };
     }
 
@@ -130,6 +132,11 @@ internal sealed partial class Parser
         var alterKeyword = Advance();
         var schemaKeyword = ExpectIdent(Keyword.Schema);
         var name = ParseQualifiedName();
+        if (IsPostgres && IdentifierEquals(Keyword.DdlOwner))
+        {
+            return ParsePgAlterSchemaOwner(alterKeyword, schemaKeyword, name);
+        }
+
         var renameKeyword = ExpectIdent(Keyword.Rename);
         var toKeyword = ExpectIdent(Keyword.To);
         var newName = ParseQualifiedName();
@@ -149,6 +156,11 @@ internal sealed partial class Parser
     {
         var dropKeyword = Advance();
         var schemaKeyword = ExpectIdent(Keyword.Schema);
+        if (IsPostgres)
+        {
+            return ParsePgDropSchema(dropKeyword, schemaKeyword);
+        }
+
         var name = ParseQualifiedName();
         var behavior = ParseDropBehavior();
         return new DropSchemaStatement
@@ -414,7 +426,7 @@ internal sealed partial class Parser
             throw new SqlParseException($"Expected ADD, DROP, or ALTER, found {_current.Kind}", _current.Position);
         }
 
-        return ParseAlterColumn();
+        return IsPostgres && NextEquals(Keyword.Constraint) ? ParsePgAlterConstraint() : ParseAlterColumn();
     }
 
     private AlterTableAction ParseAddTableAction()

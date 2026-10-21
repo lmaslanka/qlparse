@@ -43,7 +43,7 @@ internal sealed partial class Parser
 
         if (!IdentifierEquals(Keyword.DdlReset) || NextKind != SyntaxKind.OpenParen)
         {
-            return null;
+            return TryParsePgAlterColumnOptions(head);
         }
 
         var resetKeyword = Advance();

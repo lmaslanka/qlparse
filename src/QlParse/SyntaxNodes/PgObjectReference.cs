@@ -15,4 +15,9 @@ public sealed class PgObjectReference
     public SyntaxToken? CloseParen { get; init; }
     public SyntaxToken? UsingKeyword { get; init; }
     public SyntaxToken? AccessMethod { get; init; }
+
+    // `FOR type LANGUAGE lang` (a transform): the type is the single entry of Arguments.
+    public SyntaxToken? ForKeyword { get; init; }
+    public SyntaxToken? LanguageKeyword { get; init; }
+    public SyntaxToken? Language { get; init; }
 }

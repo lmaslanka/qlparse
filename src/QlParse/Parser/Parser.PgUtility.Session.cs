@@ -301,7 +301,7 @@ internal sealed partial class Parser
         }
 
         return index < _tokens.Count
-            && (_tokens[index].Kind == SyntaxKind.EqualsToken || TokenEquals(_tokens[index], Keyword.To));
+            && (_tokens[index].Kind is SyntaxKind.EqualsToken or SyntaxKind.FromKeyword || TokenEquals(_tokens[index], Keyword.To));
     }
 
     internal SetConfigurationStatement ParseSetConfiguration()
@@ -309,6 +309,11 @@ internal sealed partial class Parser
         var setKeyword = Expect(SyntaxKind.SetKeyword);
         var scope = IdentifierEquals(Keyword.Session) || IdentifierEquals(Keyword.Local) ? Advance() : (SyntaxToken?)null;
         var name = ParseQualifiedName();
+        if (_current.Kind == SyntaxKind.FromKeyword)
+        {
+            return ParsePgSetFromCurrent(setKeyword, scope, name);
+        }
+
         var assignment = _current.Kind == SyntaxKind.EqualsToken ? Advance() : ExpectIdent(Keyword.To);
         var values = ParseConfigurationValues();
         return new SetConfigurationStatement

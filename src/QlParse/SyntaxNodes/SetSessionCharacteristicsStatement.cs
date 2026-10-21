@@ -6,5 +6,6 @@ public sealed class SetSessionCharacteristicsStatement : Query
     public required SyntaxToken SessionKeyword { get; init; }
     public required SyntaxToken CharacteristicsKeyword { get; init; }
     public required SyntaxToken AsKeyword { get; init; }
+    public SyntaxToken? TransactionKeyword { get; init; }
     public required IReadOnlyList<TransactionMode> Modes { get; init; }
 }

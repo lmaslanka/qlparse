@@ -38,4 +38,7 @@ public sealed class AlterColumnAction : AlterTableAction
     public IdentityColumn? Identity { get; init; }
     public SyntaxToken? ExpressionKeyword { get; init; }
     public ExistenceCheck? IfExists { get; init; }
+
+    // Postgres `ALTER [COLUMN] c OPTIONS ([ADD | SET | DROP] option ['value'] [, ...])` (foreign tables).
+    public PgOptionList? Options { get; init; }
 }

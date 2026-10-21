@@ -253,30 +253,18 @@ internal sealed partial class Parser
         };
     }
 
-    // ALTER DEFAULT PRIVILEGES [FOR {ROLE | USER} r, ...] [IN SCHEMA s, ...] {GRANT … | REVOKE …}
+    // ALTER DEFAULT PRIVILEGES [FOR {ROLE | USER} r, ...] [IN SCHEMA s, ...] {GRANT … | REVOKE …},
+    // with the FOR and IN clauses in either order.
     internal AlterDefaultPrivilegesStatement ParseAlterDefaultPrivileges()
     {
         var alterKeyword = Advance();
         var defaultKeyword = Advance();
         var privilegesKeyword = Advance();
-        SyntaxToken? forKeyword = null;
-        SyntaxToken? roleKeyword = null;
-        IReadOnlyList<SyntaxToken> targetRoles = [];
-        if (_current.Kind == SyntaxKind.ForKeyword)
+        var roles = ParseDefaultPrivilegesRoles();
+        var schemas = ParseDefaultPrivilegesSchemas();
+        if (roles.ForKeyword is null)
         {
-            forKeyword = Advance();
-            roleKeyword = _current.Kind == SyntaxKind.UserKeyword ? Advance() : ExpectIdent(Keyword.Role);
-            targetRoles = ParseGrantees();
-        }
-
-        SyntaxToken? inKeyword = null;
-        SyntaxToken? schemaKeyword = null;
-        IReadOnlyList<IReadOnlyList<SyntaxToken>> schemas = [];
-        if (_current.Kind == SyntaxKind.InKeyword)
-        {
-            inKeyword = Advance();
-            schemaKeyword = ExpectIdent(Keyword.Schema);
-            schemas = ParseSchemaNameList();
+            roles = ParseDefaultPrivilegesRoles();
         }
 
         Query action = IdentifierEquals(Keyword.Grant) ? ParseGrant() : ParseDefaultPrivilegesRevoke();
@@ -286,12 +274,12 @@ internal sealed partial class Parser
             AlterKeyword = alterKeyword,
             DefaultKeyword = defaultKeyword,
             PrivilegesKeyword = privilegesKeyword,
-            ForKeyword = forKeyword,
-            RoleKeyword = roleKeyword,
-            TargetRoles = targetRoles,
-            InKeyword = inKeyword,
-            SchemaKeyword = schemaKeyword,
-            Schemas = schemas,
+            ForKeyword = roles.ForKeyword,
+            RoleKeyword = roles.RoleKeyword,
+            TargetRoles = roles.TargetRoles,
+            InKeyword = schemas.InKeyword,
+            SchemaKeyword = schemas.SchemaKeyword,
+            Schemas = schemas.Schemas,
             Action = action,
         };
     }

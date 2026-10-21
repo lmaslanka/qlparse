@@ -490,6 +490,9 @@ public partial class SqlVisitor
             case MergeInsertAction node:
                 VisitMergeInsertAction(node);
                 break;
+            case MergeDoNothingAction node:
+                VisitMergeDoNothingAction(node);
+                break;
             default:
                 throw new SwitchExpressionException(action);
         }

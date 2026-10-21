@@ -218,6 +218,11 @@ internal sealed partial class Parser
             return IsKeywordAt(_index + 1, Keyword.UtilMapping) ? null : ParseAlterRole();
         }
 
+        if (next == SyntaxKind.GroupKeyword)
+        {
+            return IsPgAlterGroupMembers() ? ParsePgAlterGroupMembers() : ParseAlterRole();
+        }
+
         if (next != SyntaxKind.Identifier)
         {
             return null;

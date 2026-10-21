@@ -163,6 +163,7 @@ public partial class SqlVisitor
             VisitPgForeignColumn(column);
         }
 
+        VisitTableConstraints(node.Constraints);
         if (node.Partition is not null)
         {
             VisitAll(node.Partition.Values);
@@ -177,6 +178,8 @@ public partial class SqlVisitor
         {
             VisitDefaultClause(node.Default);
         }
+
+        VisitTableConstraints(node.Checks);
     }
 
     public virtual void VisitPgCreateOperatorStatement(PgCreateOperatorStatement node) => VisitPgDefinitionList(node.Definition);
@@ -303,6 +306,9 @@ public partial class SqlVisitor
                 break;
             case PgRoutineAttributesAction node:
                 VisitPgRoutineAttributesAction(node);
+                break;
+            case PgForeignTableAction node:
+                VisitPgForeignTableAction(node);
                 break;
             default:
                 return;

@@ -544,7 +544,8 @@ internal sealed partial class Parser
             };
         }
 
-        throw new SqlParseException($"Expected UPDATE or DELETE, found {_current.Kind}", _current.Position);
+        return TryParsePgMergeDoNothing()
+            ?? throw new SqlParseException($"Expected UPDATE or DELETE, found {_current.Kind}", _current.Position);
     }
 
     private MergeUpdateAction ParseMergeUpdate()
@@ -561,11 +562,12 @@ internal sealed partial class Parser
         };
     }
 
-    private MergeInsertAction ParseMergeInsert()
+    private MergeAction ParseMergeInsert()
     {
         if (!IdentifierEquals(Keyword.Insert))
         {
-            throw new SqlParseException($"Expected INSERT, found {_current.Kind}", _current.Position);
+            return TryParsePgMergeDoNothing()
+                ?? throw new SqlParseException($"Expected INSERT, found {_current.Kind}", _current.Position);
         }
 
         var insertKeyword = Advance();

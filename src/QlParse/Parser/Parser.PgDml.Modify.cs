@@ -248,25 +248,23 @@ internal sealed partial class Parser
         return new FromClause(usingKeyword, from, joins, extra, end);
     }
 
-    // TRUNCATE [TABLE] [ONLY] name [*] [{RESTART | CONTINUE} IDENTITY]
+    // TRUNCATE [TABLE] [ONLY] name [*] [, ...] [{RESTART | CONTINUE} IDENTITY] [CASCADE | RESTRICT]
     internal TruncateStatement ParsePgTruncate(SyntaxToken truncateKeyword)
     {
         var tableKeyword = IdentifierEquals(Keyword.Table) ? Advance() : (SyntaxToken?)null;
         var onlyKeyword = _current.Kind == SyntaxKind.OnlyKeyword ? Advance() : (SyntaxToken?)null;
         var tableName = ParseQualifiedName();
         var star = _current.Kind == SyntaxKind.Star ? Advance() : (SyntaxToken?)null;
-        var identity = ParseTruncateIdentity();
+        var tail = ParsePgTruncateTail(onlyKeyword, star);
         return new TruncateStatement
         {
-            Span = SourceSpan.From(truncateKeyword, identity.IdentityKeyword ?? star ?? tableName[^1]),
+            Span = SourceSpan.From(truncateKeyword, tail.End ?? (star ?? tableName[^1]).Span),
             TruncateKeyword = truncateKeyword,
             TableKeyword = tableKeyword,
             TableName = tableName,
-            RestartKeyword = identity.RestartKeyword,
-            IdentityKeyword = identity.IdentityKeyword,
-            Postgres = onlyKeyword is null && star is null
-                ? null
-                : new PgTruncateExtras { OnlyKeyword = onlyKeyword, DescendantStar = star },
+            RestartKeyword = tail.Identity.RestartKeyword,
+            IdentityKeyword = tail.Identity.IdentityKeyword,
+            Postgres = tail.Extras,
         };
     }
 }

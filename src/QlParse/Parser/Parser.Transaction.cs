@@ -33,6 +33,11 @@ internal sealed partial class Parser
         }
 
         var transactionKeyword = ExpectIdent(Keyword.Transaction);
+        if (IsPostgres && IdentifierEquals(Keyword.GapSnapshot))
+        {
+            return ParsePgSetTransactionSnapshot(setKeyword, localKeyword, transactionKeyword);
+        }
+
         var modes = ParseTransactionModes();
         return new SetTransactionStatement
         {
@@ -184,6 +189,7 @@ internal sealed partial class Parser
 
         var characteristicsKeyword = ExpectIdent(Keyword.Characteristics);
         var asKeyword = Expect(SyntaxKind.AsKeyword);
+        var transactionKeyword = IdentifierEquals(Keyword.Transaction) ? Advance() : (SyntaxToken?)null;
         var modes = ParseTransactionModes();
         return new SetSessionCharacteristicsStatement
         {
@@ -192,6 +198,7 @@ internal sealed partial class Parser
             SessionKeyword = sessionKeyword,
             CharacteristicsKeyword = characteristicsKeyword,
             AsKeyword = asKeyword,
+            TransactionKeyword = transactionKeyword,
             Modes = modes,
         };
     }

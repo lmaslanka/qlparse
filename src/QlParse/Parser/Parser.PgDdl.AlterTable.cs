@@ -98,7 +98,7 @@ internal sealed partial class Parser
 
         if (_current.Kind != SyntaxKind.Identifier)
         {
-            return null;
+            return TryParsePgTypedTableAction();
         }
 
         var text = _current.TextOf(_source);
@@ -261,7 +261,7 @@ internal sealed partial class Parser
             };
         }
 
-        return null;
+        return TryParsePgSetAccessMethodOrOids();
     }
 
     private SetTablespaceAction ParsePgSetTablespace()

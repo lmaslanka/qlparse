@@ -74,11 +74,14 @@ internal sealed partial class Parser
             admin = ParseWithOption();
         }
 
+        var additionalOptions = admin is not null && _current.Kind == SyntaxKind.Comma && IsPostgres
+            ? ParsePgRoleGrantOptions()
+            : [];
         ParseGrantedBy(out var granted, out var by, out var grantor);
         var end = grantees[^1].Span;
         if (admin is not null)
         {
-            end = admin.Span;
+            end = additionalOptions.Count > 0 ? additionalOptions[^1].Span : admin.Span;
         }
 
         if (grantor is SyntaxToken grantorToken)
@@ -94,6 +97,7 @@ internal sealed partial class Parser
             ToKeyword = toKeyword,
             Grantees = grantees,
             AdminOption = admin,
+            AdditionalOptions = additionalOptions,
             GrantedKeyword = granted,
             ByKeyword = by,
             Grantor = grantor,
@@ -509,18 +513,7 @@ internal sealed partial class Parser
         }
 
         var withKeyword = Advance();
-        if (!IdentifierEquals(Keyword.Admin) && !IdentifierEquals(Keyword.UtilInherit) && _current.Kind != SyntaxKind.SetKeyword)
-        {
-            throw new SqlParseException($"Expected ADMIN, INHERIT, or SET, found {_current.Kind}", _current.Position);
-        }
-
-        var kind = Advance();
-        if (!IdentifierEquals(Keyword.Option) && _current.Kind is not (SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword))
-        {
-            throw new SqlParseException($"Expected OPTION, TRUE, or FALSE, found {_current.Kind}", _current.Position);
-        }
-
-        var value = Advance();
+        var (kind, value) = ParsePgRoleGrantKindAndValue();
         return new GrantOptionClause
         {
             Span = SourceSpan.From(withKeyword, value),

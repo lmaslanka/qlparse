@@ -127,7 +127,8 @@ internal sealed partial class Parser
         }
 
         var strength = ParsePgLockStrength();
-        ParseLockColumns(out var ofKeyword, out var columns);
+        var targets = ParsePgLockTargets();
+        var columns = targets.Columns;
         var wait = ParsePgLockWait();
         var end = wait.End ?? (columns is null ? strength.Last : columns[^1]);
         var next = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
@@ -137,15 +138,19 @@ internal sealed partial class Parser
             ForKeyword = forKeyword,
             UpdateKeyword = strength.UpdateKeyword,
             ShareKeyword = strength.ShareKeyword,
-            OfKeyword = ofKeyword,
+            OfKeyword = targets.OfKeyword,
             Columns = columns,
-            Postgres = BuildPgLockExtras(strength, wait, next),
+            Postgres = BuildPgLockExtras(strength, wait, next, targets),
         };
     }
 
-    private static PgLockExtras? BuildPgLockExtras(PgLockStrength strength, PgLockWait wait, LockClause? next)
+    private static PgLockExtras? BuildPgLockExtras(
+        PgLockStrength strength,
+        PgLockWait wait,
+        LockClause? next,
+        PgLockTargets targets)
     {
-        if (strength.KeyKeyword is null && wait.End is null && next is null)
+        if (strength.KeyKeyword is null && wait.End is null && next is null && targets.QualifiedNames.Count == 0)
         {
             return null;
         }
@@ -158,6 +163,7 @@ internal sealed partial class Parser
             SkipKeyword = wait.SkipKeyword,
             LockedKeyword = wait.LockedKeyword,
             NextLock = next,
+            OfNames = targets.QualifiedNames,
         };
     }
 

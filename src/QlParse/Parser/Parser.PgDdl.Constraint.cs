@@ -268,6 +268,11 @@ internal sealed partial class Parser
     {
         var column = ParseIndexColumn();
         var withKeyword = Expect(SyntaxKind.WithKeyword);
+        if (IsQualifiedOperatorStart())
+        {
+            return ParsePgQualifiedExclusionElement(column, withKeyword);
+        }
+
         if (!IsOperatorKind(_current.Kind))
         {
             throw new SqlParseException($"Expected operator, found {_current.Kind}", _current.Position);

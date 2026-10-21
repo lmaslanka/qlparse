@@ -341,6 +341,7 @@ internal sealed partial class Parser
             type = ParseDataType();
         }
 
+        var storage = IsPostgres ? ParsePgColumnStorage() : default;
         var tail = ParseColumnTail();
         var defaultClause = tail.DefaultClause;
         var identity = tail.Identity;
@@ -350,7 +351,7 @@ internal sealed partial class Parser
         var scopeKeyword = tail.ScopeKeyword;
         var scopeName = tail.ScopeName;
         var constraints = tail.Constraints;
-        var end = ParseColumnEnd(name, type, optionsKeyword, tail);
+        var end = MaxEnd(ParseColumnEnd(name, type, optionsKeyword, tail), storage.End);
 
         return new ColumnDefinition
         {
@@ -367,6 +368,7 @@ internal sealed partial class Parser
             ScopeKeyword = scopeKeyword,
             ScopeName = scopeName,
             Constraints = constraints,
+            Postgres = storage.Extras,
         };
     }
 

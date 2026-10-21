@@ -71,34 +71,18 @@ internal sealed partial class Parser
         var options = _current.Kind == SyntaxKind.OpenParen
             ? ParseUtilityOptionList()
             : ParseLegacyUtilityOptions(isVacuum: false);
-        var end = MaintenanceEnd(clusterKeyword, options, []);
-        IReadOnlyList<SyntaxToken>? table = null;
-        SyntaxToken? usingKeyword = null;
-        SyntaxToken? index = null;
-        if (_current.Kind == SyntaxKind.Identifier)
-        {
-            var tableName = ParseQualifiedName();
-            table = tableName;
-            end = tableName[^1].Span;
-            if (_current.Kind == SyntaxKind.UsingKeyword)
-            {
-                usingKeyword = Advance();
-                var indexName = Expect(SyntaxKind.Identifier);
-                index = indexName;
-                end = indexName.Span;
-            }
-        }
-
+        var target = _current.Kind == SyntaxKind.Identifier ? ParseClusterTarget() : default;
         return new ClusterStatement
         {
-            Span = SourceSpan.From(clusterKeyword, end),
+            Span = SourceSpan.From(clusterKeyword, target.End ?? MaintenanceEnd(clusterKeyword, options, [])),
             ClusterKeyword = clusterKeyword,
             OpenParen = options.OpenParen,
             Options = options.Options,
             CloseParen = options.CloseParen,
-            Table = table,
-            UsingKeyword = usingKeyword,
-            Index = index,
+            Table = target.Table,
+            UsingKeyword = target.UsingKeyword,
+            Index = target.Index,
+            OnKeyword = target.OnKeyword,
         };
     }
 

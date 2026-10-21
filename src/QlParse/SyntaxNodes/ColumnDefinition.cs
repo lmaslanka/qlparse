@@ -14,4 +14,6 @@ public sealed class ColumnDefinition : TableElement
     public SyntaxToken? ScopeKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? ScopeName { get; init; }
     public IReadOnlyList<TableConstraint> Constraints { get; init; } = [];
+
+    public PgColumnExtras? Postgres { get; init; }
 }

@@ -13,6 +13,9 @@ public partial class SqlVisitor
             case CopyStatement node:
                 VisitCopyStatement(node);
                 return true;
+            case OrderedQuery node:
+                VisitOrderedQuery(node);
+                return true;
             default:
                 return false;
         }
@@ -27,6 +30,9 @@ public partial class SqlVisitor
                 return true;
             case DescendantTable node:
                 VisitDescendantTable(node);
+                return true;
+            case LateralTable node:
+                VisitLateralTable(node);
                 return true;
             default:
                 return false;

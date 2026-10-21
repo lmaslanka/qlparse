@@ -84,6 +84,11 @@ internal sealed partial class Parser
         var alterKeyword = Advance();
         var materialized = IsPostgres && IdentifierEquals(Keyword.DdlMaterialized) ? Advance() : (SyntaxToken?)null;
         var viewKeyword = ExpectIdent(Keyword.View);
+        if (materialized is not null && _current.Kind == SyntaxKind.AllKeyword)
+        {
+            return ParsePgAlterMaterializedViewAllInTablespace(alterKeyword, materialized.Value, viewKeyword);
+        }
+
         var ifExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
         AlterViewAction action;
@@ -642,31 +647,19 @@ internal sealed partial class Parser
     {
         if (_current.Kind == SyntaxKind.SetKeyword)
         {
-            var setKeyword = Advance();
-            var defaultClause = ParseDefaultClause();
-            return new SetDomainDefaultAction
-            {
-                Span = SourceSpan.From(setKeyword, defaultClause.Span),
-                SetKeyword = setKeyword,
-                Default = defaultClause,
-            };
+            return IsPostgres && !NextEquals(Keyword.Default) ? ParsePgDomainSet() : ParseSetDomainDefault();
         }
 
         if (IdentifierEquals(Keyword.Add))
         {
-            var addKeyword = Advance();
-            var constraint = ParseDomainConstraint();
-            return new AddDomainConstraintAction
-            {
-                Span = SourceSpan.From(addKeyword, constraint.Span),
-                AddKeyword = addKeyword,
-                Constraint = constraint,
-            };
+            return ParseAddDomainConstraint();
         }
 
         if (!IdentifierEquals(Keyword.Drop))
         {
-            throw new SqlParseException($"Expected SET, ADD, or DROP, found {_current.Kind}", _current.Position);
+            return IsPostgres
+                ? ParsePgDomainAction()
+                : throw new SqlParseException($"Expected SET, ADD, or DROP, found {_current.Kind}", _current.Position);
         }
 
         var dropKeyword = Advance();
@@ -679,6 +672,11 @@ internal sealed partial class Parser
                 DropKeyword = dropKeyword,
                 DefaultKeyword = defaultKeyword,
             };
+        }
+
+        if (IsPostgres)
+        {
+            return ParsePgDropDomainConstraintOrNotNull(dropKeyword);
         }
 
         var constraintKeyword = ExpectIdent(Keyword.Constraint);
@@ -694,4 +692,30 @@ internal sealed partial class Parser
         };
     }
 
+    private SetDomainDefaultAction ParseSetDomainDefault()
+    {
+        var setKeyword = Advance();
+        var defaultClause = ParseDefaultClause();
+        return new SetDomainDefaultAction
+        {
+            Span = SourceSpan.From(setKeyword, defaultClause.Span),
+            SetKeyword = setKeyword,
+            Default = defaultClause,
+        };
+    }
+
+    private AddDomainConstraintAction ParseAddDomainConstraint()
+    {
+        var addKeyword = Advance();
+        var constraint = ParseDomainConstraint();
+        var notValid = IsPostgres ? TryParsePgNotValid() : default;
+        return new AddDomainConstraintAction
+        {
+            Span = SourceSpan.From(addKeyword, notValid.ValidKeyword?.Span ?? constraint.Span),
+            AddKeyword = addKeyword,
+            Constraint = constraint,
+            ValidNotKeyword = notValid.NotKeyword,
+            ValidKeyword = notValid.ValidKeyword,
+        };
+    }
 }
