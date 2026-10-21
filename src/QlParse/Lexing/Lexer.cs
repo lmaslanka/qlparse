@@ -103,7 +103,9 @@ internal sealed class Lexer
 
         if (ch == '$' && (_flags & SqlOptions.Postgres) != 0)
         {
-            var dollarQuoted = TryReadDollarQuotedString(triviaStart, triviaCount);
+            var dollarQuoted = char.IsAsciiDigit(Peek())
+                ? ReadPositionalParameter(triviaStart, triviaCount)
+                : TryReadDollarQuotedString(triviaStart, triviaCount);
             if (dollarQuoted is not null)
             {
                 return dollarQuoted;
@@ -131,16 +133,19 @@ internal sealed class Lexer
             ?? TryReadPunctuationC(ch, triviaStart, triviaCount)
             ?? TryReadPunctuationD(ch, triviaStart, triviaCount)
             ?? TryReadPunctuationE(ch, triviaStart, triviaCount)
+            ?? TryReadPgOnlyOperator(ch, triviaStart, triviaCount)
             ?? throw new SqlParseException($"Unexpected character '{ch}'", _position);
     }
 
     private SyntaxToken? TryReadPunctuationA(char ch, int triviaStart, int triviaCount) => ch switch
     {
         ',' => ReadSingle(SyntaxKind.Comma, triviaStart, triviaCount),
+        '=' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '=' => ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount),
         '.' => ReadSingle(SyntaxKind.Dot, triviaStart, triviaCount),
         ';' => ReadSingle(SyntaxKind.Semicolon, triviaStart, triviaCount),
         ':' => ReadColon(triviaStart, triviaCount),
+        '|' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '|' => Peek() == '|'
             ? ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount)
             : ReadSingle(SyntaxKind.BarToken, triviaStart, triviaCount),
@@ -151,6 +156,7 @@ internal sealed class Lexer
     {
         '{' => ReadSingle(SyntaxKind.OpenBrace, triviaStart, triviaCount),
         '}' => ReadSingle(SyntaxKind.CloseBrace, triviaStart, triviaCount),
+        '^' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '^' => ReadSingle(SyntaxKind.CaretToken, triviaStart, triviaCount),
         '$' => ReadSingle(SyntaxKind.DollarToken, triviaStart, triviaCount),
         '(' => ReadSingle(SyntaxKind.OpenParen, triviaStart, triviaCount),
@@ -162,10 +168,13 @@ internal sealed class Lexer
     {
         '[' => ReadSingle(SyntaxKind.OpenBracket, triviaStart, triviaCount),
         ']' => ReadSingle(SyntaxKind.CloseBracket, triviaStart, triviaCount),
+        '>' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '>' => Peek() == '='
             ? ReadTwo(SyntaxKind.GreaterOrEqual, triviaStart, triviaCount)
             : ReadSingle(SyntaxKind.GreaterThan, triviaStart, triviaCount),
+        '<' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '<' => ReadLessThan(triviaStart, triviaCount),
+        '!' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '!' => Peek() == '='
             ? ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount)
             : throw new SqlParseException("Unexpected character '!'", _position),
@@ -174,6 +183,7 @@ internal sealed class Lexer
 
     private SyntaxToken? TryReadPunctuationD(char ch, int triviaStart, int triviaCount) => ch switch
     {
+        '*' or '+' or '-' or '/' or '?' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '*' => ReadSingle(SyntaxKind.Star, triviaStart, triviaCount),
         '+' => ReadSingle(SyntaxKind.PlusToken, triviaStart, triviaCount),
         '-' => ReadMinus(triviaStart, triviaCount),
@@ -184,9 +194,10 @@ internal sealed class Lexer
 
     private SyntaxToken? TryReadPunctuationE(char ch, int triviaStart, int triviaCount) => ch switch
     {
-        AtSign => (_flags & SqlOptions.AtParameters) != 0 && IsIdentifierStart(Peek())
-            ? ReadEmbeddedHost(triviaStart, triviaCount)
-            : throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
+        AtSign when (_flags & SqlOptions.AtParameters) != 0 && IsIdentifierStart(Peek())
+            => ReadEmbeddedHost(triviaStart, triviaCount),
+        AtSign when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
+        AtSign => throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
         StringQuote => ReadString(triviaStart, triviaCount, prefixed: false),
         IdentifierQuote => ReadQuotedIdentifier(triviaStart, triviaCount),
         _ => null,
@@ -353,6 +364,13 @@ internal sealed class Lexer
             return ReadTwo(SyntaxKind.DoubleColonToken, triviaStart, triviaCount);
         }
 
+        if (IsPostgres)
+        {
+            return Peek() == '='
+                ? ReadTwo(SyntaxKind.ColonEqualsToken, triviaStart, triviaCount)
+                : ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount);
+        }
+
         if (IsIdentifierStart(Peek()))
         {
             return ReadEmbeddedHost(triviaStart, triviaCount);
@@ -389,6 +407,126 @@ internal sealed class Lexer
         }
 
         return ReadTwo(SyntaxKind.JsonArrowToken, triviaStart, triviaCount);
+    }
+
+    // Postgres operator characters that ISO mode rejects outright; reached only after every ISO
+    // punctuation table has declined the character, so ISO pays nothing for this table.
+    private SyntaxToken? TryReadPgOnlyOperator(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        '~' or '#' or '%' or '&' or '`' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
+        _ => null,
+    };
+
+    // Postgres operator lexing: the longest run of operator characters, stopping at a comment start.
+    // A multi-character operator may not end in '+' or '-' unless it also holds one of ~ ! @ # % ^ & | ` ?,
+    // so "=-" lexes as "=" followed by "-" (scan.l). Well-known spellings keep their ISO token kinds.
+    private SyntaxToken ReadPgOperator(int triviaStart, int triviaCount)
+    {
+        var start = _position;
+        var length = TrimPgOperatorLength(start, ScanPgOperatorEnd(start) - start);
+        _position = start + length;
+        var kind = ClassifyPgOperator(_source.AsSpan(start, length));
+        return new SyntaxToken(kind, start, length, triviaStart, triviaCount);
+    }
+
+    private int ScanPgOperatorEnd(int start)
+    {
+        var end = start + 1;
+        while (end < _length && IsPgOperatorChar(_source[end]) && !IsCommentStartAt(end))
+        {
+            end++;
+        }
+
+        return end;
+    }
+
+    private bool IsCommentStartAt(int index)
+    {
+        if (index + 1 >= _length)
+        {
+            return false;
+        }
+
+        var ch = _source[index];
+        var next = _source[index + 1];
+        return (ch == '-' && next == '-') || (ch == '/' && next == '*');
+    }
+
+    private int TrimPgOperatorLength(int start, int length)
+    {
+        if (length == 1 || !IsPlusOrMinus(_source[start + length - 1]) || ContainsPgSpecialChar(start, length))
+        {
+            return length;
+        }
+
+        var trimmed = length;
+        while (trimmed > 1 && IsPlusOrMinus(_source[start + trimmed - 1]))
+        {
+            trimmed--;
+        }
+
+        return trimmed;
+    }
+
+    private bool ContainsPgSpecialChar(int start, int length)
+    {
+        var end = start + length;
+        for (var index = start; index < end; index++)
+        {
+            if (IsPgSpecialOperatorChar(_source[index]))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static SyntaxKind ClassifyPgOperator(ReadOnlySpan<char> text) => text.Length switch
+    {
+        1 => ClassifyPgSingleOperator(text[0]),
+        TwoCharTokenLength => ClassifyPgDoubleOperator(text[0], text[1]),
+        ThreeCharTokenLength when text is "->>" => SyntaxKind.JsonTextArrowToken,
+        _ => SyntaxKind.OperatorToken,
+    };
+
+    private static SyntaxKind ClassifyPgSingleOperator(char ch) => ch switch
+    {
+        '+' => SyntaxKind.PlusToken,
+        '-' => SyntaxKind.MinusToken,
+        '*' => SyntaxKind.Star,
+        '/' => SyntaxKind.SlashToken,
+        '<' => SyntaxKind.LessThan,
+        '>' => SyntaxKind.GreaterThan,
+        '=' => SyntaxKind.EqualsToken,
+        '^' => SyntaxKind.CaretToken,
+        '|' => SyntaxKind.BarToken,
+        '?' => SyntaxKind.QuestionMark,
+        '%' => SyntaxKind.PercentToken,
+        _ => SyntaxKind.OperatorToken,
+    };
+
+    private static SyntaxKind ClassifyPgDoubleOperator(char first, char second) => (first, second) switch
+    {
+        ('<', '=') => SyntaxKind.LessOrEqual,
+        ('>', '=') => SyntaxKind.GreaterOrEqual,
+        ('<', '>') or ('!', '=') => SyntaxKind.NotEqualsToken,
+        ('|', '|') => SyntaxKind.ConcatToken,
+        ('-', '>') => SyntaxKind.JsonArrowToken,
+        ('=', '>') => SyntaxKind.EqualsGreaterToken,
+        _ => SyntaxKind.OperatorToken,
+    };
+
+    private SyntaxToken ReadPositionalParameter(int triviaStart, int triviaCount)
+    {
+        var start = _position;
+        _position++;
+        while (_position < _length && char.IsAsciiDigit(_source[_position]))
+        {
+            _position++;
+        }
+
+        return new SyntaxToken(SyntaxKind.PositionalParameter, start, _position - start, triviaStart, triviaCount);
     }
 
     private SyntaxToken ReadSingle(SyntaxKind kind, int triviaStart, int triviaCount)
@@ -670,6 +808,16 @@ internal sealed class Lexer
 
     private char Peek() => _position + 1 < _length ? _source[_position + 1] : '\0';
     private char PeekTwo() => _position + TwoCharTokenLength < _length ? _source[_position + TwoCharTokenLength] : '\0';
+
+    private bool IsPostgres => (_flags & SqlOptions.Postgres) != 0;
+
+    private static bool IsPlusOrMinus(char ch) => ch is '+' or '-';
+
+    private static bool IsPgOperatorChar(char ch) =>
+        ch is '+' or '-' or '*' or '/' or '<' or '>' or '=' || IsPgSpecialOperatorChar(ch);
+
+    private static bool IsPgSpecialOperatorChar(char ch) =>
+        ch is '~' or '!' or '@' or '#' or '%' or '^' or '&' or '|' or '`' or '?';
 
     private static bool IsWhitespace(char ch) =>
         ch is ' ' or '\t' or '\n' or '\r' || char.IsWhiteSpace(ch);

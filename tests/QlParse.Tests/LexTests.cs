@@ -423,13 +423,109 @@ public sealed class LexTests
     }
 
     [Fact]
-    public void Dollar_sign_without_matching_tag_is_not_a_dollar_quote()
+    public void Dollar_digits_lex_as_positional_parameter_under_postgres()
     {
-        var result = Sql.Lex("$1", SqlOptions.Postgres);
+        const string Parameter = "$12";
+        var result = Sql.Lex(Parameter, SqlOptions.Postgres);
         Assert.Null(result.Error);
         Assert.Equal(
-            [SyntaxKind.DollarToken, SyntaxKind.Number, SyntaxKind.EndOfFile],
+            [SyntaxKind.PositionalParameter, SyntaxKind.EndOfFile],
             result.Tokens.Select(t => t.Kind));
+        Assert.Equal(Parameter, result.Tokens[0].TextOf(result.Source));
+    }
+
+    [Fact]
+    public void Dollar_digits_stay_dollar_and_number_without_postgres()
+    {
+        Assert.Equal(
+            [SyntaxKind.DollarToken, SyntaxKind.Number, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds("$1"));
+    }
+
+    [Theory]
+    [InlineData("@>", SyntaxKind.OperatorToken)]
+    [InlineData("<@", SyntaxKind.OperatorToken)]
+    [InlineData("&&", SyntaxKind.OperatorToken)]
+    [InlineData("#>>", SyntaxKind.OperatorToken)]
+    [InlineData("?|", SyntaxKind.OperatorToken)]
+    [InlineData("#-", SyntaxKind.OperatorToken)]
+    [InlineData("-|-", SyntaxKind.OperatorToken)]
+    [InlineData("<->", SyntaxKind.OperatorToken)]
+    [InlineData("!~*", SyntaxKind.OperatorToken)]
+    [InlineData("<<=", SyntaxKind.OperatorToken)]
+    [InlineData("||/", SyntaxKind.OperatorToken)]
+    [InlineData("*@-", SyntaxKind.OperatorToken)]
+    [InlineData("~", SyntaxKind.OperatorToken)]
+    [InlineData("`", SyntaxKind.OperatorToken)]
+    [InlineData("%", SyntaxKind.PercentToken)]
+    [InlineData("=>", SyntaxKind.EqualsGreaterToken)]
+    [InlineData("||", SyntaxKind.ConcatToken)]
+    [InlineData("->", SyntaxKind.JsonArrowToken)]
+    [InlineData("->>", SyntaxKind.JsonTextArrowToken)]
+    [InlineData("<>", SyntaxKind.NotEqualsToken)]
+    [InlineData("!=", SyntaxKind.NotEqualsToken)]
+    [InlineData(">=", SyntaxKind.GreaterOrEqual)]
+    [InlineData("?", SyntaxKind.QuestionMark)]
+    [InlineData("|", SyntaxKind.BarToken)]
+    public void Postgres_operator_sequence_is_one_token(string text, SyntaxKind kind)
+    {
+        var result = Sql.Lex($"a {text} b", SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(kind, result.Tokens[1].Kind);
+        Assert.Equal(text, result.Tokens[1].TextOf(result.Source));
+    }
+
+    [Theory]
+    [InlineData("a=-1", "=")]
+    [InlineData("a>=-1", ">=")]
+    [InlineData("a*-1", "*")]
+    [InlineData("a<+-1", "<")]
+    [InlineData("a@-1", "@-")]
+    [InlineData("a+--c", "+")]
+    [InlineData("a*/*c*/b", "*")]
+    public void Postgres_operator_trailing_sign_and_comment_rules(string sql, string expected)
+    {
+        var result = Sql.Lex(sql, SqlOptions.Postgres);
+        Assert.Null(result.Error);
+        Assert.Equal(expected, result.Tokens[1].TextOf(result.Source));
+    }
+
+    [Theory]
+    [InlineData("a @> b")]
+    [InlineData("a ~ b")]
+    [InlineData("a # b")]
+    [InlineData("a & b")]
+    public void Postgres_only_operator_chars_are_rejected_without_flag(string sql)
+    {
+        Assert.NotNull(Sql.Lex(sql).Error);
+    }
+
+    [Fact]
+    public void Colon_equals_lexes_as_one_token_only_under_postgres()
+    {
+        const string ColonEqualsSql = "a := 1";
+        var result = Sql.Lex(ColonEqualsSql, SqlOptions.Postgres);
+        Assert.Equal(SyntaxKind.ColonEqualsToken, result.Tokens[1].Kind);
+        Assert.Equal(
+            [SyntaxKind.Identifier, SyntaxKind.ColonToken, SyntaxKind.EqualsToken, SyntaxKind.Number, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds(ColonEqualsSql));
+    }
+
+    [Fact]
+    public void Colon_before_identifier_is_not_a_host_variable_under_postgres()
+    {
+        var result = Sql.Lex("1:n", SqlOptions.Postgres);
+        Assert.Equal(
+            [SyntaxKind.Number, SyntaxKind.ColonToken, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
+            result.Tokens.Select(t => t.Kind));
+    }
+
+    [Fact]
+    public void Equals_greater_stays_two_tokens_without_postgres()
+    {
+        Assert.Equal(
+            [SyntaxKind.Identifier, SyntaxKind.EqualsToken, SyntaxKind.GreaterThan, SyntaxKind.Identifier, SyntaxKind.EndOfFile],
+            SqlAssert.Kinds("a => b"));
     }
 
     [Theory]

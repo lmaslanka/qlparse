@@ -32,11 +32,17 @@ internal sealed partial class Parser
                 break;
             }
 
+            if (_current.Kind == SyntaxKind.Identifier)
+            {
+                left = ParseQualifiedOperator(left);
+                continue;
+            }
+
             var operatorToken = Advance();
             if (bindingPower == ComparisonBindingPower
                 && _current.Kind is SyntaxKind.AllKeyword or SyntaxKind.AnyKeyword or SyntaxKind.SomeKeyword)
             {
-                left = ParseQuantifiedSubquery(left, operatorToken);
+                left = IsPostgres ? ParsePgQuantified(left, operatorToken) : ParseQuantifiedSubquery(left, operatorToken);
                 continue;
             }
 
@@ -89,12 +95,22 @@ internal sealed partial class Parser
             };
         }
 
-        if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower && IsMdarraySlice())
+        if (_current.Kind == SyntaxKind.OpenBracket && DotBindingPower >= minBindingPower)
         {
-            return ParseMdarraySlice(left);
+            return TryParseSlice(left);
         }
 
         return null;
+    }
+
+    private Expression? TryParseSlice(Expression left)
+    {
+        if (IsPostgres)
+        {
+            return IsPgArraySlice() ? ParsePgArraySlice(left) : null;
+        }
+
+        return IsMdarraySlice() ? ParseMdarraySlice(left) : null;
     }
 
     private Expression? TryParsePostfixB(Expression left, int minBindingPower)
@@ -144,9 +160,7 @@ internal sealed partial class Parser
             };
         }
 
-        if (_current.Kind == SyntaxKind.JsonArrowToken
-            && ArrowBindingPower >= minBindingPower
-            && NextKind == SyntaxKind.Identifier)
+        if (IsDereference(minBindingPower))
         {
             var arrow = Advance();
             var attribute = Expect(SyntaxKind.Identifier);
@@ -161,6 +175,13 @@ internal sealed partial class Parser
 
         return null;
     }
+
+    // ISO `ref -> attribute`; Postgres has no reference types, so there `->` is always the JSON operator.
+    private bool IsDereference(int minBindingPower) =>
+        _current.Kind == SyntaxKind.JsonArrowToken
+        && ArrowBindingPower >= minBindingPower
+        && NextKind == SyntaxKind.Identifier
+        && !IsPostgres;
 
     private Expression? TryParsePredicate(Expression left, int minBindingPower)
     {
@@ -204,6 +225,8 @@ internal sealed partial class Parser
         SyntaxKind.IsKeyword => ParseIs(left),
         SyntaxKind.OverlapsKeyword => ParseOverlaps(left),
         SyntaxKind.MatchKeyword => ParseMatch(left),
+        SyntaxKind.Identifier when IsPostgres && IdentifierEquals(Keyword.Ilike) => ParseLike(left),
+        SyntaxKind.NotKeyword when IsPostgres && NextIs(Keyword.Ilike) => ParseLike(left),
         _ => null,
     };
 
@@ -376,7 +399,7 @@ internal sealed partial class Parser
     private LikeExpression ParseLike(Expression target)
     {
         var notKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : (SyntaxToken?)null;
-        var likeKeyword = Expect(SyntaxKind.LikeKeyword);
+        var likeKeyword = Advance();
         var pattern = ParseExpression(ComparisonBindingPower + 1);
         SyntaxToken? escapeKeyword = null;
         Expression? escape = null;
@@ -595,23 +618,33 @@ internal sealed partial class Parser
     private const int AndBindingPower = 2;
     private const int NotBindingPower = 3;
     private const int ComparisonBindingPower = 4;
-    private const int AddBindingPower = 5;
-    private const int MultiplyBindingPower = 6;
-    private const int UnaryBindingPower = 7;
-    private const int DotBindingPower = 8;
-    private const int ArrowBindingPower = 9;
-    private const int ColonCastBindingPower = 10;
-    private const int CollateBindingPower = 11;
+    private const int OtherOperatorBindingPower = 5;
+    private const int AddBindingPower = 6;
+    private const int MultiplyBindingPower = 7;
+    private const int ExponentBindingPower = 8;
+    private const int UnaryBindingPower = 9;
+    private const int DotBindingPower = 10;
+    private const int ArrowBindingPower = 11;
+    private const int ColonCastBindingPower = 12;
+    private const int CollateBindingPower = 13;
 
-    private static int BindingPower(SyntaxKind kind) => kind switch
+    // Postgres places "any other operator" (custom operators, `||`, `->`, `@>`, ...) between comparison
+    // and `+ -`, and `^` above `* / %`. The `when IsPostgres` arms only run for their own token kinds, so
+    // ISO dispatch is unchanged; OperatorToken and PercentToken are only ever lexed under Postgres.
+    private int BindingPower(SyntaxKind kind) => kind switch
     {
         SyntaxKind.OrKeyword => OrBindingPower,
         SyntaxKind.AndKeyword => AndBindingPower,
         SyntaxKind.EqualsToken or SyntaxKind.NotEqualsToken or SyntaxKind.GreaterThan
             or SyntaxKind.GreaterOrEqual or SyntaxKind.LessThan or SyntaxKind.LessOrEqual
             => ComparisonBindingPower,
+        SyntaxKind.ConcatToken or SyntaxKind.JsonArrowToken or SyntaxKind.JsonTextArrowToken
+            or SyntaxKind.BarToken or SyntaxKind.QuestionMark when IsPostgres => OtherOperatorBindingPower,
+        SyntaxKind.OperatorToken => OtherOperatorBindingPower,
+        SyntaxKind.Identifier when IsPostgres && IsQualifiedOperatorStart() => OtherOperatorBindingPower,
         SyntaxKind.PlusToken or SyntaxKind.MinusToken or SyntaxKind.ConcatToken => AddBindingPower,
-        SyntaxKind.Star or SyntaxKind.SlashToken => MultiplyBindingPower,
+        SyntaxKind.Star or SyntaxKind.SlashToken or SyntaxKind.PercentToken => MultiplyBindingPower,
+        SyntaxKind.CaretToken when IsPostgres => ExponentBindingPower,
         SyntaxKind.JsonArrowToken or SyntaxKind.JsonTextArrowToken => ArrowBindingPower,
         _ => 0,
     };

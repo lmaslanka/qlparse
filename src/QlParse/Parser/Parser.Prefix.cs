@@ -93,7 +93,7 @@ internal sealed partial class Parser
             SyntaxKind.ExistsKeyword => ParseExists(),
             SyntaxKind.UniqueKeyword => ParseUnique(),
             SyntaxKind.OpenParen => ParseParen(),
-            _ => throw new SqlParseException($"Expected expression, found {_current.Kind}", _current.Position),
+            _ => TryParsePgPrefix() ?? throw new SqlParseException($"Expected expression, found {_current.Kind}", _current.Position),
         };
     }
 
@@ -579,8 +579,10 @@ internal sealed partial class Parser
             return ParseMultisetQuery();
         }
 
-        return NextKind == SyntaxKind.OpenParen ? ParseFunctionCall() : Identifier();
+        return NextKind == SyntaxKind.OpenParen ? ParseCallInvocation() : Identifier();
     }
+
+    private Expression ParseCallInvocation() => IsPostgres ? ParsePgCallOrOperator() : ParseFunctionCall();
 
     private bool IsRefValue() =>
         IdentifierEquals(Keyword.Ref) && NextKind == SyntaxKind.OpenParen;
