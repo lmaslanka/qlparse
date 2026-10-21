@@ -265,6 +265,7 @@ public partial class SqlVisitor
         foreach (var when in node.Whens)
         {
             Visit(when.Operand);
+            VisitAll(when.AdditionalOperands);
             VisitAllQueries(when.Statements);
         }
 
@@ -336,6 +337,7 @@ public partial class SqlVisitor
             VisitDataType(node.ReturnsType);
         }
 
+        VisitPgRoutineDefinition(node);
         if (node.Body is not null)
         {
             Visit(node.Body);

@@ -6,7 +6,10 @@ public sealed class RoutineParameter
     public SyntaxToken? Mode { get; init; }
     public SyntaxToken? Name { get; init; }
     public required DataType Type { get; init; }
+    public PgTypeAttribute? TypeAttribute { get; init; }
     public SyntaxToken? AsKeyword { get; init; }
     public SyntaxToken? LocatorKeyword { get; init; }
     public SyntaxToken? ResultKeyword { get; init; }
+    public SyntaxToken? DefaultToken { get; init; }
+    public Expression? Default { get; init; }
 }

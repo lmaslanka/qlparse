@@ -301,6 +301,9 @@ public partial class SqlVisitor
             case PgPublicationObjectsAction node:
                 VisitPgPublicationObjectsAction(node);
                 break;
+            case PgRoutineAttributesAction node:
+                VisitPgRoutineAttributesAction(node);
+                break;
             default:
                 return;
         }

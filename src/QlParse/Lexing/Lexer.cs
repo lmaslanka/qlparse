@@ -27,6 +27,39 @@ internal sealed class Lexer
         _flags = flags;
     }
 
+    // Lexes only source[start..end): token and trivia positions stay absolute in the full source and
+    // nothing is copied. `_length` doubles as the end bound, so the regular path pays nothing for this.
+    private Lexer(string source, int start, int end, SqlOptions flags)
+    {
+        _source = source;
+        _length = end;
+        _flags = flags;
+        SeekTo(start);
+    }
+
+    private void SeekTo(int start)
+    {
+        _position = start;
+    }
+
+    // Lexes a sub-range (a routine body inside a dollar-quoted string). The trivia list is the
+    // sub-lexer's own: the tokens' LeadingTriviaStart indices refer to it, never to the outer list.
+    internal static (List<SyntaxToken> Tokens, IReadOnlyList<SyntaxTrivia> Trivia) LexRange(
+        string source, int start, int end, SqlOptions flags)
+    {
+        var lexer = new Lexer(source, start, end, flags);
+        var tokens = new List<SyntaxToken>(Math.Max(1, (end - start) / CharsPerTokenEstimate));
+        SyntaxToken token;
+        do
+        {
+            token = lexer.NextToken();
+            tokens.Add(token);
+        }
+        while (token.Kind != SyntaxKind.EndOfFile);
+
+        return (tokens, lexer.Trivia);
+    }
+
     public IReadOnlyList<SyntaxTrivia> Trivia => _trivia;
 
     public static SqlLexResult LexAll(string source, SqlOptions flags = SqlOptions.None)
@@ -632,7 +665,7 @@ internal sealed class Lexer
 
         var tag = _source[start..(tagEnd.Value + 1)];
         var contentStart = tagEnd.Value + 1;
-        var closeIndex = _source.IndexOf(tag, contentStart, StringComparison.Ordinal);
+        var closeIndex = _source.IndexOf(tag, contentStart, _length - contentStart, StringComparison.Ordinal);
         if (closeIndex < 0)
         {
             throw new SqlParseException("Unterminated dollar-quoted string", start);
