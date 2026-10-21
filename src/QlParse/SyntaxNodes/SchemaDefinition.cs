@@ -14,4 +14,5 @@ public sealed class SchemaDefinition : Query
     public SyntaxToken? PathKeyword { get; init; }
     public IReadOnlyList<IReadOnlyList<SyntaxToken>>? Path { get; init; }
     public IReadOnlyList<CreateTableStatement> Elements { get; init; } = [];
+    public ExistenceCheck? IfNotExists { get; init; }
 }

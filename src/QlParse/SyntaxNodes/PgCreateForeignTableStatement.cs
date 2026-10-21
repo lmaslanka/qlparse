@@ -11,6 +11,9 @@ public sealed class PgCreateForeignTableStatement : Query
     public required IReadOnlyList<SyntaxToken> Name { get; init; }
     public SyntaxToken? OpenParen { get; init; }
     public IReadOnlyList<PgForeignColumn> Columns { get; init; } = [];
+
+    // Table-level `[CONSTRAINT name] CHECK (...)` elements of the column list, in source order.
+    public IReadOnlyList<TableConstraint> Constraints { get; init; } = [];
     public SyntaxToken? CloseParen { get; init; }
     public SyntaxToken? InheritsKeyword { get; init; }
     public SyntaxToken? InheritsOpenParen { get; init; }

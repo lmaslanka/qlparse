@@ -92,7 +92,7 @@ public partial class SqlVisitor
                 VisitValidateTableConstraintAction(node);
                 return true;
             default:
-                return false;
+                return TryVisitPgGapAlterTableAction(action);
         }
     }
 

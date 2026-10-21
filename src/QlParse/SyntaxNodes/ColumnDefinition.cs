@@ -14,4 +14,10 @@ public sealed class ColumnDefinition : TableElement
     public SyntaxToken? ScopeKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? ScopeName { get; init; }
     public IReadOnlyList<TableConstraint> Constraints { get; init; } = [];
+
+    // Postgres `STORAGE {PLAIN | EXTERNAL | EXTENDED | MAIN | DEFAULT}` and `COMPRESSION method` after the type.
+    public SyntaxToken? StorageKeyword { get; init; }
+    public SyntaxToken? StorageMode { get; init; }
+    public SyntaxToken? CompressionKeyword { get; init; }
+    public SyntaxToken? CompressionMethod { get; init; }
 }

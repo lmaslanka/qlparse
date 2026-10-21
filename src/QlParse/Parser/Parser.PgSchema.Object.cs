@@ -13,6 +13,7 @@ internal sealed partial class Parser
         OperatorClass,
         Cast,
         Trigger,
+        Transform,
     }
 
     internal readonly record struct PgObjectKind(int Count, PgObjectShape Shape, bool HasIsoDrop, bool HasIsoAlter)
@@ -106,7 +107,7 @@ internal sealed partial class Parser
             return PgObjectKind.Plain(1);
         }
 
-        return default;
+        return MatchPgExtensionOnlyMemberKind(index);
     }
 
     internal PgObjectReference ParsePgObjectReference(PgObjectShape shape) => shape switch
@@ -115,6 +116,7 @@ internal sealed partial class Parser
         PgObjectShape.Operator => ParsePgOperatorReference(),
         PgObjectShape.OperatorClass => ParsePgOperatorClassReference(),
         PgObjectShape.Cast => ParsePgCastReference(),
+        PgObjectShape.Transform => ParsePgTransformReference(),
         _ => ParsePgNameReference(),
     };
 

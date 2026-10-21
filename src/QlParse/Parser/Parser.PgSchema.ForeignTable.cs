@@ -11,7 +11,8 @@ internal sealed partial class Parser
         SyntaxToken? InheritsOpenParen,
         IReadOnlyList<IReadOnlyList<SyntaxToken>> Inherits,
         SyntaxToken? InheritsCloseParen,
-        PgForeignTablePartition? Partition);
+        PgForeignTablePartition? Partition,
+        IReadOnlyList<TableConstraint>? Constraints = null);
 
     // CREATE FOREIGN TABLE [IF NOT EXISTS] name {(columns) [INHERITS (parents)] | PARTITION OF parent bound}
     // SERVER s [OPTIONS (...)]
@@ -38,6 +39,7 @@ internal sealed partial class Parser
             Name = name,
             OpenParen = body.OpenParen,
             Columns = body.Columns,
+            Constraints = body.Constraints ?? [],
             CloseParen = body.CloseParen,
             InheritsKeyword = body.InheritsKeyword,
             InheritsOpenParen = body.InheritsOpenParen,
@@ -53,28 +55,19 @@ internal sealed partial class Parser
     private PgForeignTableBody ParsePgForeignColumnsBody()
     {
         var openParen = Expect(SyntaxKind.OpenParen);
-        var columns = new List<PgForeignColumn>();
-        if (_current.Kind != SyntaxKind.CloseParen)
-        {
-            columns.Add(ParsePgForeignColumn());
-            while (_current.Kind == SyntaxKind.Comma)
-            {
-                Advance();
-                columns.Add(ParsePgForeignColumn());
-            }
-        }
-
+        var elements = ParsePgForeignElements();
+        var columns = elements.Columns;
         var closeParen = Expect(SyntaxKind.CloseParen);
         if (!IdentifierEquals(Keyword.PgInherits))
         {
-            return new PgForeignTableBody(openParen, columns, closeParen, null, null, [], null, null);
+            return new PgForeignTableBody(openParen, columns, closeParen, null, null, [], null, null, elements.Constraints);
         }
 
         var inheritsKeyword = Advance();
         var inheritsOpen = Expect(SyntaxKind.OpenParen);
         var parents = ParseSchemaNameList();
         var inheritsClose = Expect(SyntaxKind.CloseParen);
-        return new PgForeignTableBody(openParen, columns, closeParen, inheritsKeyword, inheritsOpen, parents, inheritsClose, null);
+        return new PgForeignTableBody(openParen, columns, closeParen, inheritsKeyword, inheritsOpen, parents, inheritsClose, null, elements.Constraints);
     }
 
     private readonly record struct PgColumnConstraints(
@@ -85,7 +78,8 @@ internal sealed partial class Parser
         SyntaxToken? NotKeyword,
         SyntaxToken? NullKeyword,
         DefaultClause? Default,
-        SourceSpan? End);
+        SourceSpan? End,
+        IReadOnlyList<TableConstraint>? Checks = null);
 
     // name type [OPTIONS (...)] [COLLATE c] [[CONSTRAINT n] {NOT NULL | NULL | DEFAULT e}]...
     private PgForeignColumn ParsePgForeignColumn()
@@ -107,6 +101,7 @@ internal sealed partial class Parser
             NotKeyword = constraints.NotKeyword,
             NullKeyword = constraints.NullKeyword,
             Default = constraints.Default,
+            Checks = constraints.Checks ?? [],
         };
     }
 
@@ -139,14 +134,28 @@ internal sealed partial class Parser
                 continue;
             }
 
-            if (!IdentifierEquals(Keyword.Default))
+            if (IdentifierEquals(Keyword.Default))
+            {
+                var defaultClause = ParseDefaultClause();
+                result = result with { Default = defaultClause, End = defaultClause.Span };
+                continue;
+            }
+
+            if (!IdentifierEquals(Keyword.Check))
             {
                 return result;
             }
 
-            var defaultClause = ParseDefaultClause();
-            result = result with { Default = defaultClause, End = defaultClause.Span };
+            result = WithPgForeignColumnCheck(result);
         }
+    }
+
+    // CHECK (expression) [NO INHERIT] after a foreign table column.
+    private PgColumnConstraints WithPgForeignColumnCheck(PgColumnConstraints result)
+    {
+        var check = ParseCheckConstraint(_current, null, null);
+        List<TableConstraint> checks = result.Checks is null ? [check] : [.. result.Checks, check];
+        return result with { Checks = checks, End = check.Span };
     }
 
     // PARTITION OF parent {FOR VALUES {IN (...) | FROM (...) TO (...) | WITH (MODULUS m, REMAINDER r)} | DEFAULT}

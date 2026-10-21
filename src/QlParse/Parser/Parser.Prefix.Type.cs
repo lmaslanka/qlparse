@@ -641,7 +641,7 @@ internal sealed partial class Parser
     internal Expression ParseParen()
     {
         var openParen = Expect(SyntaxKind.OpenParen);
-        if (IsQueryStart(_current.Kind))
+        if (IsQueryStart(_current.Kind) || IsPgTableQueryStart())
         {
             var query = ParseQuery();
             var closeParen = Expect(SyntaxKind.CloseParen);

@@ -23,7 +23,7 @@ internal sealed partial class Parser
             return ParsePgOperatorFamilyAction(isAdd);
         }
 
-        return ParsePgGeneralMemberChange(isAdd);
+        return context == PgAlterContext.ForeignTable ? ParsePgForeignTableAction() : ParsePgGeneralMemberChange(isAdd);
     }
 
     private PgAlterAction ParsePgGeneralMemberChange(bool isAdd)

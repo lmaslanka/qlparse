@@ -41,8 +41,7 @@ internal sealed partial class Parser
 
         if (_current.Kind == SyntaxKind.LateralKeyword)
         {
-            var lateral = Advance();
-            return ParseDerivedTable(lateral);
+            return ParseLateral();
         }
 
         if (_current.Kind == SyntaxKind.OnlyKeyword)

@@ -351,6 +351,11 @@ internal sealed partial class Parser
     {
         var alterKeyword = Advance();
         var indexKeyword = ExpectIdent(Keyword.Index);
+        if (_current.Kind == SyntaxKind.AllKeyword && IsPostgres)
+        {
+            return ParsePgAlterIndexAllInTablespace(alterKeyword, indexKeyword);
+        }
+
         var ifExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
         if (IdentifierEquals(Keyword.Rename))

@@ -9,4 +9,7 @@ public sealed class ClusterStatement : Query
     public IReadOnlyList<SyntaxToken>? Table { get; init; }
     public SyntaxToken? UsingKeyword { get; init; }
     public SyntaxToken? Index { get; init; }
+
+    // The pre-8.3 `CLUSTER index ON table` form: Index comes first, then ON and Table.
+    public SyntaxToken? OnKeyword { get; init; }
 }

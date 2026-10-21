@@ -13,4 +13,7 @@ public sealed class AlterIndexStatement : Query
     public SyntaxToken? Action { get; init; }
     public ExistenceCheck? IfExists { get; init; }
     public AlterTableAction? RelationAction { get; init; }
+
+    // Postgres `ALTER INDEX ALL IN TABLESPACE ...` (Name is then empty).
+    public AllInTablespaceClause? AllInTablespace { get; init; }
 }

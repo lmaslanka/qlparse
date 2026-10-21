@@ -13,4 +13,7 @@ public sealed class PgForeignColumn
     public SyntaxToken? NotKeyword { get; init; }
     public SyntaxToken? NullKeyword { get; init; }
     public DefaultClause? Default { get; init; }
+
+    // `CHECK (expression) [NO INHERIT]` column constraints; a preceding CONSTRAINT name stays in ConstraintName.
+    public IReadOnlyList<TableConstraint> Checks { get; init; } = [];
 }

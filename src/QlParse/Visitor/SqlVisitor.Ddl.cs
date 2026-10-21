@@ -423,6 +423,9 @@ public partial class SqlVisitor
             case DropDomainConstraintAction node:
                 VisitDropDomainConstraintAction(node);
                 break;
+            case PgDomainAction node:
+                VisitPgDomainAction(node);
+                break;
             default:
                 throw new SwitchExpressionException(action);
         }

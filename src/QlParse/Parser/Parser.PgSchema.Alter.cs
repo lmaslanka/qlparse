@@ -11,6 +11,7 @@ internal sealed partial class Parser
         General,
         Extension,
         OperatorFamily,
+        ForeignTable,
     }
 
     private PgAlterStatement ParsePgAlter(PgObjectKind kind)
@@ -46,7 +47,7 @@ internal sealed partial class Parser
 
         return objectKind.Count == Len2 && TokenEquals(objectKind[1], Keyword.PgFamily)
             ? PgAlterContext.OperatorFamily
-            : PgAlterContext.General;
+            : PgForeignTableContextOf(objectKind);
     }
 
     // Actions are comma-separated (ALTER TYPE attributes) or simply juxtaposed (ALTER SERVER VERSION ... OPTIONS ...).

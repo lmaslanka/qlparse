@@ -477,7 +477,7 @@ internal sealed partial class Parser
         var notKeyword = _current.Kind == SyntaxKind.NotKeyword ? Advance() : (SyntaxToken?)null;
         var inKeyword = Expect(SyntaxKind.InKeyword);
         var openParen = Expect(SyntaxKind.OpenParen);
-        if (IsQueryStart(_current.Kind))
+        if (IsQueryStart(_current.Kind) || IsPgTableQueryStart())
         {
             var query = ParseQuery();
             var closeParen = Expect(SyntaxKind.CloseParen);

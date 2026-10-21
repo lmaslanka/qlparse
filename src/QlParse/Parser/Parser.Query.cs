@@ -222,7 +222,7 @@ internal sealed partial class Parser
             };
         }
 
-        return left;
+        return IsPgQueryTailStart(minBindingPower) ? ParsePgOrderedQuery(left) : left;
     }
 
     private Query ParseSetPrimary()
