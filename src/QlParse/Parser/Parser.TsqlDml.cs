@@ -268,7 +268,7 @@ internal sealed partial class Parser
         var top = ParseOptionalTsqlDmlTop();
         var intoKeyword = IdentifierEquals(Keyword.Into) ? Advance() : (SyntaxToken?)null;
         var target = ParseTsqlDmlTarget(allowAlias: true);
-        var usingKeyword = Expect(SyntaxKind.UsingKeyword);
+        var usingKeyword = ExpectTsqlWord(SyntaxKind.UsingKeyword, Keyword.Using);
         var source = ParseTableSource();
         var joins = ParseJoins();
         var onKeyword = Expect(SyntaxKind.OnKeyword);

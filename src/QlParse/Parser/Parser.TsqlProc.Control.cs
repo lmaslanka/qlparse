@@ -235,7 +235,7 @@ internal sealed partial class Parser
         var waitforKeyword = Advance();
         if (_current.Kind != SyntaxKind.OpenParen)
         {
-            var delayOrTime = _current.Kind == SyntaxKind.TimeKeyword ? Advance() : ExpectIdent(Keyword.ProcDelay);
+            var delayOrTime = IdentifierEquals(Keyword.Time) ? Advance() : ExpectIdent(Keyword.ProcDelay);
             var value = ParseExpression();
             return new TsqlWaitforStatement
             {

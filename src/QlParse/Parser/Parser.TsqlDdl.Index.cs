@@ -150,7 +150,7 @@ internal sealed partial class Parser
     // `USING XML INDEX name [FOR {VALUE|PATH|PROPERTY}]` (secondary XML) or `USING tessellation` (spatial).
     private TsqlXmlIndexUsing ParseTsqlSpecialIndexUsing()
     {
-        if (_current.Kind != SyntaxKind.UsingKeyword)
+        if (!IdentifierEquals(Keyword.Using))
         {
             return default;
         }

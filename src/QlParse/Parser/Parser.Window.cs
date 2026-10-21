@@ -204,7 +204,7 @@ internal sealed partial class Parser
 
     internal WindowClause ParseWindowClause()
     {
-        var windowKeyword = Expect(SyntaxKind.WindowKeyword);
+        var windowKeyword = Advance();
         var windows = new List<WindowDefinition> { ParseWindowDefinition() };
         while (_current.Kind == SyntaxKind.Comma)
         {

@@ -561,9 +561,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.No))
         {
             var noKeyword = Advance();
-            if (_current.Kind == SyntaxKind.CycleKeyword
-                || IdentifierEquals(Keyword.MaxValue)
-                || IdentifierEquals(Keyword.MinValue))
+            if (IsNoSequenceOptionWord())
             {
                 var name = Advance();
                 return new SequenceOption
@@ -626,6 +624,13 @@ internal sealed partial class Parser
         return ParseUnknownSequenceOption();
     }
 
+    // The word after NO: MAXVALUE, MINVALUE, CYCLE, or in T-SQL (where CYCLE is no keyword) CYCLE or CACHE.
+    private bool IsNoSequenceOptionWord() =>
+        _current.Kind == SyntaxKind.CycleKeyword
+        || IdentifierEquals(Keyword.MaxValue)
+        || IdentifierEquals(Keyword.MinValue)
+        || IsTsqlNoSequenceWord(_current);
+
     // START's WITH and INCREMENT's BY are required by ISO and optional in Postgres.
     private SyntaxToken? ExpectSequenceOptionWord(SyntaxKind kind) =>
         _current.Kind == kind || !IsPostgres ? Expect(kind) : null;
@@ -637,7 +642,9 @@ internal sealed partial class Parser
             return ParsePgSequenceOption();
         }
 
-        throw new SqlParseException($"Expected sequence option, found {_current.Kind}", _current.Position);
+        return IsSqlServer
+            ? ParseTsqlSequenceOption()
+            : throw new SqlParseException($"Expected sequence option, found {_current.Kind}", _current.Position);
     }
 
     internal DefaultClause ParseDefaultClause()

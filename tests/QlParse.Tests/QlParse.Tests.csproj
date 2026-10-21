@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <None Include="..\..\sample.sql" Link="sample.sql" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="TsqlCorpus\*.sql" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

@@ -23,7 +23,7 @@ internal sealed partial class Parser
     internal Expression ParseDialectCall() => IsPostgres ? ParsePgCallOrOperator() : ParseTsqlCall();
 
     private Expression ParseTsqlCall() =>
-        TryParseTsqlConversionCall() ?? TryParseTsqlSearchCall() ?? ParseTsqlFunctionCall();
+        TryParseTsqlConversionCall() ?? TryParseTsqlSearchCall() ?? TryParseTsqlGapsCall() ?? ParseTsqlFunctionCall();
 
     private Expression? TryParseTsqlConversionCall()
     {
@@ -157,7 +157,7 @@ internal sealed partial class Parser
         var type = ParseDataType();
         SyntaxToken? usingKeyword = null;
         Expression? culture = null;
-        if (allowsCulture && _current.Kind == SyntaxKind.UsingKeyword)
+        if (allowsCulture && IdentifierEquals(Keyword.Using))
         {
             usingKeyword = Advance();
             culture = ParseExpression();
@@ -332,7 +332,7 @@ internal sealed partial class Parser
 
     private bool IsTsqlAtTimeZone() =>
         IdentifierEquals(Keyword.TsqlExprAt)
-        && NextKind == SyntaxKind.TimeKeyword
+        && NextEquals(Keyword.Time)
         && _index + 1 < _tokens.Count
         && TokenEquals(_tokens[_index + 1], Keyword.Zone);
 

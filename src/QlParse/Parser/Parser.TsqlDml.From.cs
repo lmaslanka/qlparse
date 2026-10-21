@@ -5,9 +5,10 @@ namespace QlParse;
 // table-valued function calls and the rowset functions (OPENJSON, OPENROWSET, CONTAINSTABLE, ...).
 internal sealed partial class Parser
 {
-    // After a FROM item and its alias: WITH (hints), FOR SYSTEM_TIME CONTAINED IN (...), PIVOT and UNPIVOT.
+    // After a FROM item and its alias: legacy (hints), WITH (hints), FOR SYSTEM_TIME CONTAINED IN (...), PIVOT and UNPIVOT.
     internal TableSource ParseTsqlTableSourceTail(TableSource table)
     {
+        table = ConvertTsqlLegacyHintColumns(table);
         while (true)
         {
             if (_current.Kind == SyntaxKind.WithKeyword && NextKind == SyntaxKind.OpenParen)
@@ -258,10 +259,17 @@ internal sealed partial class Parser
     // ---- Table-valued and rowset functions ----
 
     // `name(...)` in FROM: a rowset function, or an ordinary inline / multi-statement table-valued function call.
-    internal TableSource ParseTsqlRoutineTable(List<SyntaxToken> nameParts) =>
-        nameParts.Count == 1 && Keyword.IsTsqlRowsetFunction(nameParts[0].TextOf(_source))
+    internal TableSource ParseTsqlRoutineTable(List<SyntaxToken> nameParts)
+    {
+        if (IsTsqlLegacyTableHints())
+        {
+            return ParseTsqlLegacyHintedReference(nameParts);
+        }
+
+        return nameParts.Count == 1 && Keyword.IsTsqlRowsetFunction(nameParts[0].TextOf(_source))
             ? ParseTsqlRowsetFunction(nameParts)
             : ParseTsqlTableFunction(nameParts);
+    }
 
     private TableFunction ParseTsqlTableFunction(List<SyntaxToken> nameParts)
     {
@@ -358,7 +366,7 @@ internal sealed partial class Parser
         }
     }
 
-    // expr | * | name = expr [AS alias] | BULK 'file' | LANGUAGE term
+    // expr | * | name = expr [AS alias] | BULK 'file' | LANGUAGE term | {CHANGES | VERSION} table
     private TsqlRowsetArgument ParseTsqlRowsetArgument()
     {
         SyntaxToken? name = null;
@@ -370,7 +378,7 @@ internal sealed partial class Parser
         }
         else
         {
-            if ((IdentifierEquals(Keyword.DmlBulk) || IdentifierEquals(Keyword.Language)) && NextKind is not (SyntaxKind.Comma or SyntaxKind.CloseParen))
+            if (IsTsqlRowsetArgumentWord() && NextKind is not (SyntaxKind.Comma or SyntaxKind.CloseParen))
             {
                 name = Advance();
             }
@@ -395,6 +403,10 @@ internal sealed partial class Parser
             Alias = alias,
         };
     }
+
+    private bool IsTsqlRowsetArgumentWord() =>
+        IdentifierEquals(Keyword.DmlBulk) || IdentifierEquals(Keyword.Language)
+        || IdentifierEquals(Keyword.GapsChanges) || IdentifierEquals(Keyword.GapsVersion);
 
     // WITH (column type ['path' | ordinal] [AS JSON], ...) | WITH table_name
     private TsqlRowsetSchema ParseTsqlRowsetSchema()

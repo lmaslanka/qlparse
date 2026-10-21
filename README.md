@@ -1,6 +1,6 @@
 # QlParse
 
-A hand-written, lossless SQL lexer and parser for .NET — covering the full ISO/IEC 9075 SQL standard (1992–2023), with opt-in PostgreSQL dialect support, zero runtime dependencies, and a visitor API for walking the resulting syntax tree.
+A hand-written, lossless SQL lexer and parser for .NET — covering the full ISO/IEC 9075 SQL standard (1992–2023), with opt-in PostgreSQL and SQL Server (T-SQL) dialect support, zero runtime dependencies, and a visitor API for walking the resulting syntax tree.
 
 [![Build](https://github.com/lmaslanka/qlparse/actions/workflows/build.yml/badge.svg)](https://github.com/lmaslanka/qlparse/actions/workflows/build.yml)
 [![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=lmaslanka_qlparse&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=lmaslanka_qlparse)
@@ -29,7 +29,7 @@ A hand-written, lossless SQL lexer and parser for .NET — covering the full ISO
 - **Hand-written recursive-descent parser** — no parser generator, no reflection-based grammar, just a straightforward `Parser` split by grammar area for readability.
 - **Visitor API** — `SqlVisitor` walks the tree with one overridable `virtual` method per node type, so consumers only override what they care about.
 - **Precise diagnostics** — a syntax error is a `SqlParseException` carrying the exact character offset where parsing failed.
-- **Opt-in vendor dialects** — the PostgreSQL dialect (9.x–18) is gated behind `SqlOptions.Postgres` so standard SQL parsing is never affected unless you ask for it: dollar quoting, `$1` parameters, custom operators, array types, `ON CONFLICT`/`RETURNING`, partitioning, row-level security, utility commands, and PL/pgSQL function bodies parsed into the tree. See [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) for the full coverage list.
+- **Opt-in vendor dialects** — the PostgreSQL dialect (9.x–18) is gated behind `SqlOptions.Postgres` so standard SQL parsing is never affected unless you ask for it: dollar quoting, `$1` parameters, custom operators, array types, `ON CONFLICT`/`RETURNING`, partitioning, row-level security, utility commands, and PL/pgSQL function bodies parsed into the tree. The SQL Server dialect (2012–2025) is gated behind `SqlOptions.SqlServer` the same way: `[bracketed]` names, `@variables`, `GO`-separated batches with optional `;`, procedural T-SQL (`IF`/`WHILE`/`TRY...CATCH`, cursors, `EXEC`), `TOP`/`OUTPUT`/`MERGE`/`APPLY`/`PIVOT`, table hints, procedures, functions, triggers, and security, Service Broker and administration statements. See [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) and [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) for the full coverage lists.
 - **Zero dependencies** — the `QlParse` library itself references nothing beyond the .NET base class library.
 - **Architecture enforced by tests** — the folder/layering rules below aren't just convention; they're checked by an automated test suite. See [Architecture](#architecture).
 
@@ -122,9 +122,22 @@ Sql.Parse(sql);
 
 // Enable the PostgreSQL dialect: $$dollar quoting$$, $1 parameters, ::casts, ON CONFLICT, PL/pgSQL bodies, ...
 Sql.Parse(sql, SqlOptions.Postgres);
+
+// Enable the SQL Server (T-SQL) dialect: [brackets], @variables, GO batches, optional ;, TRY/CATCH, MERGE, ...
+Sql.Parse(sql, SqlOptions.SqlServer);
 ```
 
-`SqlOptions.SqlServer` is reserved for an upcoming T-SQL dialect in the same spirit — currently a no-op flag with no behavior wired up yet. The planned coverage is tracked in [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md).
+Under `SqlOptions.SqlServer` a script is parsed as a whole: a single statement comes back as itself, several statements as a `TsqlBatch`, and any `GO` line makes the root a `TsqlScript` of batches. Only the T-SQL reserved keywords are reserved, so columns named `date`, `time` or `position` work unquoted. Add `SqlOptions.QuotedIdentifierOff` to parse scripts written for `SET QUOTED_IDENTIFIER OFF`, where `"..."` is a string literal; it has no effect without `SqlOptions.SqlServer`.
+
+```csharp
+var result = Sql.Parse("""
+    IF OBJECT_ID(N'dbo.Orders') IS NULL
+        CREATE TABLE dbo.Orders ([Id] int IDENTITY(1,1) PRIMARY KEY, [date] date NOT NULL)
+    GO
+    SELECT TOP (10) [Id], date FROM dbo.Orders WITH (NOLOCK) ORDER BY date DESC
+    """, SqlOptions.SqlServer);
+// result.Root is a TsqlScript with two batches
+```
 
 ## SQL standard coverage
 
@@ -132,7 +145,7 @@ Sql.Parse(sql, SqlOptions.Postgres);
 |---|---|
 | [SQL-STANDARD.md](SQL-STANDARD.md) | ISO/IEC 9075 (1992–2023) grammar coverage — what qlparse already accepts |
 | [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) | PostgreSQL-specific syntax beyond the ISO standard covered by `SqlOptions.Postgres` |
-| [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) | SQL Server (T-SQL)-specific syntax beyond the ISO standard, planned for `SqlOptions.SqlServer` |
+| [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) | SQL Server (T-SQL)-specific syntax beyond the ISO standard covered by `SqlOptions.SqlServer` |
 
 ## Project structure
 
@@ -170,7 +183,7 @@ QlParse is a single-assembly pipeline: `Lexing/` turns source text into tokens, 
 ## Roadmap
 
 - [x] Implement the PostgreSQL dialect extensions tracked in [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md)
-- [ ] Implement the SQL Server (T-SQL) dialect extensions tracked in [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) behind `SqlOptions.SqlServer`
+- [x] Implement the SQL Server (T-SQL) dialect extensions tracked in [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) behind `SqlOptions.SqlServer`
 - [ ] Publish to NuGet.org
 
 ## License

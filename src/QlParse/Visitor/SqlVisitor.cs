@@ -64,7 +64,8 @@ public partial class SqlVisitor
         || TryVisitTsqlDdlQuery(query)
         || TryVisitTsqlProcQuery(query)
         || TryVisitTsqlSecurityQuery(query)
-        || TryVisitTsqlAdminQuery(query);
+        || TryVisitTsqlAdminQuery(query)
+        || TryVisitTsqlGapsQuery(query);
 
     private bool TryVisitQuery1(Query query)
     {

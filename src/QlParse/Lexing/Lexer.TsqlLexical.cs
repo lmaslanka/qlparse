@@ -67,7 +67,8 @@ internal sealed partial class Lexer
             return new SyntaxToken(SyntaxKind.BatchSeparator, start, length, triviaStart, triviaCount);
         }
 
-        return new SyntaxToken(Keyword.Classify(_source.AsSpan(start, length)), start, length, triviaStart, triviaCount);
+        var kind = Keyword.Classify(_source.AsSpan(start, length));
+        return new SyntaxToken(kind == SyntaxKind.Identifier ? kind : Keyword.TsqlKind(kind), start, length, triviaStart, triviaCount);
     }
 
     private void SkipTsqlIdentifierPart()

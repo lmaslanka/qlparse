@@ -175,8 +175,8 @@ public sealed partial class TsqlExpressionTests
     [Theory]
     [InlineData("left(a, 2)", SyntaxKind.LeftKeyword, 2)]
     [InlineData("right(a, 2)", SyntaxKind.RightKeyword, 2)]
-    [InlineData("substring(a, 1, 2)", SyntaxKind.SubstringKeyword, 3)]
-    [InlineData("translate(a, 'abc', 'xyz')", SyntaxKind.TranslateKeyword, 3)]
+    [InlineData("substring(a, 1, 2)", SyntaxKind.Identifier, 3)]
+    [InlineData("translate(a, 'abc', 'xyz')", SyntaxKind.Identifier, 3)]
     public void Keyword_named_functions_take_plain_arguments(string expression, SyntaxKind kind, int arguments)
     {
         var call = SqlAssert.ExprTsql<FunctionCallExpression>(expression);

@@ -233,6 +233,7 @@ internal sealed partial class Lexer
         AtSign when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         AtSign => throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
         StringQuote => ReadString(triviaStart, triviaCount, prefixed: false),
+        IdentifierQuote when IsQuotedIdentifierOff => ReadDoubleQuotedString(triviaStart, triviaCount),
         IdentifierQuote => ReadQuotedIdentifier(triviaStart, triviaCount),
         _ => null,
     };
