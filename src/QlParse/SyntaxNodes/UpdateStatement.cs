@@ -9,4 +9,5 @@ public sealed class UpdateStatement : Query
     public required IReadOnlyList<SetClause> Assignments { get; init; }
     public WhereClause? Where { get; init; }
     public PositionedClause? Positioned { get; init; }
+    public PgUpdateExtras? Postgres { get; init; }
 }

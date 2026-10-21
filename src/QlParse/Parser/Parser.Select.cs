@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace QlParse;
 
 internal sealed partial class Parser
@@ -6,6 +8,7 @@ internal sealed partial class Parser
     {
         var selectKeyword = Expect(SyntaxKind.SelectKeyword);
         var distinct = _current.Kind == SyntaxKind.DistinctKeyword ? Advance() : (SyntaxToken?)null;
+        var distinctOn = distinct is not null && _current.Kind == SyntaxKind.OnKeyword && IsPostgres ? ParseDistinctOn() : null;
         var all = distinct is null && _current.Kind == SyntaxKind.AllKeyword ? Advance() : (SyntaxToken?)null;
         var selectList = ParseSelectList();
         var into = ParseIntoClause();
@@ -35,24 +38,39 @@ internal sealed partial class Parser
             Offset = tail.Offset,
             Fetch = tail.Fetch,
             Lock = tail.Lock,
+            Postgres = BuildPgSelectExtras(distinctOn, into.IntoTable),
         };
     }
 
-    private readonly record struct IntoClause(SyntaxToken? IntoKeyword, IReadOnlyList<SyntaxToken>? IntoTargets, SourceSpan? End);
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static PgSelectExtras? BuildPgSelectExtras(DistinctOnClause? distinctOn, SelectIntoTable? intoTable) =>
+        distinctOn is null && intoTable is null ? null : new PgSelectExtras { DistinctOn = distinctOn, IntoTable = intoTable };
+
+    private readonly record struct IntoClause(
+        SyntaxToken? IntoKeyword,
+        IReadOnlyList<SyntaxToken>? IntoTargets,
+        SelectIntoTable? IntoTable,
+        SourceSpan? End);
 
     private IntoClause ParseIntoClause()
     {
         if (!IdentifierEquals(Keyword.Into))
         {
-            return new IntoClause(null, null, null);
+            return new IntoClause(null, null, null, null);
         }
 
         var intoKeyword = Advance();
+        if (IsPostgres)
+        {
+            var intoTable = ParseSelectIntoTable();
+            return new IntoClause(intoKeyword, null, intoTable, intoTable.Span);
+        }
+
         var intoTargets = ParseIntoTargets();
-        return new IntoClause(intoKeyword, intoTargets, intoTargets is { Count: > 0 } ? intoTargets[^1].Span : null);
+        return new IntoClause(intoKeyword, intoTargets, null, intoTargets is { Count: > 0 } ? intoTargets[^1].Span : null);
     }
 
-    private readonly record struct FromClause(
+    internal readonly record struct FromClause(
         SyntaxToken? FromKeyword,
         TableSource? From,
         IReadOnlyList<JoinClause> Joins,
@@ -124,55 +142,73 @@ internal sealed partial class Parser
         var window = _current.Kind == SyntaxKind.WindowKeyword ? ParseWindowClause() : null;
         var orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
         var limitOffsetFetch = ParseLimitOffsetFetch();
-        var limit = limitOffsetFetch.Limit;
-        var offset = limitOffsetFetch.Offset;
-        var fetch = limitOffsetFetch.Fetch;
-        var lockClause = _current.Kind == SyntaxKind.ForKeyword ? ParseLockClause() : null;
-        var end = lockClause?.Span
-            ?? fetch?.Span
-            ?? offset?.Span
-            ?? limit?.Span
-            ?? orderBy?.Span
-            ?? window?.Span;
-        return new SelectRestClauses(window, orderBy, limit, offset, fetch, lockClause, end);
+        var locks = _current.Kind == SyntaxKind.ForKeyword
+            ? ParseLockClauses(limitOffsetFetch)
+            : new LockClauses(null, limitOffsetFetch, limitOffsetFetch.End);
+        var merged = locks.LimitOffsetFetch;
+        var end = locks.End ?? orderBy?.Span ?? window?.Span;
+        return new SelectRestClauses(window, orderBy, merged.Limit, merged.Offset, merged.Fetch, locks.Lock, end);
     }
 
-    private readonly record struct LimitOffsetFetch(LimitClause? Limit, OffsetClause? Offset, FetchClause? Fetch);
+    internal readonly record struct LimitOffsetFetch(LimitClause? Limit, OffsetClause? Offset, FetchClause? Fetch, SourceSpan? End);
 
     private LimitOffsetFetch ParseLimitOffsetFetch()
     {
         LimitClause? limit = null;
         OffsetClause? offset = null;
         FetchClause? fetch = null;
+        SourceSpan? end = null;
         while (true)
         {
             if (limit is null && _current.Kind == SyntaxKind.LimitKeyword)
             {
                 limit = ParseLimit();
+                end = limit.Span;
                 continue;
             }
 
             if (offset is null && _current.Kind == SyntaxKind.OffsetKeyword)
             {
                 offset = ParseOffset();
+                end = offset.Span;
                 continue;
             }
 
             if (fetch is null && _current.Kind == SyntaxKind.FetchKeyword)
             {
                 fetch = ParseFetch();
+                end = fetch.Span;
                 continue;
             }
 
             break;
         }
 
-        return new LimitOffsetFetch(limit, offset, fetch);
+        return new LimitOffsetFetch(limit, offset, fetch, end);
+    }
+
+    // LimitOffsetFetch is the combined LIMIT/OFFSET/FETCH; End is the end of the whole rest of the select.
+    internal readonly record struct LockClauses(
+        LockClause? Lock,
+        LimitOffsetFetch LimitOffsetFetch,
+        SourceSpan? End);
+
+    private LockClauses ParseLockClauses(LimitOffsetFetch limitOffsetFetch)
+    {
+        var lockClause = ParseLockClause();
+        return IsPostgres
+            ? ParsePgLockTail(lockClause, limitOffsetFetch)
+            : new LockClauses(lockClause, limitOffsetFetch, lockClause.Span);
     }
 
     private LockClause ParseLockClause()
     {
         var forKeyword = Advance();
+        if (IsPostgres)
+        {
+            return ParsePgLockClause(forKeyword);
+        }
+
         if (_current.Kind == SyntaxKind.ReadKeyword)
         {
             var readKeyword = Advance();
@@ -264,7 +300,7 @@ internal sealed partial class Parser
         }
         else
         {
-            if (_current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Into))
+            if (_current.Kind == SyntaxKind.Identifier && !IdentifierEquals(Keyword.Into) && !IsPgReservedClauseWord())
             {
                 alias = Advance();
             }
@@ -432,6 +468,17 @@ internal sealed partial class Parser
     private LimitClause ParseLimit()
     {
         var limitKeyword = Expect(SyntaxKind.LimitKeyword);
+        if (_current.Kind == SyntaxKind.AllKeyword && IsPostgres)
+        {
+            var allKeyword = Advance();
+            return new LimitClause
+            {
+                Span = SourceSpan.From(limitKeyword, allKeyword),
+                LimitKeyword = limitKeyword,
+                Postgres = new PgLimitExtras { AllKeyword = allKeyword },
+            };
+        }
+
         var count = ParseExpression();
         return new LimitClause
         {

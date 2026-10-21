@@ -8,4 +8,5 @@ public sealed class DeleteStatement : Query
     public PortionClause? Portion { get; init; }
     public WhereClause? Where { get; init; }
     public PositionedClause? Positioned { get; init; }
+    public PgDeleteExtras? Postgres { get; init; }
 }

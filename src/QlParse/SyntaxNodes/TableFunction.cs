@@ -13,4 +13,5 @@ public sealed class TableFunction : TableSource
     public SyntaxToken? ColumnOpenParen { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
     public SyntaxToken? ColumnCloseParen { get; init; }
+    public PgTableFunctionExtras? Postgres { get; init; }
 }

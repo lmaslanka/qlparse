@@ -36,23 +36,20 @@ public partial class SqlVisitor
             return;
         }
 
-        if (TryVisitPgUtilityQuery(query))
-        {
-            return;
-        }
-
-        if (TryVisitPgSchemaQuery(query))
-        {
-            return;
-        }
-
-        if (TryVisitPgDdlQuery(query))
+        if (TryVisitPgQuery(query))
         {
             return;
         }
 
         throw new SwitchExpressionException(query);
     }
+
+    // Postgres-only statement nodes, tried after every ISO bucket so ISO dispatch cost is unchanged.
+    private bool TryVisitPgQuery(Query query) =>
+        TryVisitQueryPgDml(query)
+        || TryVisitPgUtilityQuery(query)
+        || TryVisitPgSchemaQuery(query)
+        || TryVisitPgDdlQuery(query);
 
     private bool TryVisitQuery1(Query query)
     {

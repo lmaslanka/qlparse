@@ -42,7 +42,12 @@ public partial class SqlVisitor
                 VisitGraphTable(node);
                 break;
             default:
-                throw new SwitchExpressionException(table);
+                if (!TryVisitTableSourcePgDml(table))
+                {
+                    throw new SwitchExpressionException(table);
+                }
+
+                break;
         }
     }
 
@@ -91,6 +96,11 @@ public partial class SqlVisitor
 
     public virtual void VisitCommonTableExpression(CommonTableExpression node)
     {
+        if (node.Postgres is not null)
+        {
+            VisitPgCteExtras(node.Postgres);
+        }
+
         Visit(node.Query);
         if (node.Cycle is not null)
         {
@@ -100,8 +110,15 @@ public partial class SqlVisitor
 
     public virtual void VisitCycleClause(CycleClause node)
     {
-        Visit(node.MarkValue);
-        Visit(node.DefaultValue);
+        if (node.MarkValue is not null)
+        {
+            Visit(node.MarkValue);
+        }
+
+        if (node.DefaultValue is not null)
+        {
+            Visit(node.DefaultValue);
+        }
     }
 
     public virtual void VisitInsertStatement(InsertStatement node)
@@ -109,6 +126,11 @@ public partial class SqlVisitor
         if (node.Query is not null)
         {
             Visit(node.Query);
+        }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgInsertExtras(node.Postgres);
         }
     }
 
@@ -120,6 +142,11 @@ public partial class SqlVisitor
         }
 
         VisitSetClauses(node.Assignments);
+        if (node.Postgres is not null)
+        {
+            VisitPgUpdateExtras(node.Postgres);
+        }
+
         if (node.Where is not null)
         {
             VisitWhereClause(node.Where);
@@ -131,6 +158,11 @@ public partial class SqlVisitor
         if (node.Portion is not null)
         {
             VisitPortionClause(node.Portion);
+        }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgDeleteExtras(node.Postgres);
         }
 
         if (node.Where is not null)
@@ -148,11 +180,19 @@ public partial class SqlVisitor
         {
             VisitMergeWhenClause(when);
         }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgMergeExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitTruncateStatement(TruncateStatement node)
     {
-        return;
+        if (node.Postgres is not null)
+        {
+            VisitPgTruncateExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitSchemaDefinition(SchemaDefinition node)

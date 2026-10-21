@@ -21,4 +21,5 @@ public sealed class SelectStatement : Query
     public OffsetClause? Offset { get; init; }
     public FetchClause? Fetch { get; init; }
     public LockClause? Lock { get; init; }
+    public PgSelectExtras? Postgres { get; init; }
 }

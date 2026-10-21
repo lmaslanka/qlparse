@@ -10,4 +10,5 @@ public sealed class LockClause
     public SyntaxToken? ShareKeyword { get; init; }
     public SyntaxToken? OfKeyword { get; init; }
     public IReadOnlyList<SyntaxToken>? Columns { get; init; }
+    public PgLockExtras? Postgres { get; init; }
 }

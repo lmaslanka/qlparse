@@ -460,7 +460,7 @@ public sealed class PgUtilityTests
         Assert.NotNull(grant.Object.AllKeyword);
         Assert.Equal(Tables, Text(sql, grant.Object.Kind));
         Assert.Equal(TwoItems, grant.Object.Targets.Count);
-        Assert.Equal(new SourceSpan(16, 27), grant.Object.Span);
+        Assert.Equal(new SourceSpan(SpanStart.Sixteen, 27), grant.Object.Span);
         SqlAssert.ParseFails(sql);
     }
 

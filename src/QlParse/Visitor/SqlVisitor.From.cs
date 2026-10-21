@@ -6,6 +6,11 @@ public partial class SqlVisitor
 {
     public virtual void VisitSelectStatement(SelectStatement node)
     {
+        if (node.Postgres is not null)
+        {
+            VisitPgSelectExtras(node.Postgres);
+        }
+
         foreach (var item in node.SelectList)
         {
             VisitSelectItem(item);
@@ -71,6 +76,7 @@ public partial class SqlVisitor
         {
             VisitLockClause(node.Lock);
         }
+
     }
 
     public virtual void VisitSelectItem(SelectItem node) => Visit(node.Expression);
@@ -91,7 +97,18 @@ public partial class SqlVisitor
 
     public virtual void VisitOrderByItem(OrderByItem node) => Visit(node.Expression);
 
-    public virtual void VisitLimitClause(LimitClause node) => Visit(node.Count);
+    public virtual void VisitLimitClause(LimitClause node)
+    {
+        if (node.Count is not null)
+        {
+            Visit(node.Count);
+        }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgLimitExtras(node.Postgres);
+        }
+    }
 
     public virtual void VisitOffsetClause(OffsetClause node) => Visit(node.Count);
 
@@ -105,7 +122,10 @@ public partial class SqlVisitor
 
     public virtual void VisitLockClause(LockClause node)
     {
-        return;
+        if (node.Postgres is not null)
+        {
+            VisitPgLockExtras(node.Postgres);
+        }
     }
 
     public virtual void VisitCommaFrom(CommaFrom node)
@@ -263,6 +283,11 @@ public partial class SqlVisitor
         if (node.Query is not null)
         {
             Visit(node.Query);
+        }
+
+        if (node.Postgres is not null)
+        {
+            VisitPgTableFunctionExtras(node.Postgres);
         }
     }
 

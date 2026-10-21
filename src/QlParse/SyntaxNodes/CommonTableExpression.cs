@@ -13,4 +13,5 @@ public sealed class CommonTableExpression
     public required SyntaxToken CloseQuery { get; init; }
     public SearchClause? Search { get; init; }
     public CycleClause? Cycle { get; init; }
+    public PgCteExtras? Postgres { get; init; }
 }

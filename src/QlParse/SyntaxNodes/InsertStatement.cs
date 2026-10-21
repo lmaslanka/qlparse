@@ -12,4 +12,5 @@ public sealed class InsertStatement : Query
     public SyntaxToken? DefaultKeyword { get; init; }
     public SyntaxToken? ValuesKeyword { get; init; }
     public Query? Query { get; init; }
+    public PgInsertExtras? Postgres { get; init; }
 }

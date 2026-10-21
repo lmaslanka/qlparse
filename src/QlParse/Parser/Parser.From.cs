@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace QlParse;
 
 internal sealed partial class Parser
@@ -29,7 +31,7 @@ internal sealed partial class Parser
     {
         if (_current.Kind == SyntaxKind.OpenParen)
         {
-            return IsQueryStart(NextKind) ? ParseDerivedTable() : ParseJoinedTable();
+            return IsQueryStart(NextKind) || IsPgParenTableQuery() ? ParseDerivedTable() : ParseJoinedTable();
         }
 
         if (_current.Kind == SyntaxKind.UnnestKeyword)
@@ -45,7 +47,7 @@ internal sealed partial class Parser
 
         if (_current.Kind == SyntaxKind.OnlyKeyword)
         {
-            return ParseOnly();
+            return IsPostgres && NextKind != SyntaxKind.OpenParen ? ParsePgOnlyTableReference() : ParseOnly();
         }
 
         return null;
@@ -340,9 +342,16 @@ internal sealed partial class Parser
         }
         else
         {
-            if (_current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize))
+            if (IsBareTableAlias())
             {
                 alias = Advance();
+            }
+            else
+            {
+                if (IsPgTableReferenceTail())
+                {
+                    return ParsePgTableReferenceTail(nameParts, systemTime);
+                }
             }
         }
 
@@ -370,6 +379,15 @@ internal sealed partial class Parser
             SystemTime = systemTime,
         };
     }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsBareTableAlias() =>
+        _current.Kind == SyntaxKind.Identifier && !TokenEquals(_current, Keyword.MatchRecognize) && !IsPgReservedClauseWord();
+
+    // Postgres: `name *` (explicit descendant inclusion) or `ROWS FROM (...)`.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool IsPgTableReferenceTail() =>
+        IsPostgres && _current.Kind is SyntaxKind.Star or SyntaxKind.FromKeyword;
 
     private SystemTimeClause? ParseSystemTime()
     {
@@ -475,6 +493,11 @@ internal sealed partial class Parser
         var openParen = Expect(SyntaxKind.OpenParen);
         var arguments = _current.Kind == SyntaxKind.CloseParen ? [] : ParseExpressionList();
         var closeParen = Expect(SyntaxKind.CloseParen);
+        if (IsPostgres)
+        {
+            return ParsePgRoutineTable(nameParts, openParen, arguments, closeParen);
+        }
+
         ParseCorrelation(required: false, out var asKeyword, out var alias, out var columnOpen, out var columns, out var columnClose);
         var end = columnClose ?? alias ?? closeParen;
         return new TableFunction

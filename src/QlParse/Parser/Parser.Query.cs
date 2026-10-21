@@ -29,7 +29,7 @@ internal sealed partial class Parser
             ctes.Add(ParseCte());
         }
 
-        var query = ParseQuery(1);
+        var query = IsPostgres ? ParsePgQueryOrDml(1) : ParseQuery(1);
         return new WithQuery
         {
             Span = SourceSpan.From(withKeyword, query.Span),
@@ -62,8 +62,9 @@ internal sealed partial class Parser
         }
 
         var asKeyword = Expect(SyntaxKind.AsKeyword);
+        var materialization = _current.Kind != SyntaxKind.OpenParen && IsPostgres ? ParseCteMaterialization() : null;
         var openQuery = Expect(SyntaxKind.OpenParen);
-        var query = ParseQuery();
+        var query = IsPostgres ? ParsePgQueryOrDml(0) : ParseQuery();
         var closeQuery = Expect(SyntaxKind.CloseParen);
         var search = _current.Kind == SyntaxKind.SearchKeyword ? ParseSearchClause() : null;
         var cycle = _current.Kind == SyntaxKind.CycleKeyword ? ParseCycleClause() : null;
@@ -81,6 +82,7 @@ internal sealed partial class Parser
             CloseQuery = closeQuery,
             Search = search,
             Cycle = cycle,
+            Postgres = materialization,
         };
     }
 
@@ -122,6 +124,11 @@ internal sealed partial class Parser
         var columns = ParseNameList();
         var setKeyword = Expect(SyntaxKind.SetKeyword);
         var markColumn = Expect(SyntaxKind.Identifier);
+        if (_current.Kind == SyntaxKind.UsingKeyword && IsPostgres)
+        {
+            return ParsePgCycleWithoutValues(cycleKeyword, columns, setKeyword, markColumn);
+        }
+
         if (!IdentifierEquals(Keyword.To))
         {
             throw new SqlParseException($"Expected TO, found {_current.Kind}", _current.Position);
@@ -220,6 +227,11 @@ internal sealed partial class Parser
 
     private Query ParseSetPrimary()
     {
+        if (_current.Kind == SyntaxKind.SelectKeyword)
+        {
+            return ParseSelectStatement();
+        }
+
         if (_current.Kind == SyntaxKind.OpenParen)
         {
             return ParseParenQuery();
@@ -230,7 +242,7 @@ internal sealed partial class Parser
             return ParseValuesQuery();
         }
 
-        return ParseSelectStatement();
+        return IsPostgres ? ParsePgSetPrimary() : ParseSelectStatement();
     }
 
     private ValuesQuery ParseValuesQuery()
