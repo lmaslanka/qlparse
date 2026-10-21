@@ -90,8 +90,8 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 
 ### Set-returning / table functions
 - [x] `generate_series()`
-- [ ] `WITH ORDINALITY` row-number column for set-returning functions in `FROM`
-- [ ] `ROWS FROM (...)` combining multiple function calls column-wise
+- [x] `WITH ORDINALITY` row-number column for set-returning functions in `FROM`
+- [x] `ROWS FROM (...)` combining multiple function calls column-wise
 
 ### Aggregates
 - [x] `string_agg()`
@@ -105,24 +105,24 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `txid_current()` / `pg_current_xact_id()`
 
 ## Query expressions
-- [ ] `DISTINCT ON (expression [, ...])`
-- [ ] `LIMIT [count | ALL]`
+- [x] `DISTINCT ON (expression [, ...])`
+- [x] `LIMIT [count | ALL]`
 - [x] `OFFSET start` (Postgres-native form alongside ISO `FETCH FIRST`)
-- [ ] `WITH query_name AS (...) [MATERIALIZED|NOT MATERIALIZED]`
+- [x] `WITH query_name AS (...) [MATERIALIZED|NOT MATERIALIZED]`
 - [x] `TABLESAMPLE {BERNOULLI|SYSTEM} (pct) [REPEATABLE (seed)]`
 - [x] Implicit `LATERAL` for set-returning functions in `FROM` without the keyword
-- [ ] `TABLE table_name` shorthand for `SELECT * FROM table_name`
+- [x] `TABLE table_name` shorthand for `SELECT * FROM table_name`
 
 ## DML
-- [ ] `RETURNING` clause on `INSERT` / `UPDATE` / `DELETE` / `MERGE`
-- [ ] `INSERT ... ON CONFLICT (...) DO NOTHING`
-- [ ] `INSERT ... ON CONFLICT (...) DO UPDATE SET ...`
-- [ ] `ON CONFLICT ON CONSTRAINT constraint_name`
-- [ ] `EXCLUDED` pseudo-table in `ON CONFLICT DO UPDATE`
-- [ ] `UPDATE ... FROM`
-- [ ] `DELETE ... USING`
-- [ ] Writable CTEs chaining DML (`WITH t AS (INSERT/UPDATE/DELETE ... RETURNING ...) ...`)
-- [ ] `COPY table_name FROM/TO {filename|PROGRAM command|STDIN|STDOUT} [WITH (...)]`
+- [x] `RETURNING` clause on `INSERT` / `UPDATE` / `DELETE` / `MERGE`
+- [x] `INSERT ... ON CONFLICT (...) DO NOTHING`
+- [x] `INSERT ... ON CONFLICT (...) DO UPDATE SET ...`
+- [x] `ON CONFLICT ON CONSTRAINT constraint_name`
+- [x] `EXCLUDED` pseudo-table in `ON CONFLICT DO UPDATE`
+- [x] `UPDATE ... FROM`
+- [x] `DELETE ... USING`
+- [x] Writable CTEs chaining DML (`WITH t AS (INSERT/UPDATE/DELETE ... RETURNING ...) ...`)
+- [x] `COPY table_name FROM/TO {filename|PROGRAM command|STDIN|STDOUT} [WITH (...)]`
 
 ## Schema / DDL
 
@@ -138,7 +138,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [x] `ALTER TABLE ... CLUSTER ON` / `SET WITHOUT CLUSTER`
 - [x] `ALTER COLUMN ... SET STORAGE {PLAIN|EXTERNAL|EXTENDED|MAIN}`
 - [x] `ALTER COLUMN ... SET DATA TYPE ... USING expression`
-- [ ] `ONLY` to exclude inheriting child tables in DML/DDL
+- [x] `ONLY` to exclude inheriting child tables in DML/DDL
 - [x] `GENERATED ALWAYS AS (expr) STORED` computed columns
 
 ### Partitioning
