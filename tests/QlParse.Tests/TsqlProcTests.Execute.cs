@@ -158,14 +158,14 @@ public sealed partial class TsqlProcTests
     public void Parses_insert_exec()
     {
         const string sql = "insert into t (a, b) exec dbo.p @x = 1";
-        var insert = SqlAssert.ParseTsql<InsertStatement>(sql);
+        var insert = SqlAssert.ParseTsql<TsqlInsertStatement>(sql);
         Assert.Equal(["a", "b"], Texts(sql, Present(insert.Columns)));
-        var exec = Assert.IsType<TsqlExecuteStatement>(insert.Query);
+        var exec = Assert.IsType<TsqlExecuteStatement>(insert.Source);
         Assert.Equal(["dbo", "p"], Texts(sql, exec.Module));
         Assert.Equal(sql, Text(sql, insert.Span));
-        var dynamic = SqlAssert.ParseTsql<InsertStatement>("insert into @t execute ('select 1')");
-        Assert.IsType<TsqlExecuteStringStatement>(dynamic.Query);
-        Assert.IsType<SelectStatement>(SqlAssert.ParseTsql<InsertStatement>("insert into t select 1").Query);
+        var dynamic = SqlAssert.ParseTsql<TsqlInsertStatement>("insert into @t execute ('select 1')");
+        Assert.IsType<TsqlExecuteStringStatement>(dynamic.Source);
+        Assert.IsType<SelectStatement>(SqlAssert.ParseTsql<TsqlInsertStatement>("insert into t select 1").Source);
         FailsInIso("insert into t exec p");
     }
 }

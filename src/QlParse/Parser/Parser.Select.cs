@@ -4,7 +4,10 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    internal SelectStatement ParseSelectStatement()
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    internal SelectStatement ParseSelectStatement() => IsSqlServer ? ParseTsqlSelectStatement() : ParseIsoSelectStatement();
+
+    private SelectStatement ParseIsoSelectStatement()
     {
         var selectKeyword = Expect(SyntaxKind.SelectKeyword);
         var distinct = _current.Kind == SyntaxKind.DistinctKeyword ? Advance() : (SyntaxToken?)null;

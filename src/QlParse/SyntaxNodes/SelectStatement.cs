@@ -21,5 +21,10 @@ public sealed class SelectStatement : Query
     public OffsetClause? Offset { get; init; }
     public FetchClause? Fetch { get; init; }
     public LockClause? Lock { get; init; }
-    public PgSelectExtras? Postgres { get; init; }
+    public PgSelectExtras? Postgres { get => _dialect as PgSelectExtras; init => _dialect ??= value; }
+    public TsqlSelectExtras? SqlServer { get => _dialect as TsqlSelectExtras; init => _dialect ??= value; }
+
+    // The Postgres and SQL Server extras share one slot (a statement is parsed in one dialect), so ISO
+    // selects keep their size.
+    private readonly object? _dialect;
 }

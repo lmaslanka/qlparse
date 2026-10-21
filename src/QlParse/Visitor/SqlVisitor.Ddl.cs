@@ -42,7 +42,7 @@ public partial class SqlVisitor
                 VisitGraphTable(node);
                 break;
             default:
-                if (!TryVisitTableSourcePgDml(table))
+                if (!TryVisitTableSourcePgDml(table) && !TryVisitTsqlDmlTableSource(table))
                 {
                     throw new SwitchExpressionException(table);
                 }
@@ -192,6 +192,11 @@ public partial class SqlVisitor
         if (node.Postgres is not null)
         {
             VisitPgTruncateExtras(node.Postgres);
+        }
+
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlTruncateExtras(node.SqlServer);
         }
     }
 

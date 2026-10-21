@@ -77,7 +77,7 @@ internal sealed partial class Parser
             }
 
             var statement = ParseStatement();
-            if (statement is MergeStatement && _current.Kind != SyntaxKind.Semicolon)
+            if (statement is MergeStatement or TsqlMergeStatement or WithQuery { Query: TsqlMergeStatement } && _current.Kind != SyntaxKind.Semicolon)
             {
                 throw new SqlParseException("A MERGE statement must be terminated by a semicolon", _current.Position);
             }

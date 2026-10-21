@@ -210,9 +210,9 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "insert into @t values (1) update @t set a = 2 delete from @t select * from @t as x";
         var batch = SqlAssert.ParseTsql<TsqlBatch>(sql);
-        Assert.Equal(["@t"], Texts(sql, Assert.IsType<InsertStatement>(batch.Statements[0]).TableName));
-        Assert.Equal(["@t"], Texts(sql, Assert.IsType<UpdateStatement>(batch.Statements[1]).Target.NameParts));
-        Assert.Equal(["@t"], Texts(sql, Assert.IsType<DeleteStatement>(batch.Statements[Two]).Target.NameParts));
+        Assert.Equal(["@t"], Texts(sql, Assert.IsType<TableReference>(Assert.IsType<TsqlInsertStatement>(batch.Statements[0]).Target).NameParts));
+        Assert.Equal(["@t"], Texts(sql, Assert.IsType<TableReference>(Assert.IsType<TsqlUpdateStatement>(batch.Statements[1]).Target).NameParts));
+        Assert.Equal(["@t"], Texts(sql, Assert.IsType<TableReference>(Assert.IsType<TsqlDeleteStatement>(batch.Statements[Two]).Target).NameParts));
         var table = Assert.IsType<TableReference>(Assert.IsType<SelectStatement>(batch.Statements[Three]).From);
         Assert.Equal(["@t"], Texts(sql, table.NameParts));
         FailsInIso("select * from @t");

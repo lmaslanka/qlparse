@@ -22,8 +22,8 @@ public sealed partial class TsqlProcTests
         var update = Assert.IsType<FunctionCallExpression>(condition.Left);
         Assert.Equal("update", Text(sql, update.Name));
         Assert.IsType<IdentifierExpression>(Assert.Single(update.Arguments));
-        var insert = Assert.IsType<InsertStatement>(check.Then);
-        var select = Assert.IsType<SelectStatement>(insert.Query);
+        var insert = Assert.IsType<TsqlInsertStatement>(check.Then);
+        var select = Assert.IsType<SelectStatement>(insert.Source);
         Assert.Equal(["inserted"], Texts(sql, Assert.IsType<TableReference>(select.From).NameParts));
         Assert.Equal(sql, Text(sql, statement.Span));
     }

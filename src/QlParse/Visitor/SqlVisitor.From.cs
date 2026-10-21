@@ -11,6 +11,11 @@ public partial class SqlVisitor
             VisitPgSelectExtras(node.Postgres);
         }
 
+        if (node.SqlServer is not null)
+        {
+            VisitTsqlSelectExtras(node.SqlServer);
+        }
+
         foreach (var item in node.SelectList)
         {
             VisitSelectItem(item);

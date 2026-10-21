@@ -98,14 +98,14 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `GREATEST()` / `LEAST()` (2022)
 
 ### Set-returning / table functions
-- [ ] `GENERATE_SERIES(start, stop [, step])` (2022)
-- [ ] Inline and multi-statement table-valued function calls in `FROM`
-- [ ] `OPENJSON(json [, path]) [WITH (col type 'path' [AS JSON], ...)]`
-- [ ] `OPENXML(handle, xpath [, flags]) [WITH (...)]`
-- [ ] `OPENROWSET(...)` (provider, `BULK`, and format-file forms)
-- [ ] `OPENQUERY(linked_server, 'query')`
-- [ ] `OPENDATASOURCE(provider, init_string).db.schema.obj`
-- [ ] `CONTAINSTABLE()` / `FREETEXTTABLE()`
+- [x] `GENERATE_SERIES(start, stop [, step])` (2022)
+- [x] Inline and multi-statement table-valued function calls in `FROM`
+- [x] `OPENJSON(json [, path]) [WITH (col type 'path' [AS JSON], ...)]`
+- [x] `OPENXML(handle, xpath [, flags]) [WITH (...)]`
+- [x] `OPENROWSET(...)` (provider, `BULK`, and format-file forms)
+- [x] `OPENQUERY(linked_server, 'query')`
+- [x] `OPENDATASOURCE(provider, init_string).db.schema.obj`
+- [x] `CONTAINSTABLE()` / `FREETEXTTABLE()`
 
 ### JSON
 - [x] `JSON_VALUE()` `JSON_QUERY()` `JSON_MODIFY()` `ISJSON()`
@@ -116,7 +116,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 
 ### XML
 - [x] XML data type methods (`.value()` `.query()` `.nodes()` `.exist()` `.modify()`)
-- [ ] `WITH XMLNAMESPACES (...)` prefix to `SELECT`/DML
+- [x] `WITH XMLNAMESPACES (...)` prefix to `SELECT`/DML
 
 ### Aggregates and analytics
 - [x] `COUNT_BIG()`
@@ -137,7 +137,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 
 ### Vector (2025)
 - [x] `VECTOR_DISTANCE()` `VECTOR_NORM()` `VECTOR_NORMALIZE()`
-- [ ] `VECTOR_SEARCH()` table-valued function
+- [x] `VECTOR_SEARCH()` table-valued function
 - [x] `AI_GENERATE_EMBEDDINGS(... USE MODEL model)` / `AI_GENERATE_CHUNKS()`
 
 ### CLR and type methods
@@ -146,44 +146,44 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Property access on UDT values (`@p.X`, `@p.STSrid`)
 
 ## Query expressions
-- [ ] `SELECT TOP (n) [PERCENT] [WITH TIES]` (and legacy `TOP n` without parentheses)
-- [ ] Variable assignment in select lists (`SELECT @v = expr, @w = expr FROM ...`)
-- [ ] `SELECT ... INTO new_table [ON filegroup] FROM ...`
-- [ ] `alias = expr` select-list alias form and string-literal aliases (`expr AS 'alias'`)
-- [ ] Table hints (`FROM t WITH (NOLOCK, READPAST, UPDLOCK, HOLDLOCK, INDEX(ix), FORCESEEK, ...)`)
-- [ ] `OPTION (RECOMPILE, MAXDOP n, OPTIMIZE FOR (...), USE HINT ('...'), LABEL = '...', ...)` query hints
-- [ ] Join hints (`INNER HASH JOIN`, `LEFT MERGE JOIN`, `LOOP`, `REMOTE`)
-- [ ] `CROSS APPLY` / `OUTER APPLY`
-- [ ] `PIVOT (agg(col) FOR col IN ([a], [b])) AS p`
-- [ ] `UNPIVOT (val FOR col IN ([a], [b])) AS u`
-- [ ] `FOR XML {RAW [('el')]|AUTO|EXPLICIT|PATH [('el')]} [, ROOT('r')] [, TYPE] [, ELEMENTS [XSINIL|ABSENT]] [, XMLSCHEMA]`
-- [ ] `FOR JSON {AUTO|PATH} [, ROOT('r')] [, INCLUDE_NULL_VALUES] [, WITHOUT_ARRAY_WRAPPER]`
-- [ ] `FOR BROWSE`
-- [ ] Temporal queries (`FOR SYSTEM_TIME {AS OF|FROM ... TO|BETWEEN ... AND|CONTAINED IN (...)|ALL}`)
-- [ ] `OFFSET n ROWS FETCH {FIRST|NEXT} n ROWS ONLY` as the only `FETCH` form (no `WITH TIES`/`PERCENT` here)
-- [ ] `WINDOW` clause and named windows (2022)
-- [ ] Multi-part names (`server.database.schema.object`, `database..object`, `.schema.object`)
-- [ ] Derived table column aliases without `AS` and `VALUES` row constructors as derived tables
-- [ ] `TABLESAMPLE [SYSTEM] (n {PERCENT|ROWS}) [REPEATABLE (seed)]`
-- [ ] `GROUP BY ALL` (deprecated) and `GROUP BY ... WITH ROLLUP|CUBE`
-- [ ] `COMPUTE` / `COMPUTE BY` (legacy, parse-only)
+- [x] `SELECT TOP (n) [PERCENT] [WITH TIES]` (and legacy `TOP n` without parentheses)
+- [x] Variable assignment in select lists (`SELECT @v = expr, @w = expr FROM ...`)
+- [x] `SELECT ... INTO new_table [ON filegroup] FROM ...`
+- [x] `alias = expr` select-list alias form and string-literal aliases (`expr AS 'alias'`)
+- [x] Table hints (`FROM t WITH (NOLOCK, READPAST, UPDLOCK, HOLDLOCK, INDEX(ix), FORCESEEK, ...)`)
+- [x] `OPTION (RECOMPILE, MAXDOP n, OPTIMIZE FOR (...), USE HINT ('...'), LABEL = '...', ...)` query hints
+- [x] Join hints (`INNER HASH JOIN`, `LEFT MERGE JOIN`, `LOOP`, `REMOTE`)
+- [x] `CROSS APPLY` / `OUTER APPLY`
+- [x] `PIVOT (agg(col) FOR col IN ([a], [b])) AS p`
+- [x] `UNPIVOT (val FOR col IN ([a], [b])) AS u`
+- [x] `FOR XML {RAW [('el')]|AUTO|EXPLICIT|PATH [('el')]} [, ROOT('r')] [, TYPE] [, ELEMENTS [XSINIL|ABSENT]] [, XMLSCHEMA]`
+- [x] `FOR JSON {AUTO|PATH} [, ROOT('r')] [, INCLUDE_NULL_VALUES] [, WITHOUT_ARRAY_WRAPPER]`
+- [x] `FOR BROWSE`
+- [x] Temporal queries (`FOR SYSTEM_TIME {AS OF|FROM ... TO|BETWEEN ... AND|CONTAINED IN (...)|ALL}`)
+- [x] `OFFSET n ROWS FETCH {FIRST|NEXT} n ROWS ONLY` as the only `FETCH` form (no `WITH TIES`/`PERCENT` here)
+- [x] `WINDOW` clause and named windows (2022)
+- [x] Multi-part names (`server.database.schema.object`, `database..object`, `.schema.object`)
+- [x] Derived table column aliases without `AS` and `VALUES` row constructors as derived tables
+- [x] `TABLESAMPLE [SYSTEM] (n {PERCENT|ROWS}) [REPEATABLE (seed)]`
+- [x] `GROUP BY ALL` (deprecated) and `GROUP BY ... WITH ROLLUP|CUBE`
+- [x] `COMPUTE` / `COMPUTE BY` (legacy, parse-only)
 
 ## DML
-- [ ] `OUTPUT inserted.*|deleted.* [INTO {@table|table} [(cols)]]` on `INSERT` / `UPDATE` / `DELETE` / `MERGE`
-- [ ] `$action` in `MERGE ... OUTPUT`
-- [ ] `INSERT TOP (n)` / `UPDATE TOP (n)` / `DELETE TOP (n)`
-- [ ] `UPDATE t SET ... FROM t JOIN ...`
-- [ ] `DELETE [FROM] t FROM t JOIN ...` (second `FROM`)
-- [ ] `UPDATE ... SET @v = col = expr` combined variable/column assignment
-- [ ] `UPDATE ... SET col.WRITE(expr, offset, length)` partial LOB updates
-- [ ] `UPDATE ... SET udt_col.Method(...)` mutator calls
+- [x] `OUTPUT inserted.*|deleted.* [INTO {@table|table} [(cols)]]` on `INSERT` / `UPDATE` / `DELETE` / `MERGE`
+- [x] `$action` in `MERGE ... OUTPUT`
+- [x] `INSERT TOP (n)` / `UPDATE TOP (n)` / `DELETE TOP (n)`
+- [x] `UPDATE t SET ... FROM t JOIN ...`
+- [x] `DELETE [FROM] t FROM t JOIN ...` (second `FROM`)
+- [x] `UPDATE ... SET @v = col = expr` combined variable/column assignment
+- [x] `UPDATE ... SET col.WRITE(expr, offset, length)` partial LOB updates
+- [x] `UPDATE ... SET udt_col.Method(...)` mutator calls
 - [x] `INSERT INTO t EXEC[UTE] proc ...` / `INSERT ... EXEC ('sql')`
-- [ ] `INSERT` without `INTO`
-- [ ] `MERGE ... WHEN NOT MATCHED [BY TARGET]` / `WHEN NOT MATCHED BY SOURCE` with extra `AND` conditions
-- [ ] Table hints on DML targets (`UPDATE t WITH (ROWLOCK)`, `MERGE t WITH (HOLDLOCK)`)
-- [ ] `WHERE CURRENT OF [GLOBAL] cursor` with T-SQL cursor names and variables
-- [ ] `BULK INSERT table FROM 'file' WITH (FORMAT = 'CSV', FIELDTERMINATOR = ..., ...)`
-- [ ] `TRUNCATE TABLE ... WITH (PARTITIONS (1, 3 TO 5))`
+- [x] `INSERT` without `INTO`
+- [x] `MERGE ... WHEN NOT MATCHED [BY TARGET]` / `WHEN NOT MATCHED BY SOURCE` with extra `AND` conditions
+- [x] Table hints on DML targets (`UPDATE t WITH (ROWLOCK)`, `MERGE t WITH (HOLDLOCK)`)
+- [x] `WHERE CURRENT OF [GLOBAL] cursor` with T-SQL cursor names and variables
+- [x] `BULK INSERT table FROM 'file' WITH (FORMAT = 'CSV', FIELDTERMINATOR = ..., ...)`
+- [x] `TRUNCATE TABLE ... WITH (PARTITIONS (1, 3 TO 5))`
 
 ## Schema / DDL
 
@@ -359,14 +359,14 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ## Full text search
 - [x] `CONTAINS(col|(cols)|*, 'search condition' [, LANGUAGE l])`
 - [x] `FREETEXT(col|(cols)|*, 'text' [, LANGUAGE l])`
-- [ ] `CONTAINSTABLE(t, col, '...' [, top_n])` / `FREETEXTTABLE(...)` with `KEY` / `RANK` columns
+- [x] `CONTAINSTABLE(t, col, '...' [, top_n])` / `FREETEXTTABLE(...)` with `KEY` / `RANK` columns
 - [x] `CREATE FULLTEXT CATALOG` / `ALTER FULLTEXT CATALOG`
 - [x] `CREATE FULLTEXT INDEX ON t (col [TYPE COLUMN c] [LANGUAGE l]) KEY INDEX ix [ON catalog] [WITH ...]`
 - [x] `CREATE FULLTEXT STOPLIST` / `CREATE SEARCH PROPERTY LIST`
-- [ ] `SEMANTICKEYPHRASETABLE()` / `SEMANTICSIMILARITYTABLE()` / `SEMANTICSIMILARITYDETAILSTABLE()`
+- [x] `SEMANTICKEYPHRASETABLE()` / `SEMANTICSIMILARITYTABLE()` / `SEMANTICSIMILARITYDETAILSTABLE()`
 
 ## System objects and pseudo-columns
-- [ ] `sys.*` catalog views, `INFORMATION_SCHEMA`, and `dm_*` DMVs as ordinary multi-part names
+- [x] `sys.*` catalog views, `INFORMATION_SCHEMA`, and `dm_*` DMVs as ordinary multi-part names
 - [x] System stored procedures (`sp_*`, `xp_*`) called via `EXEC` without schema qualification
 - [x] `$IDENTITY` / `$ROWGUID` pseudo-columns
 - [x] `$PARTITION.fn(expr)`
