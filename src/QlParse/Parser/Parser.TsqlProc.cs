@@ -2,9 +2,9 @@ namespace QlParse;
 
 // Workstream E: procedural T-SQL, modules, cursors, triggers, transactions and session statements.
 // Every statement here starts with a word that stays an ordinary identifier (or SET / FETCH), so the hook
-// dispatches on the word's length and text and returns null for anything it does not own; the ISO
-// dispatch, or a later workstream's hook, then gets the statement. Bodies (BEGIN ... END, TRY/CATCH,
-// procedure and trigger bodies) are parsed eagerly with ParseTsqlStatementList.
+// dispatches on the word's length and text and returns null for anything it does not own, which leaves
+// the statement to the ISO dispatch or to a later workstream's hook. Block, TRY/CATCH, procedure and
+// trigger bodies are parsed eagerly with ParseTsqlStatementList.
 internal sealed partial class Parser
 {
     internal Query? TryParseTsqlProcStatement() => _current.Kind switch

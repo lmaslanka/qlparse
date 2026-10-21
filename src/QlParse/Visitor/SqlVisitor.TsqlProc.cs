@@ -3,7 +3,7 @@ namespace QlParse;
 public partial class SqlVisitor
 {
     // Workstream E: SQL Server-only procedural, trigger, transaction and session statement nodes.
-    private bool TryVisitTsqlProcQuery(Query query) =>
+    internal bool TryVisitTsqlProcQuery(Query query) =>
         TryVisitTsqlProcControl(query) || TryVisitTsqlProcStatement(query) || TryVisitTsqlProcModule(query);
 
     private bool TryVisitTsqlProcControl(Query query)

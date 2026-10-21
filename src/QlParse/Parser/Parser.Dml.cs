@@ -221,7 +221,7 @@ internal sealed partial class Parser
 
     private List<SyntaxToken> ParseQualifiedName()
     {
-        var name = new List<SyntaxToken> { _current.Kind == SyntaxKind.Identifier ? Advance() : ExpectTsqlTableVariable() };
+        var name = new List<SyntaxToken> { ExpectTableNameStart() };
         while (_current.Kind == SyntaxKind.Dot)
         {
             Advance();

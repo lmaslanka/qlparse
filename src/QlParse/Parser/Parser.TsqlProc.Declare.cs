@@ -14,17 +14,18 @@ internal sealed partial class Parser
         }
 
         var cursorIndex = _index + 1;
-        if (NextKind == SyntaxKind.Identifier
-            && IsKeywordAt(cursorIndex, Keyword.Cursor)
-            && cursorIndex + 1 < _tokens.Count
-            && _tokens[cursorIndex + 1].Kind == SyntaxKind.Identifier
-            && Keyword.IsTsqlCursorOption(_tokens[cursorIndex + 1].TextOf(_source)))
+        if (NextKind == SyntaxKind.Identifier && IsKeywordAt(cursorIndex, Keyword.Cursor) && IsTsqlCursorOptionAt(cursorIndex + 1))
         {
             return ParseTsqlDeclareCursor();
         }
 
         return null;
     }
+
+    private bool IsTsqlCursorOptionAt(int index) =>
+        index < _tokens.Count
+        && _tokens[index].Kind == SyntaxKind.Identifier
+        && Keyword.IsTsqlCursorOption(_tokens[index].TextOf(_source));
 
     private TsqlDeclareStatement ParseTsqlDeclareVariables()
     {
@@ -101,10 +102,17 @@ internal sealed partial class Parser
         };
     }
 
-    // The first part of a table name when it is not an identifier: a T-SQL table variable (`FROM @t`,
-    // `INSERT INTO @t`); anything else is the usual "Expected Identifier" error.
-    internal SyntaxToken ExpectTsqlTableVariable() =>
-        _current.Kind == SyntaxKind.EmbeddedHost && IsSqlServer ? Advance() : Expect(SyntaxKind.Identifier);
+    // The first part of a table name, which under SQL Server may also be a table variable such as @t.
+    // The identifier test comes first, so an ISO name costs exactly what Expect costs.
+    internal SyntaxToken ExpectTableNameStart()
+    {
+        if (_current.Kind == SyntaxKind.Identifier || (_current.Kind == SyntaxKind.EmbeddedHost && IsSqlServer))
+        {
+            return Advance();
+        }
+
+        return Expect(SyntaxKind.Identifier);
+    }
 
     private TsqlDeclareCursorStatement ParseTsqlDeclareCursor()
     {
@@ -212,9 +220,7 @@ internal sealed partial class Parser
             return false;
         }
 
-        var next = _index < _tokens.Count ? _tokens[_index] : default;
-        return next.Kind == SyntaxKind.ForKeyword
-            || (next.Kind == SyntaxKind.Identifier && Keyword.IsTsqlCursorOption(next.TextOf(_source)));
+        return NextKind == SyntaxKind.ForKeyword || IsTsqlCursorOptionAt(_index);
     }
 
     // SET option[, option ...] {ON | OFF | value}, and SET STATISTICS {IO | TIME | XML | PROFILE}[, ...] {ON | OFF}
@@ -329,7 +335,7 @@ internal sealed partial class Parser
     private bool IsTsqlGlobalCursor() => IdentifierEquals(Keyword.Global) && NextKind == SyntaxKind.Identifier;
 
     // FETCH [[NEXT|PRIOR|FIRST|LAST|ABSOLUTE n|RELATIVE n] FROM] [GLOBAL] cursor [INTO @a, ...]
-    private TsqlFetchStatement ParseTsqlFetch()
+    internal TsqlFetchStatement ParseTsqlFetch()
     {
         var fetchKeyword = Advance();
         SyntaxToken? orientation = null;

@@ -5,10 +5,7 @@ namespace QlParse;
 // the ISO dispatch or another workstream.
 internal sealed partial class Parser
 {
-    private readonly record struct TsqlModuleHead(SyntaxToken? CreateKeyword, SyntaxToken? OrKeyword, SyntaxToken? AlterKeyword)
-    {
-        internal SyntaxToken Start => CreateKeyword ?? AlterKeyword!.Value;
-    }
+    private readonly record struct TsqlModuleHead(SyntaxToken Start, SyntaxToken? CreateKeyword, SyntaxToken? OrKeyword, SyntaxToken? AlterKeyword);
 
     private Query? TryParseTsqlCreateModule()
     {
@@ -62,17 +59,18 @@ internal sealed partial class Parser
     {
         if (IdentifierEquals(Keyword.Alter))
         {
-            return new TsqlModuleHead(null, null, Advance());
+            var alterKeyword = Advance();
+            return new TsqlModuleHead(alterKeyword, null, null, alterKeyword);
         }
 
         var createKeyword = Advance();
         if (_current.Kind != SyntaxKind.OrKeyword)
         {
-            return new TsqlModuleHead(createKeyword, null, null);
+            return new TsqlModuleHead(createKeyword, createKeyword, null, null);
         }
 
         var orKeyword = Advance();
-        return new TsqlModuleHead(createKeyword, orKeyword, Advance());
+        return new TsqlModuleHead(createKeyword, createKeyword, orKeyword, Advance());
     }
 
     // CREATE OR ALTER VIEW: the view definition is parsed from the ALTER keyword on by the ordinary view parser.
