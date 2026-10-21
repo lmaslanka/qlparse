@@ -353,7 +353,8 @@ internal sealed partial class Parser
 
         if (!IdentifierEquals(Keyword.Alter))
         {
-            throw new SqlParseException($"Expected ADD, DROP, or ALTER, found {_current.Kind}", _current.Position);
+            return (IsPostgres ? TryParseRowLevelSecurityAction() : null)
+                ?? throw new SqlParseException($"Expected ADD, DROP, or ALTER, found {_current.Kind}", _current.Position);
         }
 
         return ParseAlterColumn();

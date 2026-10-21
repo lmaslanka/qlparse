@@ -11,4 +11,6 @@ public sealed class TransactionMode
     public SyntaxToken? DiagnosticsKeyword { get; init; }
     public SyntaxToken? SizeKeyword { get; init; }
     public Expression? Size { get; init; }
+    public SyntaxToken? NotKeyword { get; init; }
+    public SyntaxToken? DeferrableKeyword { get; init; }
 }

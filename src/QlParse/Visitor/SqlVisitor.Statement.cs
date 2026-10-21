@@ -401,6 +401,9 @@ public partial class SqlVisitor
             case SystemVersioningAction node:
                 VisitSystemVersioningAction(node);
                 break;
+            case RowLevelSecurityAction node:
+                VisitRowLevelSecurityAction(node);
+                break;
             default:
                 throw new SwitchExpressionException(action);
         }

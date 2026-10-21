@@ -10,5 +10,5 @@ public sealed class RevokeRoleStatement : Query
     public SyntaxToken? GrantedKeyword { get; init; }
     public SyntaxToken? ByKeyword { get; init; }
     public SyntaxToken? Grantor { get; init; }
-    public required SyntaxToken Behavior { get; init; }
+    public SyntaxToken? Behavior { get; init; }
 }

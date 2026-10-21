@@ -6,7 +6,7 @@ internal sealed partial class Parser
 
     internal Query ParseRevoke()
     {
-        if (NextEquals(Keyword.Admin))
+        if (NextEquals(Keyword.Admin) || (IsPostgres && IsPgRoleRevokeOptionNext()))
         {
             return ParseRevokeRole();
         }
@@ -68,8 +68,8 @@ internal sealed partial class Parser
         var roles = ParseRoleList();
         var toKeyword = ExpectIdent(Keyword.To);
         var grantees = ParseGrantees();
-        GrantOptionClause? admin = null;
-        if (IsWithOption(Keyword.Admin))
+        var admin = IsPostgres ? TryParsePgRoleGrantOption() : null;
+        if (admin is null && IsWithOption(Keyword.Admin))
         {
             admin = ParseWithOption();
         }
@@ -110,10 +110,10 @@ internal sealed partial class Parser
         var fromKeyword = Expect(SyntaxKind.FromKeyword);
         var grantees = ParseGrantees();
         ParseGrantedBy(out var granted, out var by, out var grantor);
-        var behavior = ParseDropBehavior();
+        var behavior = ParseRevokeBehavior();
         return new RevokePrivilegeStatement
         {
-            Span = SourceSpan.From(revokeKeyword, behavior),
+            Span = SourceSpan.From(revokeKeyword, behavior ?? grantor ?? grantees[^1]),
             RevokeKeyword = revokeKeyword,
             Option = option,
             Actions = actions,
@@ -136,10 +136,10 @@ internal sealed partial class Parser
         var fromKeyword = Expect(SyntaxKind.FromKeyword);
         var grantees = ParseGrantees();
         ParseGrantedBy(out var granted, out var by, out var grantor);
-        var behavior = ParseDropBehavior();
+        var behavior = ParseRevokeBehavior();
         return new RevokeRoleStatement
         {
-            Span = SourceSpan.From(revokeKeyword, behavior),
+            Span = SourceSpan.From(revokeKeyword, behavior ?? grantor ?? grantees[^1]),
             RevokeKeyword = revokeKeyword,
             Option = option,
             Roles = roles,
@@ -214,6 +214,11 @@ internal sealed partial class Parser
     {
         if (_current.Kind == SyntaxKind.AllKeyword)
         {
+            if (IsPostgres)
+            {
+                return [ParsePgAllPrivileges()];
+            }
+
             var all = Advance();
             var privileges = ExpectIdent(Keyword.Privileges);
             return
@@ -269,10 +274,12 @@ internal sealed partial class Parser
     }
 
     private PrivilegeObject ParsePrivilegeObject() =>
-        TryParseSimpleNamedPrivilegeObject()
-        ?? TryParseCharacterSetPrivilegeObject()
-        ?? TryParseRoutinePrivilegeObject()
-        ?? ParseTablePrivilegeObject();
+        IsPostgres
+            ? ParsePgPrivilegeObject()
+            : TryParseSimpleNamedPrivilegeObject()
+                ?? TryParseCharacterSetPrivilegeObject()
+                ?? TryParseRoutinePrivilegeObject()
+                ?? ParseTablePrivilegeObject();
 
     private bool IsSimpleNamedPrivilegeObjectKeyword() =>
         IdentifierEquals(Keyword.Domain) || IdentifierEquals(Keyword.Collation)
@@ -431,7 +438,7 @@ internal sealed partial class Parser
 
     private RevokeOptionClause? ParseRevokeOption()
     {
-        if (!IdentifierEquals(Keyword.Grant) && !IdentifierEquals(Keyword.Hierarchy) && !IdentifierEquals(Keyword.Admin))
+        if (!IsRevokeOptionKind())
         {
             return null;
         }
@@ -476,7 +483,8 @@ internal sealed partial class Parser
         || TokenEquals(token, Keyword.Usage)
         || TokenEquals(token, Keyword.Trigger)
         || TokenEquals(token, Keyword.Under)
-        || TokenEquals(token, Keyword.Execute);
+        || TokenEquals(token, Keyword.Execute)
+        || (IsPostgres && TokenIsPgPrivilege(token));
 
     private bool AllowsPrivilegeColumns(SyntaxToken name) =>
         name.Kind is SyntaxKind.SelectKeyword or SyntaxKind.UpdateKeyword
@@ -489,4 +497,199 @@ internal sealed partial class Parser
     private bool IsGrantee() =>
         _current.Kind is SyntaxKind.Identifier or SyntaxKind.CurrentUserKeyword or SyntaxKind.CurrentRoleKeyword
             or SyntaxKind.SessionUserKeyword or SyntaxKind.SystemUserKeyword or SyntaxKind.UserKeyword;
+
+    private SyntaxToken? ParseRevokeBehavior() => IsPostgres ? TryParseDropBehavior() : ParseDropBehavior();
+
+    // Postgres role grants: WITH {ADMIN | INHERIT | SET} {OPTION | TRUE | FALSE}.
+    private GrantOptionClause? TryParsePgRoleGrantOption()
+    {
+        if (_current.Kind != SyntaxKind.WithKeyword)
+        {
+            return null;
+        }
+
+        var withKeyword = Advance();
+        if (!IdentifierEquals(Keyword.Admin) && !IdentifierEquals(Keyword.UtilInherit) && _current.Kind != SyntaxKind.SetKeyword)
+        {
+            throw new SqlParseException($"Expected ADMIN, INHERIT, or SET, found {_current.Kind}", _current.Position);
+        }
+
+        var kind = Advance();
+        if (!IdentifierEquals(Keyword.Option) && _current.Kind is not (SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword))
+        {
+            throw new SqlParseException($"Expected OPTION, TRUE, or FALSE, found {_current.Kind}", _current.Position);
+        }
+
+        var value = Advance();
+        return new GrantOptionClause
+        {
+            Span = SourceSpan.From(withKeyword, value),
+            WithKeyword = withKeyword,
+            Kind = kind,
+            OptionKeyword = value,
+        };
+    }
+
+    private bool IsRevokeOptionKind() =>
+        IdentifierEquals(Keyword.Grant) || IdentifierEquals(Keyword.Hierarchy) || IdentifierEquals(Keyword.Admin)
+        || IsPgRoleRevokeOptionStart();
+
+    private bool IsPgRoleRevokeOptionStart() => IsPostgres && IsPgRoleRevokeOption();
+
+    private bool IsPgRoleRevokeOptionNext() =>
+        (NextEquals(Keyword.UtilInherit) || NextKind == SyntaxKind.SetKeyword) && IsKeywordAt(_index + 1, Keyword.Option);
+
+    private bool IsPgRoleRevokeOption() =>
+        (IdentifierEquals(Keyword.UtilInherit) || _current.Kind == SyntaxKind.SetKeyword) && NextEquals(Keyword.Option);
+
+    // Postgres-only privileges: TEMPORARY, TEMP, CONNECT, CREATE, TRUNCATE, MAINTAIN, SET.
+    private bool TokenIsPgPrivilege(SyntaxToken token) =>
+        token.Kind == SyntaxKind.SetKeyword
+        || TokenEquals(token, Keyword.Temporary) || TokenEquals(token, Keyword.UtilTemp)
+        || TokenEquals(token, Keyword.Connect) || TokenEquals(token, Keyword.Create)
+        || TokenEquals(token, Keyword.Truncate) || TokenEquals(token, Keyword.UtilMaintain);
+
+    // ALL [PRIVILEGES] [(column, ...)]
+    private PrivilegeAction ParsePgAllPrivileges()
+    {
+        var all = Advance();
+        var privileges = IdentifierEquals(Keyword.Privileges) ? Advance() : (SyntaxToken?)null;
+        if (_current.Kind != SyntaxKind.OpenParen)
+        {
+            return new PrivilegeAction
+            {
+                Span = SourceSpan.From(all, privileges ?? all),
+                Name = all,
+                PrivilegesKeyword = privileges,
+            };
+        }
+
+        ParseRequiredNameList(out var openParen, out var columns, out var closeParen);
+        return new PrivilegeAction
+        {
+            Span = SourceSpan.From(all, closeParen),
+            Name = all,
+            PrivilegesKeyword = privileges,
+            OpenParen = openParen,
+            Columns = columns,
+            CloseParen = closeParen,
+        };
+    }
+
+    private PrivilegeObject ParsePgPrivilegeObject()
+    {
+        if (_current.Kind == SyntaxKind.AllKeyword)
+        {
+            return ParsePgAllInSchemaObject();
+        }
+
+        var isKindWord = !IsPrivilegeObjectEndAt(_index);
+        if (isKindWord && IsPgPrivilegeObjectKind())
+        {
+            return ParsePgNamedPrivilegeObject(ParsePgPrivilegeKind());
+        }
+
+        if (!isKindWord && TokenIsPgBulkObjectKind(_current))
+        {
+            var bulkKind = Advance();
+            return new PrivilegeObject { Span = bulkKind.Span, Kind = bulkKind };
+        }
+
+        return TryParseSimpleNamedPrivilegeObject()
+            ?? TryParseCharacterSetPrivilegeObject()
+            ?? TryParseRoutinePrivilegeObject()
+            ?? ParsePgNamedPrivilegeObject([]);
+    }
+
+    // ALL {TABLES | SEQUENCES | FUNCTIONS | PROCEDURES | ROUTINES} IN SCHEMA schema [, ...]
+    private PrivilegeObject ParsePgAllInSchemaObject()
+    {
+        var all = Advance();
+        if (!TokenIsPgBulkObjectKind(_current))
+        {
+            throw new SqlParseException($"Expected TABLES, SEQUENCES, FUNCTIONS, PROCEDURES, or ROUTINES, found {_current.Kind}", _current.Position);
+        }
+
+        var kind = Advance();
+        var inKeyword = Expect(SyntaxKind.InKeyword);
+        var schemaKeyword = ExpectIdent(Keyword.Schema);
+        var schemas = ParseObjectSignatureList();
+        return new PrivilegeObject
+        {
+            Span = SourceSpan.From(all, schemas[^1].Span),
+            AllKeyword = all,
+            Kind = kind,
+            InKeyword = inKeyword,
+            SchemaKeyword = schemaKeyword,
+            Targets = schemas,
+        };
+    }
+
+    private PrivilegeObject ParsePgNamedPrivilegeObject(List<SyntaxToken> kind)
+    {
+        var targets = ParseObjectSignatureList();
+        var start = kind.Count > 0 ? kind[0].Span : targets[0].Span;
+        return new PrivilegeObject
+        {
+            Span = SourceSpan.From(start, targets[^1].Span),
+            Kind = kind.Count > 0 ? kind[0] : null,
+            ExtraKindKeywords = kind.Count > 1 ? kind[1..] : [],
+            Name = targets[0].Name,
+            Targets = targets,
+        };
+    }
+
+    private List<ObjectSignature> ParseObjectSignatureList()
+    {
+        var targets = new List<ObjectSignature> { ParseObjectSignature() };
+        while (_current.Kind == SyntaxKind.Comma)
+        {
+            Advance();
+            targets.Add(ParseObjectSignature());
+        }
+
+        return targets;
+    }
+
+    // One kind word, or FOREIGN DATA WRAPPER / FOREIGN SERVER / LARGE OBJECT.
+    private List<SyntaxToken> ParsePgPrivilegeKind()
+    {
+        var first = Advance();
+        if (TokenEquals(first, Keyword.Large))
+        {
+            return [first, ExpectIdent(Keyword.Object)];
+        }
+
+        if (!TokenEquals(first, Keyword.Foreign))
+        {
+            return [first];
+        }
+
+        if (IdentifierEquals(Keyword.UtilServer))
+        {
+            return [first, Advance()];
+        }
+
+        var data = ExpectIdent(Keyword.Data);
+        return [first, data, ExpectIdent(Keyword.Wrapper)];
+    }
+
+    private bool IsPgPrivilegeObjectKind() =>
+        IdentifierEquals(Keyword.Table) || IdentifierEquals(Keyword.Sequence) || IdentifierEquals(Keyword.UtilDatabase)
+        || IdentifierEquals(Keyword.Domain) || IdentifierEquals(Keyword.Foreign) || IdentifierEquals(Keyword.Function)
+        || IdentifierEquals(Keyword.Procedure) || IdentifierEquals(Keyword.Routine) || IsPgPrivilegeObjectKindTail();
+
+    private bool IsPgPrivilegeObjectKindTail() =>
+        IdentifierEquals(Keyword.Language) || IdentifierEquals(Keyword.Large) || IdentifierEquals(Keyword.Parameter)
+        || IdentifierEquals(Keyword.Schema) || IdentifierEquals(Keyword.UtilTablespace) || IdentifierEquals(Keyword.Type);
+
+    // The plural kinds of ALL … IN SCHEMA and ALTER DEFAULT PRIVILEGES.
+    private bool TokenIsPgBulkObjectKind(SyntaxToken token) =>
+        TokenEquals(token, Keyword.Tables) || TokenEquals(token, Keyword.UtilSequences)
+        || TokenEquals(token, Keyword.UtilFunctions) || TokenEquals(token, Keyword.UtilProcedures)
+        || TokenEquals(token, Keyword.UtilRoutines) || TokenEquals(token, Keyword.UtilTypes)
+        || TokenEquals(token, Keyword.UtilSchemas);
+
+    private bool IsPrivilegeObjectEndAt(int index) =>
+        index < _tokens.Count && (_tokens[index].Kind == SyntaxKind.FromKeyword || TokenEquals(_tokens[index], Keyword.To));
 }
