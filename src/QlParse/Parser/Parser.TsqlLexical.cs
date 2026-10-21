@@ -70,9 +70,10 @@ internal sealed partial class Parser
         };
     }
 
-    // An unquoted T-SQL reserved word never starts an implicit alias.
+    // An unquoted T-SQL reserved word never starts an implicit alias, nor does a non-reserved word that opens
+    // the clause after a table (MERGE ... USING, WINDOW w AS).
     internal bool IsTsqlReservedAliasWord() =>
-        _current.Kind == SyntaxKind.Identifier && Keyword.IsTsqlReserved(_current.TextOf(_source));
+        _current.Kind == SyntaxKind.Identifier && (Keyword.IsTsqlReserved(_current.TextOf(_source)) || IsTsqlClauseWordAfterTable());
 
     // `a *= b` (legacy left outer join); every other compound assignment ends the expression so that
     // `SET @v += 1` and `UPDATE ... SET c -= 1` parsers see their operator.

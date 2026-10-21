@@ -145,7 +145,7 @@ internal sealed partial class Parser
                 };
             }
 
-            var member = Expect(SyntaxKind.Identifier);
+            var member = _current.Kind == SyntaxKind.Identifier ? Advance() : ExpectTsqlOmittedMember();
             if (_current.Kind == SyntaxKind.OpenParen)
             {
                 return IsSqlServer ? ParseTsqlMemberCall(left, dot, member) : ParseMethodInvocation(left, dot, member);

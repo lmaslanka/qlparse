@@ -1,7 +1,8 @@
 namespace QlParse;
 
 // A FROM-clause rowset function whose arguments are not a plain expression list: OPENJSON, OPENXML, OPENROWSET,
-// OPENQUERY, OPENDATASOURCE(...).db.schema.object, CONTAINSTABLE, FREETEXTTABLE, SEMANTIC*TABLE, VECTOR_SEARCH.
+// OPENQUERY, OPENDATASOURCE(...).db.schema.object, CONTAINSTABLE, FREETEXTTABLE, SEMANTIC*TABLE, VECTOR_SEARCH,
+// CHANGETABLE.
 // Separators keeps the `,` or `;` between arguments; ObjectName is the `.db.schema.object` after OPENDATASOURCE.
 public sealed class TsqlRowsetFunctionTable : TableSource
 {

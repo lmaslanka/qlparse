@@ -126,14 +126,16 @@ internal sealed partial class Parser
         var kind = TakeTsqlWords(kindLength);
         var (ifKeyword, existsKeyword) = ParseIfExists();
         var names = unnamed ? null : ParseSchemaNameList();
+        var options = ParseTsqlDropSecurableTail(kind);
         return new TsqlDropSecurableStatement
         {
-            Span = SourceSpan.From(drop, names is not null ? names[^1][^1] : existsKeyword ?? kind[^1]),
+            Span = SourceSpan.From(drop, TsqlLastConsumed()),
             DropKeyword = drop,
             KindKeywords = kind,
             IfKeyword = ifKeyword,
             ExistsKeyword = existsKeyword,
             Names = names ?? (IReadOnlyList<IReadOnlyList<SyntaxToken>>)[],
+            Options = options,
         };
     }
 

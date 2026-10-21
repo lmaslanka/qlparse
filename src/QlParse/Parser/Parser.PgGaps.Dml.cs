@@ -71,15 +71,23 @@ internal sealed partial class Parser
 
     // ORDER BY / LIMIT / OFFSET / FETCH / FOR after a whole query expression. Only a top-level query
     // (not the right operand of a set operator) takes them, so they apply to the whole set operation.
+    // SQL Server takes ORDER BY [OFFSET ... FETCH ...] there too (see ParseTsqlOrderedQuery).
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     internal bool IsPgQueryTailStart(int minBindingPower) =>
-        IsPostgres
+        IsPostgresOrSqlServer
         && minBindingPower <= UnionBindingPower
-        && _current.Kind is SyntaxKind.OrderKeyword or SyntaxKind.LimitKeyword or SyntaxKind.OffsetKeyword
-            or SyntaxKind.FetchKeyword or SyntaxKind.ForKeyword;
+        && (IsPostgres
+            ? _current.Kind is SyntaxKind.OrderKeyword or SyntaxKind.LimitKeyword or SyntaxKind.OffsetKeyword
+                or SyntaxKind.FetchKeyword or SyntaxKind.ForKeyword
+            : _current.Kind == SyntaxKind.OrderKeyword);
 
     internal OrderedQuery ParsePgOrderedQuery(Query query)
     {
+        if (IsSqlServer)
+        {
+            return ParseTsqlOrderedQuery(query);
+        }
+
         var rest = ParseSelectRestClauses();
         return new OrderedQuery
         {

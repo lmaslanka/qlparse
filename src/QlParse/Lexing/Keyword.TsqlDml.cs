@@ -32,11 +32,12 @@ internal static partial class Keyword
     internal static class TsqlDmlSets
     {
         // FROM-clause functions whose arguments are not a plain expression list (named arguments, `*`,
-        // `LANGUAGE x`, BULK, `;`-separated connection parts) or that take a WITH (...) result schema.
+        // `LANGUAGE x`, BULK, CHANGETABLE's CHANGES / VERSION, `;`-separated connection parts) or that take a
+        // WITH (...) result schema.
         internal static readonly FrozenSet<string>.AlternateLookup<ReadOnlySpan<char>> RowsetFunctions = FrozenSet.Create(
             StringComparer.OrdinalIgnoreCase,
             "openjson", "openxml", "openrowset", "openquery", "opendatasource", "containstable", "freetexttable",
-            "semantickeyphrasetable", "semanticsimilaritytable", "semanticsimilaritydetailstable", "vector_search")
+            "semantickeyphrasetable", "semanticsimilaritytable", "semanticsimilaritydetailstable", "vector_search", "changetable")
             .GetAlternateLookup<ReadOnlySpan<char>>();
     }
 }

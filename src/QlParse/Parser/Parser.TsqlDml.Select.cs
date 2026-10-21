@@ -265,9 +265,9 @@ internal sealed partial class Parser
 
     private TsqlSelectOrdering ParseTsqlSelectOrdering()
     {
-        var window = _current.Kind == SyntaxKind.WindowKeyword ? ParseWindowClause() : null;
+        var window = IdentifierEquals(Keyword.Window) ? ParseWindowClause() : null;
         var orderBy = _current.Kind == SyntaxKind.OrderKeyword ? ParseOrderBy() : null;
-        var offset = _current.Kind == SyntaxKind.OffsetKeyword ? ParseOffset() : null;
+        var offset = IdentifierEquals(Keyword.Offset) ? ParseOffset() : null;
 
         // FETCH only continues an OFFSET; anywhere else it starts a cursor FETCH statement.
         var fetch = offset is not null && _current.Kind == SyntaxKind.FetchKeyword ? ParseTsqlOffsetFetch() : null;

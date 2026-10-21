@@ -235,7 +235,7 @@ internal sealed partial class Parser
         }
 
         var options = new List<SequenceOption>();
-        while (IsSequenceOption() || (IsPostgres && IsPgSequenceOption()))
+        while (IsSequenceOption() || (IsPostgresOrSqlServer && IsDialectSequenceOption()))
         {
             options.Add(ParseSequenceOption());
         }

@@ -33,10 +33,6 @@ internal sealed partial class Parser
         };
     }
 
-    // SQL Server-only expression starts owned by this workstream: the graph MATCH predicate.
-    internal Expression? TryParseTsqlDdlPrefix() =>
-        _current.Kind == SyntaxKind.MatchKeyword && NextKind == SyntaxKind.OpenParen ? ParseTsqlMatch() : null;
-
     private Query? TryParseTsqlDdlCreate()
     {
         var next = _tokens[_index];

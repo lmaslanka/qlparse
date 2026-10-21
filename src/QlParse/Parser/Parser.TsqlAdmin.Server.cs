@@ -387,7 +387,7 @@ internal sealed partial class Parser
         SyntaxToken? pool = null;
         SyntaxToken? externalKeyword = null;
         SyntaxToken? externalPool = null;
-        if (_current.Kind == SyntaxKind.UsingKeyword)
+        if (IdentifierEquals(Keyword.Using))
         {
             usingKeyword = Advance();
             pool = IdentifierEquals(Keyword.External) ? null : Expect(SyntaxKind.Identifier);

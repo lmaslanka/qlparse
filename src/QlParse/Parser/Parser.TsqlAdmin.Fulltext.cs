@@ -39,7 +39,7 @@ internal sealed partial class Parser
     }
 
     private bool IsTsqlSearchPropertyList() =>
-        NextKind == SyntaxKind.SearchKeyword && IsKeywordAt(_index + 1, Keyword.Property) && IsKeywordAt(_index + 2, Keyword.AdminList);
+        NextEquals(Keyword.Search) && IsKeywordAt(_index + 1, Keyword.Property) && IsKeywordAt(_index + 2, Keyword.AdminList);
 
     // CREATE FULLTEXT CATALOG name [ON FILEGROUP fg] [IN PATH 'path'] [WITH ACCENT_SENSITIVITY = {ON | OFF}]
     //     [AS DEFAULT] [AUTHORIZATION owner]
@@ -271,7 +271,7 @@ internal sealed partial class Parser
 
     private TsqlOption ParseTsqlFulltextIndexOption()
     {
-        if (_current.Kind == SyntaxKind.SearchKeyword)
+        if (IdentifierEquals(Keyword.Search))
         {
             List<SyntaxToken> words = [Advance(), ExpectIdent(Keyword.Property), ExpectIdent(Keyword.AdminList)];
             return ParseTsqlFulltextIndexOptionValue(words);

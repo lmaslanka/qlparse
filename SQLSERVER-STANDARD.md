@@ -6,7 +6,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 
 ### Identifiers and quoting
 - [x] Bracket-delimited identifiers (`[My Table]`) with `]]` escape
-- [ ] Double-quoted identifiers under `QUOTED_IDENTIFIER ON` (default) vs. double-quoted strings under `OFF`
+- [x] Double-quoted identifiers under `QUOTED_IDENTIFIER ON` (default) vs. double-quoted strings under `OFF` (`SqlOptions.QuotedIdentifierOff`)
 - [x] National character string literals (`N'...'`)
 - [x] Binary literals (`0x0A1B`, empty `0x`)
 - [x] Money literals with currency prefix (`$12.50`)
@@ -14,6 +14,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Local variables and parameters (`@name`) — reuse the existing `SqlOptions.AtParameters` lexing; `SqlServer` should imply it
 - [x] System function tokens (`@@ROWCOUNT` `@@ERROR` …)
 - [x] Unicode/extended identifier characters (`@`, `#`, `$`, `_` in regular identifiers)
+- [x] Only the T-SQL reserved keywords are reserved: ISO keywords such as `DATE`, `TIME`, `POSITION`, `WINDOW`, `OFFSET` are ordinary names
 
 ### Comments and batches
 - [x] Nested block comments (`/* outer /* inner */ still comment */`)
@@ -106,6 +107,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `OPENQUERY(linked_server, 'query')`
 - [x] `OPENDATASOURCE(provider, init_string).db.schema.obj`
 - [x] `CONTAINSTABLE()` / `FREETEXTTABLE()`
+- [x] `CHANGETABLE(CHANGES t, version)` / `CHANGETABLE(VERSION t, (keys), (values))`
 
 ### JSON
 - [x] `JSON_VALUE()` `JSON_QUERY()` `JSON_MODIFY()` `ISJSON()`
@@ -151,6 +153,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `SELECT ... INTO new_table [ON filegroup] FROM ...`
 - [x] `alias = expr` select-list alias form and string-literal aliases (`expr AS 'alias'`)
 - [x] Table hints (`FROM t WITH (NOLOCK, READPAST, UPDLOCK, HOLDLOCK, INDEX(ix), FORCESEEK, ...)`)
+- [x] Legacy table hints without `WITH` (`FROM t (NOLOCK)`, `FROM t AS x (NOLOCK)`)
 - [x] `OPTION (RECOMPILE, MAXDOP n, OPTIMIZE FOR (...), USE HINT ('...'), LABEL = '...', ...)` query hints
 - [x] Join hints (`INNER HASH JOIN`, `LEFT MERGE JOIN`, `LOOP`, `REMOTE`)
 - [x] `CROSS APPLY` / `OUTER APPLY`
@@ -162,7 +165,8 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Temporal queries (`FOR SYSTEM_TIME {AS OF|FROM ... TO|BETWEEN ... AND|CONTAINED IN (...)|ALL}`)
 - [x] `OFFSET n ROWS FETCH {FIRST|NEXT} n ROWS ONLY` as the only `FETCH` form (no `WITH TIES`/`PERCENT` here)
 - [x] `WINDOW` clause and named windows (2022)
-- [x] Multi-part names (`server.database.schema.object`, `database..object`, `.schema.object`)
+- [x] Multi-part names (`server.database.schema.object`, `database..object`, `.schema.object`), also in column references (`db..t.col`)
+- [x] `ORDER BY` / `OFFSET ... FETCH` after a parenthesised query expression (`(SELECT ... UNION SELECT ...) ORDER BY 1`)
 - [x] Derived table column aliases without `AS` and `VALUES` row constructors as derived tables
 - [x] `TABLESAMPLE [SYSTEM] (n {PERCENT|ROWS}) [REPEATABLE (seed)]`
 - [x] `GROUP BY ALL` (deprecated) and `GROUP BY ... WITH ROLLUP|CUBE`
@@ -235,10 +239,12 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 ### Views
 - [x] `WITH SCHEMABINDING` / `ENCRYPTION` / `VIEW_METADATA`
 - [x] Indexed views (`CREATE UNIQUE CLUSTERED INDEX` on a schema-bound view)
+- [x] `ALTER VIEW` with the full `CREATE VIEW` grammar (column list, view attributes, `WITH CHECK OPTION`)
 
 ### Sequences and synonyms
 - [x] `NEXT VALUE FOR seq [OVER (ORDER BY ...)]`
 - [x] `sp_sequence_get_range` via `EXEC`
+- [x] `CREATE|ALTER SEQUENCE` options `[NO] CYCLE`, `CACHE [n]` / `NO CACHE`, `RESTART [WITH n]`
 - [x] `CREATE SYNONYM name FOR [server.][db.][schema.]object`
 
 ### Databases, schemas, and storage
@@ -319,6 +325,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Always Encrypted (`ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY = k, ENCRYPTION_TYPE = ..., ALGORITHM = '...')`, `CREATE COLUMN MASTER KEY` / `COLUMN ENCRYPTION KEY`)
 - [x] Keys and certificates (`CREATE MASTER KEY`, `CREATE CERTIFICATE`, `CREATE SYMMETRIC|ASYMMETRIC KEY`, `OPEN|CLOSE SYMMETRIC KEY`, `ADD SIGNATURE`)
 - [x] Credentials and auditing (`CREATE [DATABASE SCOPED] CREDENTIAL`, `CREATE SERVER AUDIT`, `CREATE DATABASE AUDIT SPECIFICATION`)
+- [x] `BACKUP|RESTORE {CERTIFICATE c|[SERVICE] MASTER KEY|SYMMETRIC KEY k} {TO|FROM} FILE = '...' ...`
 
 ## Transactions and session
 - [x] `BEGIN TRAN[SACTION] [name|@var] [WITH MARK ['desc']]`
@@ -344,6 +351,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Availability groups and endpoints (`CREATE|ALTER AVAILABILITY GROUP`, `CREATE ENDPOINT`)
 - [x] Resource Governor (`CREATE RESOURCE POOL`, `CREATE WORKLOAD GROUP`, `ALTER RESOURCE GOVERNOR`)
 - [x] Extended events (`CREATE EVENT SESSION ... ON SERVER ADD EVENT ... ADD TARGET ...`)
+- [x] `DROP {ENDPOINT|AVAILABILITY GROUP|EVENT SESSION|EVENT NOTIFICATION|[EXTERNAL] RESOURCE POOL|WORKLOAD GROUP|WORKLOAD CLASSIFIER|AGGREGATE|EXTERNAL LANGUAGE|EXTERNAL LIBRARY}`
 - [x] Legacy text/image statements (`READTEXT` `WRITETEXT` `UPDATETEXT`)
 - [x] `SETUSER` (legacy)
 
@@ -355,6 +363,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `END CONVERSATION @h [WITH ERROR = n DESCRIPTION = '...' | WITH CLEANUP]`
 - [x] `GET CONVERSATION GROUP @g FROM queue`
 - [x] `MOVE CONVERSATION`
+- [x] `DROP {QUEUE|SERVICE|CONTRACT|MESSAGE TYPE|ROUTE|REMOTE SERVICE BINDING|BROKER PRIORITY}`
 
 ## Full text search
 - [x] `CONTAINS(col|(cols)|*, 'search condition' [, LANGUAGE l])`
@@ -363,6 +372,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `CREATE FULLTEXT CATALOG` / `ALTER FULLTEXT CATALOG`
 - [x] `CREATE FULLTEXT INDEX ON t (col [TYPE COLUMN c] [LANGUAGE l]) KEY INDEX ix [ON catalog] [WITH ...]`
 - [x] `CREATE FULLTEXT STOPLIST` / `CREATE SEARCH PROPERTY LIST`
+- [x] `ALTER FULLTEXT INDEX ON t {ENABLE|DISABLE|SET ...|ADD (...)|DROP (...)|START ... POPULATION|...}` and `DROP FULLTEXT {CATALOG|INDEX ON t|STOPLIST}` / `DROP SEARCH PROPERTY LIST`
 - [x] `SEMANTICKEYPHRASETABLE()` / `SEMANTICSIMILARITYTABLE()` / `SEMANTICSIMILARITYDETAILSTABLE()`
 
 ## System objects and pseudo-columns

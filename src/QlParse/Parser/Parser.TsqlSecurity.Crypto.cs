@@ -55,6 +55,7 @@ internal sealed partial class Parser
     };
 
     // AUTHORIZATION u | {ENCRYPTION | DECRYPTION} BY mechanism, ... | ACTIVE FOR BEGIN_DIALOG = ON | TO target [(...)]
+    // | TO FILE = '...' (BACKUP of a key or certificate)
     private TsqlObjectOption? TryParseTsqlKeyClause()
     {
         if (IdentifierEquals(Keyword.Authorization))
@@ -77,6 +78,11 @@ internal sealed partial class Parser
         {
             var to = Advance();
             var target = ExpectTsqlWord();
+            if (_current.Kind == SyntaxKind.EqualsToken)
+            {
+                return FinishTsqlObjectOption([to, target]);
+            }
+
             return TsqlKeywordClause([to, target], _current.Kind == SyntaxKind.OpenParen ? ParseTsqlObjectOptionList() : null);
         }
 
@@ -84,7 +90,7 @@ internal sealed partial class Parser
     }
 
     // The ALTER forms: {ADD | DROP} ENCRYPTION BY ..., {ADD | DROP} VALUE (...), [FORCE] REGENERATE,
-    // REMOVE {PRIVATE KEY | PROVIDER KEY | WHERE}, MODIFY NAME = new.
+    // REMOVE {PRIVATE KEY | PROVIDER KEY | WHERE}, MODIFY NAME = new; and RESTORE's trailing FORCE.
     private TsqlObjectOption? TryParseTsqlAlterClause()
     {
         if (IdentifierEquals(Keyword.Add) || IdentifierEquals(Keyword.Drop))
@@ -92,7 +98,7 @@ internal sealed partial class Parser
             return TryParseTsqlAddDropClause();
         }
 
-        if (IdentifierEquals(Keyword.SecRegenerate) || (IdentifierEquals(Keyword.Force) && NextEquals(Keyword.SecRegenerate)))
+        if (IdentifierEquals(Keyword.SecRegenerate) || IdentifierEquals(Keyword.Force))
         {
             return TsqlKeywordClause([Advance()], null);
         }

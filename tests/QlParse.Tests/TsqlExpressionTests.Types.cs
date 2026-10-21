@@ -61,7 +61,7 @@ public sealed partial class TsqlExpressionTests
     public void Timestamp_is_the_row_version_type_without_a_time_zone()
     {
         var dataType = ColumnType("timestamp not null");
-        Assert.Equal(SyntaxKind.TimestampKeyword, dataType.Name.Kind);
+        Assert.Equal(SyntaxKind.Identifier, dataType.Name.Kind);
         Assert.Null(dataType.OpenParen);
         Assert.Null(dataType.WithKeyword);
     }

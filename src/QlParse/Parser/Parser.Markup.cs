@@ -648,7 +648,7 @@ internal sealed partial class Parser
         || (_current.Kind == SyntaxKind.AbsentKeyword && NextKind == SyntaxKind.OnKeyword)
         || (_current.Kind is SyntaxKind.TrueKeyword or SyntaxKind.FalseKeyword or SyntaxKind.UnknownKeyword
             && NextKind == SyntaxKind.OnKeyword)
-        || ((IdentifierEquals(Keyword.Error) || IdentifierEquals(Keyword.Empty)) && NextKind == SyntaxKind.OnKeyword);
+        || ((IdentifierEquals(Keyword.Error) || IdentifierEquals(Keyword.Empty) || IdentifierEquals(Keyword.Absent)) && NextKind == SyntaxKind.OnKeyword);
 
     private readonly record struct MarkupBody(
         IReadOnlyList<Expression> Arguments,

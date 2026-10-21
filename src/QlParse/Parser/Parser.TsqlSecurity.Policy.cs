@@ -61,13 +61,13 @@ internal sealed partial class Parser
 
     private bool IsTsqlPredicateActionStart() =>
         (IdentifierEquals(Keyword.Add) || IdentifierEquals(Keyword.Alter) || IdentifierEquals(Keyword.Drop))
-            && (NextKind == SyntaxKind.FilterKeyword || NextEquals(Keyword.SecBlock) || NextEquals(Keyword.SecPredicate));
+            && (NextEquals(Keyword.Filter) || NextEquals(Keyword.SecBlock) || NextEquals(Keyword.SecPredicate));
 
     // {ADD | ALTER | DROP} [FILTER | BLOCK] PREDICATE [fn(arg, ...)] ON table [{AFTER | BEFORE} {INSERT | UPDATE | DELETE}]
     private TsqlSecurityPredicate ParseTsqlSecurityPredicate()
     {
         var action = Advance();
-        var kind = _current.Kind == SyntaxKind.FilterKeyword || IdentifierEquals(Keyword.SecBlock) ? Advance() : (SyntaxToken?)null;
+        var kind = IdentifierEquals(Keyword.Filter) || IdentifierEquals(Keyword.SecBlock) ? Advance() : (SyntaxToken?)null;
         var predicate = ExpectIdent(Keyword.SecPredicate);
         var function = _current.Kind == SyntaxKind.OnKeyword ? default : ParseTsqlPredicateFunction();
         var onKeyword = Expect(SyntaxKind.OnKeyword);

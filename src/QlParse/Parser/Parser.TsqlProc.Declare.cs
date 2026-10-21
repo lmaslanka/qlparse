@@ -228,11 +228,11 @@ internal sealed partial class Parser
     {
         var setKeyword = Advance();
         var statisticsKeyword = AcceptTsqlWord(Keyword.ProcStatistics);
-        var options = new List<SyntaxToken> { ExpectTsqlOptionWord() };
+        var options = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
         while (_current.Kind == SyntaxKind.Comma)
         {
             Advance();
-            options.Add(ExpectTsqlOptionWord());
+            options.Add(Expect(SyntaxKind.Identifier));
         }
 
         if (_current.Kind == SyntaxKind.OnKeyword || IdentifierEquals(Keyword.ProcOff))
@@ -258,10 +258,6 @@ internal sealed partial class Parser
             Value = value,
         };
     }
-
-    // An option name; STATISTICS TIME is the only one that is an ISO keyword.
-    private SyntaxToken ExpectTsqlOptionWord() =>
-        _current.Kind == SyntaxKind.TimeKeyword ? Advance() : Expect(SyntaxKind.Identifier);
 
     private TsqlSetTransactionIsolationLevelStatement ParseTsqlSetIsolationLevel()
     {

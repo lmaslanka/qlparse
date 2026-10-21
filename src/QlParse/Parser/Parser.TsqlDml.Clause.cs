@@ -191,10 +191,11 @@ internal sealed partial class Parser
         return FinishTsqlHint(words, bareValue: true);
     }
 
-    // `table WITH (hint [[,] hint] ...)`: each table hint is one word; commas between hints are optional.
+    // `table WITH (hint [[,] hint] ...)`: each table hint is one word; commas between hints are optional. The
+    // legacy form drops the WITH (see IsTsqlLegacyTableHints).
     internal TsqlHintedTable ParseTsqlHintedTable(TableSource table)
     {
-        var withKeyword = Advance();
+        var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
         var openParen = Expect(SyntaxKind.OpenParen);
         var hints = new List<TsqlHint>();
         do
@@ -313,7 +314,7 @@ internal sealed partial class Parser
     // ELEMENTS {XSINIL | ABSENT}, BINARY BASE64
     private bool IsTsqlForOptionSecondWord(SyntaxToken first) =>
         TokenEquals(first, Keyword.DmlElements)
-            ? IdentifierEquals(Keyword.DmlXsinil) || _current.Kind == SyntaxKind.AbsentKeyword
+            ? IdentifierEquals(Keyword.DmlXsinil) || IdentifierEquals(Keyword.Absent)
             : TokenEquals(first, Keyword.DmlBinary) && IdentifierEquals(Keyword.DmlBase64);
 
     // RAW | AUTO | EXPLICIT | PATH | ROOT | TYPE | XMLSCHEMA ... [('argument')], ELEMENTS [XSINIL | ABSENT], BINARY BASE64.

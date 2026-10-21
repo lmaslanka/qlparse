@@ -215,7 +215,7 @@ internal sealed partial class Parser
         if (_current.Kind == SyntaxKind.ReadKeyword)
         {
             var readKeyword = Advance();
-            var onlyKeyword = Expect(SyntaxKind.OnlyKeyword);
+            var onlyKeyword = _current.Kind == SyntaxKind.OnlyKeyword ? Advance() : ExpectTsqlWord(SyntaxKind.OnlyKeyword, Keyword.Only);
             return new LockClause
             {
                 Span = SourceSpan.From(forKeyword, onlyKeyword),
@@ -384,7 +384,7 @@ internal sealed partial class Parser
 
     private bool IsGroupingOperation() =>
         (IdentifierEquals(Keyword.Rollup) || IdentifierEquals(Keyword.Cube)) && NextKind == SyntaxKind.OpenParen
-        || _current.Kind == SyntaxKind.GroupingKeyword && NextIsSets();
+        || (_current.Kind == SyntaxKind.GroupingKeyword || IdentifierEquals(Keyword.Grouping)) && NextIsSets();
 
     private bool NextIsSets() =>
         NextKind == SyntaxKind.Identifier
@@ -394,7 +394,7 @@ internal sealed partial class Parser
     private GroupingOperationExpression ParseGroupingOperation()
     {
         var keyword = Advance();
-        SyntaxToken? setsKeyword = keyword.Kind == SyntaxKind.GroupingKeyword ? Advance() : null;
+        SyntaxToken? setsKeyword = keyword.Kind == SyntaxKind.GroupingKeyword || TokenEquals(keyword, Keyword.Grouping) ? Advance() : null;
         var openParen = Expect(SyntaxKind.OpenParen);
         var elements = new List<Expression> { ParseGroupingElement() };
         while (_current.Kind == SyntaxKind.Comma)
@@ -491,9 +491,12 @@ internal sealed partial class Parser
         };
     }
 
+    // ONLY is an identifier in T-SQL, where it is not reserved.
+    private bool IsFetchOnly() => _current.Kind == SyntaxKind.OnlyKeyword || IdentifierEquals(Keyword.Only);
+
     private OffsetClause ParseOffset()
     {
-        var offsetKeyword = Expect(SyntaxKind.OffsetKeyword);
+        var offsetKeyword = Advance();
         var count = ParseExpression();
         SyntaxToken? rowKeyword = null;
         if (IsRowKeyword())
@@ -539,7 +542,7 @@ internal sealed partial class Parser
         var rowKeyword = Advance();
         SyntaxToken onlyOrWith;
         SyntaxToken? tiesKeyword = null;
-        if (_current.Kind == SyntaxKind.OnlyKeyword)
+        if (IsFetchOnly())
         {
             onlyOrWith = Advance();
         }
