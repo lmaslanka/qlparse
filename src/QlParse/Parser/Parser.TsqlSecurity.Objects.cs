@@ -44,7 +44,7 @@ internal sealed partial class Parser
         }
 
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
-        var option = withKeyword is null ? null : ParseTsqlOption();
+        var option = withKeyword is null ? null : ParseTsqlObjectOption();
         return new TsqlCreateAssemblyStatement
         {
             Span = SourceSpan.From(create.Span, option?.Span ?? sources[^1].Span),
@@ -89,7 +89,7 @@ internal sealed partial class Parser
         var authorization = IdentifierEquals(Keyword.Authorization) ? Advance() : (SyntaxToken?)null;
         var owner = authorization is null ? (SyntaxToken?)null : ParseGrantee();
         var withKeyword = Expect(SyntaxKind.WithKeyword);
-        var options = ParseTsqlOptionList();
+        var options = ParseTsqlObjectOptionList();
         return new TsqlCreateExternalObjectStatement
         {
             Span = SourceSpan.From(create, options.Span),
@@ -123,7 +123,7 @@ internal sealed partial class Parser
         }
 
         var withKeyword = Expect(SyntaxKind.WithKeyword);
-        var options = ParseTsqlOptionList();
+        var options = ParseTsqlObjectOptionList();
         var asKeyword = _current.Kind == SyntaxKind.AsKeyword ? Advance() : (SyntaxToken?)null;
         var query = asKeyword is null ? null : ParseQuery();
         return new TsqlCreateExternalTableStatement

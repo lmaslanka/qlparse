@@ -70,14 +70,14 @@ internal sealed partial class Parser
 
         if (IdentifierEquals(Keyword.SecActive) && NextKind == SyntaxKind.ForKeyword)
         {
-            return ParseTsqlOption();
+            return ParseTsqlObjectOption();
         }
 
         if (IdentifierEquals(Keyword.To))
         {
             var to = Advance();
             var target = ExpectTsqlWord();
-            return TsqlKeywordClause([to, target], _current.Kind == SyntaxKind.OpenParen ? ParseTsqlOptionList() : null);
+            return TsqlKeywordClause([to, target], _current.Kind == SyntaxKind.OpenParen ? ParseTsqlObjectOptionList() : null);
         }
 
         return null;
@@ -104,7 +104,7 @@ internal sealed partial class Parser
 
         if (IdentifierEquals(Keyword.SecModify) && NextEquals(Keyword.Name))
         {
-            return ParseTsqlOption();
+            return ParseTsqlObjectOption();
         }
 
         return null;
@@ -123,7 +123,7 @@ internal sealed partial class Parser
         if (NextEquals(Keyword.Value))
         {
             var verb = Advance();
-            return TsqlKeywordClause([verb, Advance()], ParseTsqlOptionList());
+            return TsqlKeywordClause([verb, Advance()], ParseTsqlObjectOptionList());
         }
 
         return null;
@@ -152,22 +152,22 @@ internal sealed partial class Parser
         var with = Advance();
         if (_current.Kind == SyntaxKind.OpenParen)
         {
-            return TsqlKeywordClause([with], ParseTsqlOptionList());
+            return TsqlKeywordClause([with], ParseTsqlObjectOptionList());
         }
 
         if (IdentifierEquals(Keyword.SecPrivate))
         {
             var privateKeyword = Advance();
             var key = ExpectIdent(Keyword.Key);
-            return TsqlKeywordClause([with, privateKeyword, key], ParseTsqlOptionList());
+            return TsqlKeywordClause([with, privateKeyword, key], ParseTsqlObjectOptionList());
         }
 
         if (_current.Kind == SyntaxKind.ValuesKeyword)
         {
-            return TsqlKeywordClause([with, Advance()], ParseTsqlOptionList());
+            return TsqlKeywordClause([with, Advance()], ParseTsqlObjectOptionList());
         }
 
-        return TsqlKeywordClause([with], ParseTsqlBareOptionList());
+        return TsqlKeywordClause([with], ParseTsqlBareObjectOptionList());
     }
 
     // FROM {FILE = '...' | EXECUTABLE FILE = '...' | BINARY = 0x... | ASSEMBLY a | PROVIDER p}
@@ -180,7 +180,7 @@ internal sealed partial class Parser
             keywords.Add(ExpectIdent(Keyword.SecFile));
         }
 
-        return _current.Kind == SyntaxKind.EqualsToken ? FinishTsqlOption(keywords) : ParseTsqlNamedClause(keywords);
+        return _current.Kind == SyntaxKind.EqualsToken ? FinishTsqlObjectOption(keywords) : ParseTsqlNamedClause(keywords);
     }
 
     // FOR CRYPTOGRAPHIC PROVIDER p
@@ -195,7 +195,7 @@ internal sealed partial class Parser
     private TsqlObjectOption ParseTsqlContinuationClause()
     {
         Advance();
-        var list = ParseTsqlOptionList();
+        var list = ParseTsqlObjectOptionList();
         return new TsqlObjectOption { Span = list.Span, Keywords = [], Options = list };
     }
 

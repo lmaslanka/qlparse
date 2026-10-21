@@ -13,7 +13,7 @@ internal sealed partial class Parser
         var name = ParseQualifiedName();
         var predicates = ParseTsqlSecurityPredicates();
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
-        var options = withKeyword is null ? null : ParseTsqlOptionList();
+        var options = withKeyword is null ? null : ParseTsqlObjectOptionList();
         IReadOnlyList<SyntaxToken> notForReplication = [];
         if (_current.Kind == SyntaxKind.NotKeyword && NextKind == SyntaxKind.ForKeyword)
         {
@@ -137,7 +137,7 @@ internal sealed partial class Parser
 
         var actions = ParseTsqlAuditActions();
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
-        var options = withKeyword is null ? null : ParseTsqlOptionList();
+        var options = withKeyword is null ? null : ParseTsqlObjectOptionList();
         var end = options?.Span ?? (actions is not null ? actions[^1].Span : audit?.Span ?? name.Span);
         return new TsqlAuditSpecificationStatement
         {

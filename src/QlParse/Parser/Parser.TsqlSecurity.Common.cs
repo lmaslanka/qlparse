@@ -8,7 +8,7 @@ internal sealed partial class Parser
     // One option: KEYWORDS [= value] [(nested, ...)]. Several words before `=` (`DECRYPTION BY PASSWORD = 'p'`,
     // `ACTIVE FOR BEGIN_DIALOG = ON`) all belong to the option's name; without `=` only the first word does and the
     // next word is its value (`RECOVERY SIMPLE`, `ENCRYPTION ON`).
-    internal TsqlObjectOption ParseTsqlOption()
+    internal TsqlObjectOption ParseTsqlObjectOption()
     {
         var keywords = new List<SyntaxToken> { ExpectTsqlWord() };
         if (IsTsqlWordRunThenEquals())
@@ -19,15 +19,15 @@ internal sealed partial class Parser
             }
         }
 
-        return FinishTsqlOption(keywords);
+        return FinishTsqlObjectOption(keywords);
     }
 
     // The `= value` and `(nested, ...)` tail of an option whose keywords are already consumed.
-    private TsqlObjectOption FinishTsqlOption(List<SyntaxToken> keywords)
+    private TsqlObjectOption FinishTsqlObjectOption(List<SyntaxToken> keywords)
     {
         var equalsToken = _current.Kind == SyntaxKind.EqualsToken ? Advance() : (SyntaxToken?)null;
-        var value = ParseTsqlOptionValue(equalsToken is not null);
-        var options = _current.Kind == SyntaxKind.OpenParen ? ParseTsqlOptionList() : null;
+        var value = ParseTsqlObjectOptionValue(equalsToken is not null);
+        var options = _current.Kind == SyntaxKind.OpenParen ? ParseTsqlObjectOptionList() : null;
         if (equalsToken is not null && value.Count == 0 && options is null)
         {
             throw new SqlParseException($"Expected option value, found {_current.Kind}", _current.Position);
@@ -45,10 +45,10 @@ internal sealed partial class Parser
     }
 
     // `(option, ...)`
-    internal TsqlObjectOptionList ParseTsqlOptionList()
+    internal TsqlObjectOptionList ParseTsqlObjectOptionList()
     {
         var openParen = Expect(SyntaxKind.OpenParen);
-        var items = ParseTsqlOptionItems();
+        var items = ParseTsqlObjectOptionItems();
         var closeParen = Expect(SyntaxKind.CloseParen);
         return new TsqlObjectOptionList
         {
@@ -60,23 +60,23 @@ internal sealed partial class Parser
     }
 
     // `option, ...` without parentheses, as after WITH.
-    internal TsqlObjectOptionList ParseTsqlBareOptionList()
+    internal TsqlObjectOptionList ParseTsqlBareObjectOptionList()
     {
-        var items = ParseTsqlOptionItems();
+        var items = ParseTsqlObjectOptionItems();
         return new TsqlObjectOptionList { Span = SourceSpan.From(items[0].Span, items[^1].Span), Items = items };
     }
 
     // Items are comma-separated; `name = value` may also directly follow the previous item, as in
     // `PASSWORD = 'new' OLD_PASSWORD = 'old'`.
-    private List<TsqlObjectOption> ParseTsqlOptionItems()
+    private List<TsqlObjectOption> ParseTsqlObjectOptionItems()
     {
-        var items = new List<TsqlObjectOption> { ParseTsqlOption() };
+        var items = new List<TsqlObjectOption> { ParseTsqlObjectOption() };
         while (true)
         {
             if (_current.Kind == SyntaxKind.Comma)
             {
                 Advance();
-                items.Add(ParseTsqlOption());
+                items.Add(ParseTsqlObjectOption());
                 continue;
             }
 
@@ -85,15 +85,15 @@ internal sealed partial class Parser
                 return items;
             }
 
-            items.Add(ParseTsqlOption());
+            items.Add(ParseTsqlObjectOption());
         }
     }
 
     // A value is one token (anything after `=`; a literal or a non-statement word otherwise), optionally signed,
     // followed by a unit or `%` after a number, HASHED / MUST_CHANGE after a string, or `.name` parts.
-    private IReadOnlyList<SyntaxToken> ParseTsqlOptionValue(bool afterEquals)
+    private IReadOnlyList<SyntaxToken> ParseTsqlObjectOptionValue(bool afterEquals)
     {
-        if (!IsTsqlOptionValueStart(afterEquals))
+        if (!IsTsqlObjectOptionValueStart(afterEquals))
         {
             return [];
         }
@@ -105,7 +105,7 @@ internal sealed partial class Parser
         }
 
         value.Add(Advance());
-        while (IsTsqlOptionValueContinuation(value[^1]))
+        while (IsTsqlObjectOptionValueContinuation(value[^1]))
         {
             value.Add(Advance());
         }
@@ -113,7 +113,7 @@ internal sealed partial class Parser
         return value;
     }
 
-    private bool IsTsqlOptionValueStart(bool afterEquals)
+    private bool IsTsqlObjectOptionValueStart(bool afterEquals)
     {
         if (_current.Kind is SyntaxKind.MinusToken or SyntaxKind.PlusToken)
         {
@@ -142,7 +142,7 @@ internal sealed partial class Parser
         !Keyword.IsTsqlReserved(text) || TextEquals(text, Keyword.SecOff) || TextEquals(text, Keyword.Default)
             || TextEquals(text, Keyword.Primary) || TextEquals(text, Keyword.Current);
 
-    private bool IsTsqlOptionValueContinuation(SyntaxToken previous)
+    private bool IsTsqlObjectOptionValueContinuation(SyntaxToken previous)
     {
         if (previous.Kind == SyntaxKind.Number)
         {
@@ -229,7 +229,7 @@ internal sealed partial class Parser
         {
             keywords.Add(ExpectIdent(Keyword.SecMaster));
             keywords.Add(ExpectIdent(Keyword.Key));
-            return FinishTsqlOption(keywords);
+            return FinishTsqlObjectOption(keywords);
         }
 
         if (TokenEquals(kind, Keyword.Asymmetric) || TokenEquals(kind, Keyword.Symmetric))
@@ -239,11 +239,11 @@ internal sealed partial class Parser
 
         if (_current.Kind == SyntaxKind.EqualsToken)
         {
-            return FinishTsqlOption(keywords);
+            return FinishTsqlObjectOption(keywords);
         }
 
         var name = Expect(SyntaxKind.Identifier);
-        var with = IsTsqlMechanismWith() ? ParseTsqlSingleOptionList() : null;
+        var with = IsTsqlMechanismWith() ? ParseTsqlSingleObjectOptionList() : null;
         return new TsqlObjectOption
         {
             Span = SourceSpan.From(keywords[0], with?.Span ?? name.Span),
@@ -256,9 +256,9 @@ internal sealed partial class Parser
     private bool IsTsqlMechanismWith() =>
         _current.Kind == SyntaxKind.WithKeyword && (NextEquals(Keyword.SecPassword) || NextEquals(Keyword.SecSignature));
 
-    private TsqlObjectOptionList ParseTsqlSingleOptionList()
+    private TsqlObjectOptionList ParseTsqlSingleObjectOptionList()
     {
-        var option = ParseTsqlOption();
+        var option = ParseTsqlObjectOption();
         return new TsqlObjectOptionList { Span = option.Span, Items = [option] };
     }
 

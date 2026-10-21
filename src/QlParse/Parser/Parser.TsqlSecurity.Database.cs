@@ -29,7 +29,7 @@ internal sealed partial class Parser
         var create = Advance();
         var database = Advance();
         var name = Expect(SyntaxKind.Identifier);
-        var containment = IdentifierEquals(Keyword.SecContainment) ? ParseTsqlOption() : null;
+        var containment = IdentifierEquals(Keyword.SecContainment) ? ParseTsqlObjectOption() : null;
         var files = ParseTsqlDatabaseFiles();
         var collate = _current.Kind == SyntaxKind.CollateKeyword ? Advance() : (SyntaxToken?)null;
         var collation = collate is null ? (SyntaxToken?)null : Expect(SyntaxKind.Identifier);
@@ -135,11 +135,11 @@ internal sealed partial class Parser
     // (NAME = n, FILENAME = 'f', SIZE = 10 MB, ...), ... — stops before `, FILEGROUP`.
     private List<TsqlObjectOptionList> ParseTsqlDatabaseFileList()
     {
-        var files = new List<TsqlObjectOptionList> { ParseTsqlOptionList() };
+        var files = new List<TsqlObjectOptionList> { ParseTsqlObjectOptionList() };
         while (_current.Kind == SyntaxKind.Comma && NextKind == SyntaxKind.OpenParen)
         {
             Advance();
-            files.Add(ParseTsqlOptionList());
+            files.Add(ParseTsqlObjectOptionList());
         }
 
         return files;
@@ -151,7 +151,7 @@ internal sealed partial class Parser
         var forKeyword = _current.Kind == SyntaxKind.ForKeyword ? Advance() : (SyntaxToken?)null;
         var attach = forKeyword is null ? (SyntaxToken?)null : Expect(SyntaxKind.Identifier);
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
-        var options = withKeyword is null ? null : ParseTsqlOptionItems();
+        var options = withKeyword is null ? null : ParseTsqlObjectOptionItems();
         if (_current.Kind != SyntaxKind.AsKeyword)
         {
             return new TsqlDatabaseTail(forKeyword, attach, withKeyword, options, null, null, null, null);
@@ -196,7 +196,7 @@ internal sealed partial class Parser
     private TsqlAlterDatabaseStatement ParseTsqlAlterDatabaseSet(SyntaxToken alter, SyntaxToken database, SyntaxToken name)
     {
         var set = Advance();
-        var options = ParseTsqlOptionItems();
+        var options = ParseTsqlObjectOptionItems();
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
         var termination = withKeyword is null ? null : ParseTsqlTermination();
         return new TsqlAlterDatabaseStatement
@@ -289,7 +289,7 @@ internal sealed partial class Parser
             return BuildTsqlAlterDatabase(head, new TsqlAlterDatabaseAction(keywords, file.Span, Target: file));
         }
 
-        var files = TokenEquals(verb, Keyword.Add) ? ParseTsqlDatabaseFileList() : [ParseTsqlOptionList()];
+        var files = TokenEquals(verb, Keyword.Add) ? ParseTsqlDatabaseFileList() : [ParseTsqlObjectOptionList()];
         if (!IdentifierEquals(Keyword.To) || !NextEquals(Keyword.SecFilegroup))
         {
             return BuildTsqlAlterDatabase(head, new TsqlAlterDatabaseAction(keywords, files[^1].Span, Files: files));
@@ -310,7 +310,7 @@ internal sealed partial class Parser
         var filegroupKeyword = Advance();
         var filegroup = Expect(SyntaxKind.Identifier);
         var hasProperty = TokenEquals(verb, Keyword.Add) ? IdentifierEquals(Keyword.Contains) : TokenEquals(verb, Keyword.SecModify);
-        var property = hasProperty ? ParseTsqlOption() : null;
+        var property = hasProperty ? ParseTsqlObjectOption() : null;
         var end = property?.Span ?? filegroup.Span;
         return BuildTsqlAlterDatabase(head, new TsqlAlterDatabaseAction([verb, filegroupKeyword], end, Target: filegroup, Property: property));
     }
@@ -337,7 +337,7 @@ internal sealed partial class Parser
         var forKeyword = _current.Kind == SyntaxKind.ForKeyword ? Advance() : (SyntaxToken?)null;
         var secondary = forKeyword is null ? (SyntaxToken?)null : ExpectIdent(Keyword.SecSecondary);
         var action = _current.Kind == SyntaxKind.SetKeyword ? Advance() : ExpectIdent(Keyword.SecClear);
-        var option = ParseTsqlOption();
+        var option = ParseTsqlObjectOption();
         return new TsqlAlterDatabaseScopedConfigurationStatement
         {
             Span = SourceSpan.From(keywords[0], option.Span),

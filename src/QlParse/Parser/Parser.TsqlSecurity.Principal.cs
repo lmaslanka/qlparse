@@ -16,7 +16,7 @@ internal sealed partial class Parser
         var owner = authorization is null ? (SyntaxToken?)null : ParseGrantee();
         var (sourceKeywords, source) = ParseTsqlPrincipalSource();
         var withKeyword = _current.Kind == SyntaxKind.WithKeyword ? Advance() : (SyntaxToken?)null;
-        var options = withKeyword is null ? null : ParseTsqlOptionItems();
+        var options = withKeyword is null ? null : ParseTsqlObjectOptionItems();
         var end = source?.Span ?? (sourceKeywords.Count > 0 ? sourceKeywords[^1].Span : owner?.Span ?? name.Span);
         if (options is not null)
         {
@@ -82,7 +82,7 @@ internal sealed partial class Parser
         if (_current.Kind == SyntaxKind.WithKeyword)
         {
             var withKeyword = Advance();
-            var options = ParseTsqlOptionItems();
+            var options = ParseTsqlObjectOptionItems();
             return BuildTsqlAlterPrincipal(alter, kind, name, [withKeyword], null, options);
         }
 
