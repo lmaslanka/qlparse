@@ -74,6 +74,16 @@ public partial class SqlVisitor
         {
             VisitDataType(node.ReferencedType);
         }
+
+        if (node.IntervalQualifier is not null)
+        {
+            VisitIntervalQualifier(node.IntervalQualifier);
+        }
+
+        foreach (var bound in node.ArrayBounds)
+        {
+            VisitArrayBound(bound);
+        }
     }
 
     public virtual void VisitRowConstructorExpression(RowConstructorExpression node) => VisitAll(node.Elements);

@@ -11,6 +11,7 @@ public sealed class GeneratedColumn
     public SyntaxToken? OpenParen { get; init; }
     public Expression? Expression { get; init; }
     public SyntaxToken? CloseParen { get; init; }
+    public SyntaxToken? StorageKeyword { get; init; }
     public SyntaxToken? RowKeyword { get; init; }
     public SyntaxToken? Bound { get; init; }
 }

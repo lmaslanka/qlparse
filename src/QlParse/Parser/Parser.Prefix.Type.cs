@@ -20,8 +20,14 @@ internal sealed partial class Parser
             return ParseXmlType(name);
         }
 
+        return ParseNamedDataType(name);
+    }
+
+    private DataType ParseNamedDataType(SyntaxToken name)
+    {
         var nameTail = _current.Kind == SyntaxKind.Dot ? ParseDottedNameTail() : ParseNameTail(name);
         var precisionScale = ParseOptionalPrecisionScale();
+        var intervalQualifier = ParseOptionalPgIntervalQualifier(name, precisionScale.OpenParen);
         var timeZone = ParseOptionalTimeZone(name);
         var openParen = precisionScale.OpenParen;
         var precision = precisionScale.Precision;
@@ -30,8 +36,10 @@ internal sealed partial class Parser
         var withKeyword = timeZone.WithKeyword;
         var timeKeyword = timeZone.TimeKeyword;
         var zone = timeZone.Zone;
-        var collections = ParseCollectionSuffixes();
-        var endToken = ParseDataTypeEnd(name, nameTail, zone, closeParen, collections);
+        var arrayBounds = ParseOptionalPgArrayBounds();
+        IReadOnlyList<CollectionSuffix> collections = arrayBounds.Count > 0 ? [] : ParseCollectionSuffixes();
+        var suffixEnd = arrayBounds.Count > 0 ? arrayBounds[^1].Span : zone?.Span ?? intervalQualifier?.Span;
+        var endToken = ParseDataTypeEnd(name, nameTail, suffixEnd, closeParen, collections);
         return new DataType
         {
             Span = SourceSpan.From(name, endToken),
@@ -44,6 +52,8 @@ internal sealed partial class Parser
             WithKeyword = withKeyword,
             TimeKeyword = timeKeyword,
             Zone = zone,
+            IntervalQualifier = intervalQualifier,
+            ArrayBounds = arrayBounds,
             Collections = collections,
         };
     }
@@ -51,7 +61,7 @@ internal sealed partial class Parser
     private static SourceSpan ParseDataTypeEnd(
         SyntaxToken name,
         IReadOnlyList<SyntaxToken> nameTail,
-        SyntaxToken? zone,
+        SourceSpan? suffixEnd,
         SyntaxToken? closeParen,
         IReadOnlyList<CollectionSuffix> collections)
     {
@@ -60,7 +70,42 @@ internal sealed partial class Parser
             return (collections[^1].CloseBracket ?? collections[^1].Keyword).Span;
         }
 
-        return zone?.Span ?? closeParen?.Span ?? (nameTail.Count > 0 ? nameTail[^1].Span : name.Span);
+        return suffixEnd ?? closeParen?.Span ?? (nameTail.Count > 0 ? nameTail[^1].Span : name.Span);
+    }
+
+    // Postgres interval field restrictions such as interval day to second. Only the six field names
+    // start a qualifier, so a following DEFAULT or NOT NULL is left to the column tail.
+    private IntervalQualifier? ParseOptionalPgIntervalQualifier(SyntaxToken name, SyntaxToken? openParen) =>
+        name.Kind == SyntaxKind.IntervalKeyword && openParen is null && IsPostgres && IsIntervalFieldName()
+            ? ParseIntervalQualifier()
+            : null;
+
+    private bool IsIntervalFieldName() =>
+        IdentifierEquals(Keyword.Year) || IdentifierEquals(Keyword.Month) || IdentifierEquals(Keyword.Day)
+        || IdentifierEquals(Keyword.Hour) || IdentifierEquals(Keyword.Minute) || IdentifierEquals(Keyword.Second);
+
+    // Postgres array bounds follow the complete ISO type, one bracket pair per dimension with an optional size.
+    private IReadOnlyList<ArrayBound> ParseOptionalPgArrayBounds() =>
+        _current.Kind == SyntaxKind.OpenBracket && IsPostgres ? ParsePgArrayBounds() : [];
+
+    private IReadOnlyList<ArrayBound> ParsePgArrayBounds()
+    {
+        var bounds = new List<ArrayBound>();
+        while (_current.Kind == SyntaxKind.OpenBracket)
+        {
+            var openBracket = Advance();
+            SyntaxToken? size = _current.Kind == SyntaxKind.Number ? Advance() : null;
+            var closeBracket = Expect(SyntaxKind.CloseBracket);
+            bounds.Add(new ArrayBound
+            {
+                Span = SourceSpan.From(openBracket, closeBracket),
+                OpenBracket = openBracket,
+                Size = size,
+                CloseBracket = closeBracket,
+            });
+        }
+
+        return bounds;
     }
 
     private readonly record struct PrecisionScale(SyntaxToken? OpenParen, SyntaxToken? Precision, SyntaxToken? Scale, SyntaxToken? CloseParen);
@@ -89,7 +134,8 @@ internal sealed partial class Parser
 
     private TimeZoneClause ParseOptionalTimeZone(SyntaxToken name)
     {
-        if (name.Kind is not (SyntaxKind.TimeKeyword or SyntaxKind.TimestampKeyword) || _current.Kind != SyntaxKind.WithKeyword)
+        if (name.Kind is not (SyntaxKind.TimeKeyword or SyntaxKind.TimestampKeyword)
+            || (_current.Kind != SyntaxKind.WithKeyword && !(IsPostgres && IdentifierEquals(Keyword.Without))))
         {
             return new TimeZoneClause(null, null, null);
         }
@@ -213,31 +259,36 @@ internal sealed partial class Parser
         };
     }
 
-    private List<CollectionSuffix> ParseCollectionSuffixes()
+    private IReadOnlyList<CollectionSuffix> ParseCollectionSuffixes()
     {
-        var suffixes = new List<CollectionSuffix>();
+        List<CollectionSuffix>? suffixes = null;
         while (true)
         {
             if (_current.Kind == SyntaxKind.ArrayKeyword)
             {
-                suffixes.Add(ParseArraySuffix());
+                (suffixes ??= []).Add(ParseArraySuffix());
                 continue;
             }
 
             if (_current.Kind == SyntaxKind.MultisetKeyword)
             {
                 var keyword = Advance();
-                suffixes.Add(new CollectionSuffix { Span = keyword.Span, Keyword = keyword });
+                (suffixes ??= []).Add(new CollectionSuffix { Span = keyword.Span, Keyword = keyword });
                 continue;
             }
 
             if (IdentifierEquals(Keyword.Mdarray))
             {
-                suffixes.Add(ParseMdarraySuffix());
+                (suffixes ??= []).Add(ParseMdarraySuffix());
                 continue;
             }
 
             break;
+        }
+
+        if (suffixes is null)
+        {
+            return [];
         }
 
         return suffixes;
@@ -320,7 +371,7 @@ internal sealed partial class Parser
         return parts;
     }
 
-    private List<SyntaxToken> ParseNameTail(SyntaxToken name)
+    private IReadOnlyList<SyntaxToken> ParseNameTail(SyntaxToken name)
     {
         if (TokenEquals(name, Keyword.Double) && IdentifierEquals(Keyword.Precision))
         {
@@ -341,8 +392,11 @@ internal sealed partial class Parser
             return nationalTail;
         }
 
-        return [];
+        return ParsePgNameTail(name);
     }
+
+    private IReadOnlyList<SyntaxToken> ParsePgNameTail(SyntaxToken name) =>
+        IsPostgres && TokenEquals(name, Keyword.Bit) && IdentifierEquals(Keyword.Varying) ? [Advance()] : [];
 
     private List<SyntaxToken> ParseVaryingOrLargeObject()
     {
