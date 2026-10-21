@@ -155,8 +155,8 @@ public sealed class PgUtilityTests
     [Fact]
     public void Iso_prepare_execute_still_parse_under_postgres()
     {
-        SqlAssert.ParsePg<PrepareStatement>("prepare s from :src");
-        SqlAssert.ParsePg<ExecuteStatement>("execute s using :a");
+        SqlAssert.ParsePg<PrepareStatement>("prepare s from 'select 1'");
+        SqlAssert.ParsePg<ExecuteStatement>("execute s using a");
     }
 
     [Fact]
