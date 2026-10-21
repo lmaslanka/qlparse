@@ -139,8 +139,11 @@ public sealed partial class TsqlProcTests
     [Fact]
     public void Execute_as_is_not_a_procedure_call()
     {
-        SqlAssert.ParseFails("execute as user = 'x'", SqlOptions.SqlServer);
-        SqlAssert.ParseFails("exec as login = 'x'", SqlOptions.SqlServer);
+        SqlAssert.ParseTsql<TsqlExecuteAsStatement>("execute as user = 'x'");
+        SqlAssert.ParseTsql<TsqlExecuteAsStatement>("exec as login = 'x'");
+        SqlAssert.ParseTsql<TsqlExecuteAsStatement>("exec as caller");
+        const string sql = "exec as_of_date @d = 1";
+        Assert.Equal(["as_of_date"], Texts(sql, SqlAssert.ParseTsql<TsqlExecuteStatement>(sql).Module));
     }
 
     [Fact]

@@ -192,8 +192,14 @@ public sealed partial class TsqlProcTests
     [Fact]
     public void Open_and_close_of_keys_are_not_cursor_statements()
     {
-        SqlAssert.ParseFails("open symmetric key k", SqlOptions.SqlServer);
-        SqlAssert.ParseFails("close master key", SqlOptions.SqlServer);
+        SqlAssert.ParseTsql<TsqlSecurityObjectStatement>("open symmetric key k decryption by password = 'x'");
+        SqlAssert.ParseTsql<TsqlSecurityObjectStatement>("open master key decryption by password = 'p'");
+        SqlAssert.ParseTsql<TsqlSecurityObjectStatement>("close symmetric key k");
+        SqlAssert.ParseTsql<TsqlSecurityObjectStatement>("close master key");
+        SqlAssert.ParseTsql<TsqlSecurityObjectStatement>("close all symmetric keys");
+        const string sql = "open key_cursor close key_cursor";
+        var batch = SqlAssert.ParseTsql<TsqlBatch>(sql);
+        Assert.Equal("key_cursor", Text(sql, Assert.IsType<TsqlCursorStatement>(batch.Statements[1]).Cursor));
         SqlAssert.Parse<OpenStatement>("open c");
     }
 
