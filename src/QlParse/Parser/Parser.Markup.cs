@@ -169,9 +169,10 @@ internal sealed partial class Parser
             return;
         }
 
-        if (_current.Kind is SyntaxKind.Identifier or SyntaxKind.String && NextKind == SyntaxKind.ColonToken)
+        if ((_current.Kind is SyntaxKind.Identifier or SyntaxKind.String && NextKind == SyntaxKind.ColonToken)
+            || IsTsqlJsonVariableKey())
         {
-            arguments.Add(_current.Kind == SyntaxKind.String ? Literal() : Identifier());
+            arguments.Add(ParseJsonKey());
             clauses.Add(Advance());
             arguments.Add(ParseExpression(ComparisonBindingPower + 1));
             ParseFormatJson(clauses);
@@ -181,6 +182,14 @@ internal sealed partial class Parser
         arguments.Add(ParseExpression(ComparisonBindingPower + 1));
         ParseFormatJson(clauses);
     }
+
+    // A JSON_OBJECT key: a string, a name, or (SQL Server) a variable.
+    private Expression ParseJsonKey() => _current.Kind switch
+    {
+        SyntaxKind.String => Literal(),
+        SyntaxKind.Identifier => Identifier(),
+        _ => ParseTsqlVariable(),
+    };
 
     private (DataType? Returning, OrderByClause? OrderBy) ParseMarkupClause(
         List<SyntaxToken> clauses,

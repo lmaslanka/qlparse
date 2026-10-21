@@ -29,23 +29,23 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Scope-resolution operator for static type methods (`Type::Method()`)
 
 ## Data types
-- [ ] `VARCHAR(MAX)` `NVARCHAR(MAX)` `VARBINARY(MAX)`
-- [ ] `NCHAR` / `NVARCHAR` as first-class names
-- [ ] Legacy LOB types (`TEXT` `NTEXT` `IMAGE`)
-- [ ] `TINYINT`
-- [ ] `BIT`
-- [ ] `MONEY` / `SMALLMONEY`
-- [ ] `DATETIME` `SMALLDATETIME` `DATETIME2(n)` `DATETIMEOFFSET(n)`
-- [ ] `UNIQUEIDENTIFIER`
-- [ ] `ROWVERSION` / `TIMESTAMP` (T-SQL meaning: row version, not ISO timestamp)
-- [ ] `SQL_VARIANT`
-- [ ] `XML` and typed XML (`XML([CONTENT|DOCUMENT] schema_collection)`)
-- [ ] `HIERARCHYID`
-- [ ] Spatial types (`GEOMETRY` `GEOGRAPHY`)
+- [x] `VARCHAR(MAX)` `NVARCHAR(MAX)` `VARBINARY(MAX)`
+- [x] `NCHAR` / `NVARCHAR` as first-class names
+- [x] Legacy LOB types (`TEXT` `NTEXT` `IMAGE`)
+- [x] `TINYINT`
+- [x] `BIT`
+- [x] `MONEY` / `SMALLMONEY`
+- [x] `DATETIME` `SMALLDATETIME` `DATETIME2(n)` `DATETIMEOFFSET(n)`
+- [x] `UNIQUEIDENTIFIER`
+- [x] `ROWVERSION` / `TIMESTAMP` (T-SQL meaning: row version, not ISO timestamp)
+- [x] `SQL_VARIANT`
+- [x] `XML` and typed XML (`XML([CONTENT|DOCUMENT] schema_collection)`)
+- [x] `HIERARCHYID`
+- [x] Spatial types (`GEOMETRY` `GEOGRAPHY`)
 - [ ] `TABLE` type for table variables (`DECLARE @t TABLE (...)`)
 - [ ] `CURSOR` type for cursor variables and `OUTPUT` parameters
-- [ ] `VECTOR(n)` (2025)
-- [ ] Native `JSON` type (2025 / Azure SQL)
+- [x] `VECTOR(n)` (2025)
+- [x] Native `JSON` type (2025 / Azure SQL)
 - [ ] Alias types via `CREATE TYPE name FROM base_type [NULL|NOT NULL]`
 - [ ] User-defined table types via `CREATE TYPE name AS TABLE (...)`
 - [ ] CLR user-defined types via `CREATE TYPE name EXTERNAL NAME assembly.class`
@@ -54,48 +54,48 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] Legacy outer-join operators (`*=` `=*`; parse-only, removed in compatibility level 90+)
 - [x] `IS [NOT] DISTINCT FROM` (2022)
 - [x] `LIKE` character-class patterns (`[a-z]` `[^x]`; lexical only, inside the pattern string)
-- [ ] `CONTAINS(...)` / `FREETEXT(...)` full-text predicates
+- [x] `CONTAINS(...)` / `FREETEXT(...)` full-text predicates
 - [ ] `MATCH (node-edge->node ...)` graph predicate (see Graph tables)
 
 ## Functions
 
 ### String
-- [ ] `LEN()` / `DATALENGTH()`
-- [ ] `CHARINDEX()` / `PATINDEX()`
-- [ ] `STUFF()` `REPLICATE()` `REVERSE()` `SPACE()`
-- [ ] `STRING_SPLIT(str, sep [, enable_ordinal])`
-- [ ] `STRING_AGG(expr, sep) [WITHIN GROUP (ORDER BY ...)]`
-- [ ] `CONCAT()` / `CONCAT_WS()`
-- [ ] `TRANSLATE()`
-- [ ] `TRIM([LEADING|TRAILING|BOTH] [chars FROM] str)` / `LTRIM(str, chars)` / `RTRIM(str, chars)` (2022 forms)
-- [ ] `FORMAT(value, format [, culture])`
-- [ ] `QUOTENAME()`
-- [ ] `LEFT()` `RIGHT()` `SUBSTRING()` without `FROM`/`FOR` keywords
-- [ ] `SOUNDEX()` / `DIFFERENCE()`
-- [ ] `STRING_ESCAPE()`
-- [ ] `REGEXP_LIKE()` `REGEXP_REPLACE()` `REGEXP_SUBSTR()` `REGEXP_INSTR()` `REGEXP_COUNT()` `REGEXP_MATCHES()` `REGEXP_SPLIT_TO_TABLE()` (2025)
+- [x] `LEN()` / `DATALENGTH()`
+- [x] `CHARINDEX()` / `PATINDEX()`
+- [x] `STUFF()` `REPLICATE()` `REVERSE()` `SPACE()`
+- [x] `STRING_SPLIT(str, sep [, enable_ordinal])`
+- [x] `STRING_AGG(expr, sep) [WITHIN GROUP (ORDER BY ...)]`
+- [x] `CONCAT()` / `CONCAT_WS()`
+- [x] `TRANSLATE()`
+- [x] `TRIM([LEADING|TRAILING|BOTH] [chars FROM] str)` / `LTRIM(str, chars)` / `RTRIM(str, chars)` (2022 forms)
+- [x] `FORMAT(value, format [, culture])`
+- [x] `QUOTENAME()`
+- [x] `LEFT()` `RIGHT()` `SUBSTRING()` without `FROM`/`FOR` keywords
+- [x] `SOUNDEX()` / `DIFFERENCE()`
+- [x] `STRING_ESCAPE()`
+- [x] `REGEXP_LIKE()` `REGEXP_REPLACE()` `REGEXP_SUBSTR()` `REGEXP_INSTR()` `REGEXP_COUNT()` `REGEXP_MATCHES()` `REGEXP_SPLIT_TO_TABLE()` (2025)
 
 ### Conversion
-- [ ] `CONVERT(data_type[(length)], expr [, style])`
-- [ ] `TRY_CONVERT()` / `TRY_CAST()`
-- [ ] `PARSE(str AS type [USING culture])` / `TRY_PARSE()`
+- [x] `CONVERT(data_type[(length)], expr [, style])`
+- [x] `TRY_CONVERT()` / `TRY_CAST()`
+- [x] `PARSE(str AS type [USING culture])` / `TRY_PARSE()`
 
 ### Date / time
-- [ ] `GETDATE()` `GETUTCDATE()` `SYSDATETIME()` `SYSUTCDATETIME()` `SYSDATETIMEOFFSET()`
-- [ ] `CURRENT_TIMESTAMP` without parentheses as `DATETIME`
-- [ ] `DATEADD()` `DATEDIFF()` `DATEDIFF_BIG()` `DATEPART()` `DATENAME()` with bare datepart keywords (`year`, `yy`, `mm`, `dw`, …)
-- [ ] `EOMONTH()`
-- [ ] `DATEFROMPARTS()` `DATETIME2FROMPARTS()` `DATETIMEOFFSETFROMPARTS()` `TIMEFROMPARTS()` `SMALLDATETIMEFROMPARTS()`
-- [ ] `SWITCHOFFSET()` / `TODATETIMEOFFSET()`
-- [ ] `AT TIME ZONE 'zone'` expression suffix
-- [ ] `DATETRUNC()` / `DATE_BUCKET()` (2022)
-- [ ] `ISDATE()`
+- [x] `GETDATE()` `GETUTCDATE()` `SYSDATETIME()` `SYSUTCDATETIME()` `SYSDATETIMEOFFSET()`
+- [x] `CURRENT_TIMESTAMP` without parentheses as `DATETIME`
+- [x] `DATEADD()` `DATEDIFF()` `DATEDIFF_BIG()` `DATEPART()` `DATENAME()` with bare datepart keywords (`year`, `yy`, `mm`, `dw`, …)
+- [x] `EOMONTH()`
+- [x] `DATEFROMPARTS()` `DATETIME2FROMPARTS()` `DATETIMEOFFSETFROMPARTS()` `TIMEFROMPARTS()` `SMALLDATETIMEFROMPARTS()`
+- [x] `SWITCHOFFSET()` / `TODATETIMEOFFSET()`
+- [x] `AT TIME ZONE 'zone'` expression suffix
+- [x] `DATETRUNC()` / `DATE_BUCKET()` (2022)
+- [x] `ISDATE()`
 
 ### Logical and null handling
-- [ ] `IIF(cond, a, b)`
-- [ ] `CHOOSE(index, v1, v2, ...)`
-- [ ] `ISNULL(expr, replacement)`
-- [ ] `GREATEST()` / `LEAST()` (2022)
+- [x] `IIF(cond, a, b)`
+- [x] `CHOOSE(index, v1, v2, ...)`
+- [x] `ISNULL(expr, replacement)`
+- [x] `GREATEST()` / `LEAST()` (2022)
 
 ### Set-returning / table functions
 - [ ] `GENERATE_SERIES(start, stop [, step])` (2022)
@@ -108,42 +108,42 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `CONTAINSTABLE()` / `FREETEXTTABLE()`
 
 ### JSON
-- [ ] `JSON_VALUE()` `JSON_QUERY()` `JSON_MODIFY()` `ISJSON()`
-- [ ] `JSON_PATH_EXISTS()`
-- [ ] `JSON_OBJECT(key : value, ... [NULL ON NULL|ABSENT ON NULL])` / `JSON_ARRAY()` (2022 colon syntax)
-- [ ] `JSON_OBJECTAGG()` / `JSON_ARRAYAGG()` (2025)
-- [ ] `JSON_CONTAINS()` (2025)
+- [x] `JSON_VALUE()` `JSON_QUERY()` `JSON_MODIFY()` `ISJSON()`
+- [x] `JSON_PATH_EXISTS()`
+- [x] `JSON_OBJECT(key : value, ... [NULL ON NULL|ABSENT ON NULL])` / `JSON_ARRAY()` (2022 colon syntax)
+- [x] `JSON_OBJECTAGG()` / `JSON_ARRAYAGG()` (2025)
+- [x] `JSON_CONTAINS()` (2025)
 
 ### XML
-- [ ] XML data type methods (`.value()` `.query()` `.nodes()` `.exist()` `.modify()`)
+- [x] XML data type methods (`.value()` `.query()` `.nodes()` `.exist()` `.modify()`)
 - [ ] `WITH XMLNAMESPACES (...)` prefix to `SELECT`/DML
 
 ### Aggregates and analytics
-- [ ] `COUNT_BIG()`
-- [ ] `CHECKSUM_AGG()` / `CHECKSUM()` / `BINARY_CHECKSUM()`
-- [ ] `STDEV()` `STDEVP()` `VAR()` `VARP()`
-- [ ] `APPROX_COUNT_DISTINCT()` / `APPROX_PERCENTILE_CONT()` / `APPROX_PERCENTILE_DISC()`
-- [ ] `GROUPING_ID()`
-- [ ] `PERCENTILE_CONT()` / `PERCENTILE_DISC()` with `WITHIN GROUP (...) OVER (PARTITION BY ...)`
+- [x] `COUNT_BIG()`
+- [x] `CHECKSUM_AGG()` / `CHECKSUM()` / `BINARY_CHECKSUM()`
+- [x] `STDEV()` `STDEVP()` `VAR()` `VARP()`
+- [x] `APPROX_COUNT_DISTINCT()` / `APPROX_PERCENTILE_CONT()` / `APPROX_PERCENTILE_DISC()`
+- [x] `GROUPING_ID()`
+- [x] `PERCENTILE_CONT()` / `PERCENTILE_DISC()` with `WITHIN GROUP (...) OVER (PARTITION BY ...)`
 
 ### System and introspection
 - [x] `@@ROWCOUNT` `@@ERROR` `@@IDENTITY` `@@TRANCOUNT` `@@SPID` `@@VERSION` `@@SERVERNAME` `@@FETCH_STATUS`
-- [ ] `ROWCOUNT_BIG()` `SCOPE_IDENTITY()` `IDENT_CURRENT()`
-- [ ] `ERROR_NUMBER()` `ERROR_MESSAGE()` `ERROR_SEVERITY()` `ERROR_STATE()` `ERROR_LINE()` `ERROR_PROCEDURE()`
-- [ ] `OBJECT_ID()` `OBJECT_NAME()` `DB_ID()` `DB_NAME()` `SCHEMA_NAME()` `COL_LENGTH()`
-- [ ] `NEWID()` / `NEWSEQUENTIALID()`
-- [ ] `SESSION_CONTEXT()` / `CONTEXT_INFO()`
-- [ ] `USER_NAME()` `SUSER_SNAME()` `ORIGINAL_LOGIN()`
+- [x] `ROWCOUNT_BIG()` `SCOPE_IDENTITY()` `IDENT_CURRENT()`
+- [x] `ERROR_NUMBER()` `ERROR_MESSAGE()` `ERROR_SEVERITY()` `ERROR_STATE()` `ERROR_LINE()` `ERROR_PROCEDURE()`
+- [x] `OBJECT_ID()` `OBJECT_NAME()` `DB_ID()` `DB_NAME()` `SCHEMA_NAME()` `COL_LENGTH()`
+- [x] `NEWID()` / `NEWSEQUENTIALID()`
+- [x] `SESSION_CONTEXT()` / `CONTEXT_INFO()`
+- [x] `USER_NAME()` `SUSER_SNAME()` `ORIGINAL_LOGIN()`
 
 ### Vector (2025)
-- [ ] `VECTOR_DISTANCE()` `VECTOR_NORM()` `VECTOR_NORMALIZE()`
+- [x] `VECTOR_DISTANCE()` `VECTOR_NORM()` `VECTOR_NORMALIZE()`
 - [ ] `VECTOR_SEARCH()` table-valued function
-- [ ] `AI_GENERATE_EMBEDDINGS(... USE MODEL model)` / `AI_GENERATE_CHUNKS()`
+- [x] `AI_GENERATE_EMBEDDINGS(... USE MODEL model)` / `AI_GENERATE_CHUNKS()`
 
 ### CLR and type methods
-- [ ] Instance method calls on UDT/spatial/hierarchyid values (`geo.STDistance(@p)`, `node.GetAncestor(1)`)
-- [ ] Static method calls (`geography::Point(lat, lon, 4326)`, `hierarchyid::GetRoot()`)
-- [ ] Property access on UDT values (`@p.X`, `@p.STSrid`)
+- [x] Instance method calls on UDT/spatial/hierarchyid values (`geo.STDistance(@p)`, `node.GetAncestor(1)`)
+- [x] Static method calls (`geography::Point(lat, lon, 4326)`, `hierarchyid::GetRoot()`)
+- [x] Property access on UDT values (`@p.X`, `@p.STSrid`)
 
 ## Query expressions
 - [ ] `SELECT TOP (n) [PERCENT] [WITH TIES]` (and legacy `TOP n` without parentheses)
@@ -237,7 +237,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] Indexed views (`CREATE UNIQUE CLUSTERED INDEX` on a schema-bound view)
 
 ### Sequences and synonyms
-- [ ] `NEXT VALUE FOR seq [OVER (ORDER BY ...)]`
+- [x] `NEXT VALUE FOR seq [OVER (ORDER BY ...)]`
 - [ ] `sp_sequence_get_range` via `EXEC`
 - [ ] `CREATE SYNONYM name FOR [server.][db.][schema.]object`
 
@@ -357,8 +357,8 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `MOVE CONVERSATION`
 
 ## Full text search
-- [ ] `CONTAINS(col|(cols)|*, 'search condition' [, LANGUAGE l])`
-- [ ] `FREETEXT(col|(cols)|*, 'text' [, LANGUAGE l])`
+- [x] `CONTAINS(col|(cols)|*, 'search condition' [, LANGUAGE l])`
+- [x] `FREETEXT(col|(cols)|*, 'text' [, LANGUAGE l])`
 - [ ] `CONTAINSTABLE(t, col, '...' [, top_n])` / `FREETEXTTABLE(...)` with `KEY` / `RANK` columns
 - [ ] `CREATE FULLTEXT CATALOG` / `ALTER FULLTEXT CATALOG`
 - [ ] `CREATE FULLTEXT INDEX ON t (col [TYPE COLUMN c] [LANGUAGE l]) KEY INDEX ix [ON catalog] [WITH ...]`

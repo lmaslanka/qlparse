@@ -50,6 +50,7 @@ internal sealed partial class Parser
             SyntaxKind.IntervalKeyword => ParseIntervalLiteral(),
             SyntaxKind.TrimKeyword => ParseTrim(),
             SyntaxKind.ExtractKeyword => ParseExtract(),
+            SyntaxKind.SubstringKeyword when IsSqlServer => ParseFunctionCall(),
             SyntaxKind.SubstringKeyword => ParseSubstring(),
             SyntaxKind.PositionKeyword => ParsePosition(),
             _ => null,
@@ -68,6 +69,8 @@ internal sealed partial class Parser
                 or SyntaxKind.ExpKeyword or SyntaxKind.ModKeyword or SyntaxKind.AbsKeyword
                 or SyntaxKind.WidthBucketKeyword or SyntaxKind.GroupingKeyword => ParseSpecialForm(),
             SyntaxKind.OverlayKeyword => ParseOverlay(),
+            SyntaxKind.ConvertKeyword when IsSqlServer => ParseTsqlConvert(),
+            SyntaxKind.TranslateKeyword when IsSqlServer => ParseFunctionCall(),
             SyntaxKind.ConvertKeyword or SyntaxKind.TranslateKeyword => ParseUsingTransform(),
             SyntaxKind.UserKeyword or SyntaxKind.CurrentDateKeyword or SyntaxKind.CurrentTimeKeyword
                 or SyntaxKind.CurrentTimestampKeyword or SyntaxKind.CurrentUserKeyword
@@ -542,7 +545,7 @@ internal sealed partial class Parser
     {
         if (IsNextValueFor())
         {
-            return ParseNextValue();
+            return ParseOptionalTsqlNextValueOver(ParseNextValue());
         }
 
         if (IsRefValue())
@@ -583,7 +586,7 @@ internal sealed partial class Parser
         return NextKind == SyntaxKind.OpenParen ? ParseCallInvocation() : Identifier();
     }
 
-    private Expression ParseCallInvocation() => IsPostgres ? ParsePgCallOrOperator() : ParseFunctionCall();
+    private Expression ParseCallInvocation() => IsPostgresOrSqlServer ? ParseDialectCall() : ParseFunctionCall();
 
     private bool IsRefValue() =>
         IdentifierEquals(Keyword.Ref) && NextKind == SyntaxKind.OpenParen;
