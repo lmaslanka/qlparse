@@ -5,7 +5,26 @@ namespace QlParse.Tests;
 // transactions and session options in TsqlProcTests.Session.cs.
 public sealed partial class TsqlProcTests
 {
+    private const int Two = 2;
+    private const int Three = 3;
+    private const int Four = 4;
+    private const int Five = 5;
+    private const int Six = 6;
+    private const int Seven = 7;
+    private const int Eight = 8;
+    private const int Nine = 9;
+    private const int Fifteen = 15;
     private const string Semicolon = ";";
+    private const string VariableA = "@a";
+    private const string CursorC = "c";
+    private const string OrWord = "or";
+    private const string AlterWord = "alter";
+    private const string SavepointName = "sp1";
+    private const string OnWord = "on";
+    private const string OffWord = "off";
+    private const string DatabaseWord = "database";
+    private const string RetryLabel = "retry";
+    private const string CatchWord = "catch";
     private const string ThrowInCatch = "begin try select 1 end try begin catch print 'failed'"
         + Semicolon
         + " throw end catch"
@@ -57,7 +76,7 @@ public sealed partial class TsqlProcTests
     public void Parses_nested_and_empty_blocks()
     {
         var block = SqlAssert.ParseTsql<TsqlBlockStatement>("begin begin end begin select 1 end end");
-        Assert.Equal(2, block.Statements.Count);
+        Assert.Equal(Two, block.Statements.Count);
         Assert.Empty(Assert.IsType<TsqlBlockStatement>(block.Statements[0]).Statements);
         Assert.Single(Assert.IsType<TsqlBlockStatement>(block.Statements[1]).Statements);
     }
@@ -89,7 +108,7 @@ public sealed partial class TsqlProcTests
         const string sql = "if exists (select 1 from t) begin print 'a' print 'b' end else if @x is null return else begin select 3 end";
         var statement = SqlAssert.ParseTsql<TsqlIfStatement>(sql);
         Assert.IsType<ExistsExpression>(statement.Condition);
-        Assert.Equal(2, Assert.IsType<TsqlBlockStatement>(statement.Then).Statements.Count);
+        Assert.Equal(Two, Assert.IsType<TsqlBlockStatement>(statement.Then).Statements.Count);
         var elseIf = Assert.IsType<TsqlIfStatement>(statement.Else);
         Assert.IsType<TsqlReturnStatement>(elseIf.Then);
         Assert.IsType<TsqlBlockStatement>(elseIf.Else);
@@ -130,9 +149,9 @@ public sealed partial class TsqlProcTests
         var loop = SqlAssert.ParseTsql<TsqlWhileStatement>(sql);
         Assert.Equal("@i < 10", Text(sql, loop.Condition.Span));
         var body = Assert.IsType<TsqlBlockStatement>(loop.Body);
-        Assert.Equal(3, body.Statements.Count);
+        Assert.Equal(Three, body.Statements.Count);
         Assert.IsType<TsqlContinueStatement>(Assert.IsType<TsqlIfStatement>(body.Statements[1]).Then);
-        var breakStatement = Assert.IsType<TsqlBreakStatement>(Assert.IsType<TsqlIfStatement>(body.Statements[2]).Then);
+        var breakStatement = Assert.IsType<TsqlBreakStatement>(Assert.IsType<TsqlIfStatement>(body.Statements[Two]).Then);
         Assert.Equal("break", Text(sql, breakStatement.BreakKeyword));
         Assert.Equal(sql, Text(sql, loop.Span));
     }
@@ -153,11 +172,11 @@ public sealed partial class TsqlProcTests
         const string sql = "retry: print 1 goto retry";
         var batch = SqlAssert.ParseTsql<TsqlBatch>(sql);
         var label = Assert.IsType<TsqlLabelStatement>(batch.Statements[0]);
-        Assert.Equal("retry", Text(sql, label.Label));
+        Assert.Equal(RetryLabel, Text(sql, label.Label));
         Assert.Equal(":", Text(sql, label.Colon));
         Assert.IsType<TsqlPrintStatement>(batch.Statements[1]);
-        var jump = Assert.IsType<TsqlGotoStatement>(batch.Statements[2]);
-        Assert.Equal("retry", Text(sql, jump.Label));
+        var jump = Assert.IsType<TsqlGotoStatement>(batch.Statements[Two]);
+        Assert.Equal(RetryLabel, Text(sql, jump.Label));
         FailsInIso("goto retry");
     }
 
@@ -223,11 +242,11 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "begin try insert into t values (1) update t set a = 2 end try begin catch select error_message() end catch";
         var statement = SqlAssert.ParseTsql<TsqlTryCatchStatement>(sql);
-        Assert.Equal(2, statement.TryStatements.Count);
+        Assert.Equal(Two, statement.TryStatements.Count);
         Assert.Equal("try", Text(sql, statement.TryEndTryKeyword));
-        Assert.Equal("catch", Text(sql, statement.CatchKeyword));
+        Assert.Equal(CatchWord, Text(sql, statement.CatchKeyword));
         Assert.Single(statement.CatchStatements);
-        Assert.Equal("catch", Text(sql, statement.CatchEndCatchKeyword));
+        Assert.Equal(CatchWord, Text(sql, statement.CatchEndCatchKeyword));
         Assert.Equal(sql, Text(sql, statement.Span));
     }
 
@@ -249,7 +268,7 @@ public sealed partial class TsqlProcTests
         Assert.Equal(["50000", "N'Not found'", "1"], statement.Arguments.Select(argument => Text(sql, argument.Span)));
         Assert.Equal(sql, Text(sql, statement.Span));
         var batch = SqlAssert.ParseTsql<TsqlBatch>(ThrowAfterTerminator);
-        Assert.Equal(3, Assert.IsType<TsqlThrowStatement>(batch.Statements[1]).Arguments.Count);
+        Assert.Equal(Three, Assert.IsType<TsqlThrowStatement>(batch.Statements[1]).Arguments.Count);
         SqlAssert.ParseFails("throw 50000, 'x'", SqlOptions.SqlServer);
         FailsInIso("throw 50000, 'x', 1");
     }
@@ -260,12 +279,12 @@ public sealed partial class TsqlProcTests
         const string sql = "raiserror (N'Row %d of %s', 16, 1, @row, @name) with log, nowait, seterror";
         var statement = SqlAssert.ParseTsql<TsqlRaiserrorStatement>(sql);
         Assert.NotNull(statement.OpenParen);
-        Assert.Equal(5, statement.Arguments.Count);
+        Assert.Equal(Five, statement.Arguments.Count);
         Assert.Equal(["log", "nowait", "seterror"], Texts(sql, statement.Options));
         Assert.Equal(sql, Text(sql, statement.Span));
         var plain = SqlAssert.ParseTsql<TsqlRaiserrorStatement>("raiserror ('x', 10, 1)");
         Assert.Null(plain.WithKeyword);
-        Assert.Equal(3, plain.Arguments.Count);
+        Assert.Equal(Three, plain.Arguments.Count);
     }
 
     [Fact]

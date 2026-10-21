@@ -11,15 +11,15 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "declare @a int = 1, @b as nvarchar(50), @c decimal(10, 2) = @a * 2";
         var statement = SqlAssert.ParseTsql<TsqlDeclareStatement>(sql);
-        Assert.Equal(3, statement.Variables.Count);
+        Assert.Equal(Three, statement.Variables.Count);
         var first = statement.Variables[0];
-        Assert.Equal("@a", Text(sql, first.Name));
+        Assert.Equal(VariableA, Text(sql, first.Name));
         Assert.Equal("int", Text(sql, Present(first.DataType).Name));
         Assert.Equal("1", Text(sql, Present(first.Value).Span));
         var second = statement.Variables[1];
         Assert.NotNull(second.AsKeyword);
         Assert.Null(second.Value);
-        Assert.IsType<BinaryExpression>(statement.Variables[2].Value);
+        Assert.IsType<BinaryExpression>(statement.Variables[Two].Value);
         Assert.Equal(sql, Text(sql, statement.Span));
     }
 
@@ -31,7 +31,7 @@ public sealed partial class TsqlProcTests
         var table = Present(variable.Table);
         Assert.Null(variable.DataType);
         Assert.Equal("table", Text(sql, table.TableKeyword));
-        Assert.Equal(3, table.Elements.Count);
+        Assert.Equal(Three, table.Elements.Count);
         Assert.IsType<ColumnDefinition>(table.Elements[0]);
         Assert.Equal(sql, Text(sql, SqlAssert.ParseTsql<TsqlDeclareStatement>(sql).Span));
     }
@@ -61,7 +61,7 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "set @a = (select max(id) from t)";
         var statement = SqlAssert.ParseTsql<TsqlSetVariableStatement>(sql);
-        Assert.Equal("@a", Text(sql, statement.Variable));
+        Assert.Equal(VariableA, Text(sql, statement.Variable));
         Assert.Equal("=", Text(sql, statement.OperatorToken));
         Assert.NotNull(statement.Value);
         Assert.Null(statement.Cursor);
@@ -109,7 +109,7 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "declare c cursor local forward_only static read_only type_warning for select a from t";
         var statement = SqlAssert.ParseTsql<TsqlDeclareCursorStatement>(sql);
-        Assert.Equal("c", Text(sql, statement.Name));
+        Assert.Equal(CursorC, Text(sql, statement.Name));
         Assert.Equal(["local", "forward_only", "static", "read_only", "type_warning"], Texts(sql, statement.Cursor.Options));
         Assert.IsType<SelectStatement>(statement.Cursor.Query);
         Assert.Equal(sql, Text(sql, statement.Span));
@@ -154,13 +154,13 @@ public sealed partial class TsqlProcTests
         var batch = SqlAssert.ParseTsql<TsqlBatch>(sql);
         var open = Assert.IsType<TsqlCursorStatement>(batch.Statements[0]);
         Assert.Equal("open", Text(sql, open.VerbKeyword));
-        Assert.Equal("c", Text(sql, open.Cursor));
+        Assert.Equal(CursorC, Text(sql, open.Cursor));
         var fetch = Assert.IsType<TsqlFetchStatement>(batch.Statements[1]);
         Assert.Equal("next", Text(sql, Assert.NotNull(fetch.Orientation)));
         Assert.Equal(["@a", "@b"], Texts(sql, fetch.Variables));
-        var close = Assert.IsType<TsqlCursorStatement>(batch.Statements[2]);
+        var close = Assert.IsType<TsqlCursorStatement>(batch.Statements[Two]);
         Assert.Equal("global", Text(sql, Assert.NotNull(close.GlobalKeyword)));
-        var deallocate = Assert.IsType<TsqlCursorStatement>(batch.Statements[3]);
+        var deallocate = Assert.IsType<TsqlCursorStatement>(batch.Statements[Three]);
         Assert.Equal("@cv", Text(sql, deallocate.Cursor));
     }
 
@@ -172,7 +172,7 @@ public sealed partial class TsqlProcTests
     {
         var fetch = SqlAssert.ParseTsql<TsqlFetchStatement>(sql);
         Assert.Equal(orientation, Text(sql, Assert.NotNull(fetch.Orientation)));
-        Assert.Equal("c", Text(sql, fetch.Cursor));
+        Assert.Equal(CursorC, Text(sql, fetch.Cursor));
         Assert.Equal(sql, Text(sql, fetch.Span));
     }
 
@@ -206,8 +206,8 @@ public sealed partial class TsqlProcTests
         var batch = SqlAssert.ParseTsql<TsqlBatch>(sql);
         Assert.Equal(["@t"], Texts(sql, Assert.IsType<InsertStatement>(batch.Statements[0]).TableName));
         Assert.Equal(["@t"], Texts(sql, Assert.IsType<UpdateStatement>(batch.Statements[1]).Target.NameParts));
-        Assert.Equal(["@t"], Texts(sql, Assert.IsType<DeleteStatement>(batch.Statements[2]).Target.NameParts));
-        var table = Assert.IsType<TableReference>(Assert.IsType<SelectStatement>(batch.Statements[3]).From);
+        Assert.Equal(["@t"], Texts(sql, Assert.IsType<DeleteStatement>(batch.Statements[Two]).Target.NameParts));
+        var table = Assert.IsType<TableReference>(Assert.IsType<SelectStatement>(batch.Statements[Three]).From);
         Assert.Equal(["@t"], Texts(sql, table.NameParts));
         FailsInIso("select * from @t");
     }

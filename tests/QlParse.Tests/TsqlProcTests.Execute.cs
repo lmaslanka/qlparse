@@ -17,13 +17,13 @@ public sealed partial class TsqlProcTests
         var statement = SqlAssert.ParseTsql<TsqlExecuteStatement>(sql);
         Assert.Equal("@rc", Text(sql, Assert.NotNull(statement.ReturnStatus)));
         Assert.Equal(["dbo", "usp_get"], Texts(sql, statement.Module));
-        Assert.Equal(4, statement.Arguments.Count);
+        Assert.Equal(Four, statement.Arguments.Count);
         Assert.Null(statement.Arguments[0].Parameter);
         Assert.Equal("1", Text(sql, Present(statement.Arguments[0].Value).Span));
         Assert.Equal("@name", Text(sql, Assert.NotNull(statement.Arguments[1].Parameter)));
-        Assert.Equal("output", Text(sql, Assert.NotNull(statement.Arguments[2].OutputKeyword)));
-        Assert.Equal("default", Text(sql, Assert.NotNull(statement.Arguments[3].DefaultKeyword)));
-        Assert.Null(statement.Arguments[3].Value);
+        Assert.Equal("output", Text(sql, Assert.NotNull(statement.Arguments[Two].OutputKeyword)));
+        Assert.Equal("default", Text(sql, Assert.NotNull(statement.Arguments[Three].DefaultKeyword)));
+        Assert.Null(statement.Arguments[Three].Value);
         Assert.Equal(["recompile"], Texts(sql, Assert.Single(statement.Options).Keywords));
         Assert.Equal(sql, Text(sql, statement.Span));
     }
@@ -33,8 +33,8 @@ public sealed partial class TsqlProcTests
     {
         var batch = SqlAssert.ParseTsql<TsqlBatch>("execute p select 1 exec q print 'x' exec r");
         Assert.Empty(Assert.IsType<TsqlExecuteStatement>(batch.Statements[0]).Arguments);
-        Assert.Empty(Assert.IsType<TsqlExecuteStatement>(batch.Statements[2]).Arguments);
-        Assert.Equal(5, batch.Statements.Count);
+        Assert.Empty(Assert.IsType<TsqlExecuteStatement>(batch.Statements[Two]).Arguments);
+        Assert.Equal(Five, batch.Statements.Count);
     }
 
     [Fact]
@@ -66,8 +66,8 @@ public sealed partial class TsqlProcTests
         const string sql = "exec sp_executesql @stmt, N'@p int, @q nvarchar(10) output', @p = 1, @q = @r output";
         var statement = SqlAssert.ParseTsql<TsqlExecuteStatement>(sql);
         Assert.Equal(["sp_executesql"], Texts(sql, statement.Module));
-        Assert.Equal(4, statement.Arguments.Count);
-        Assert.NotNull(statement.Arguments[3].OutputKeyword);
+        Assert.Equal(Four, statement.Arguments.Count);
+        Assert.NotNull(statement.Arguments[Three].OutputKeyword);
     }
 
     [Theory]
@@ -89,16 +89,16 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "exec p with recompile, result sets ((id int not null, name varchar(10) collate latin1_general_ci_as null), as object dbo.t, as type dbo.tt, as for xml)";
         var statement = SqlAssert.ParseTsql<TsqlExecuteStatement>(sql);
-        Assert.Equal(2, statement.Options.Count);
+        Assert.Equal(Two, statement.Options.Count);
         var resultSets = statement.Options[1];
         Assert.Equal(["result", "sets"], Texts(sql, resultSets.Keywords));
-        Assert.Equal(4, resultSets.ResultSets.Count);
+        Assert.Equal(Four, resultSets.ResultSets.Count);
         var columns = resultSets.ResultSets[0].Columns;
         Assert.NotNull(columns[0].NotKeyword);
         Assert.Equal("latin1_general_ci_as", Text(sql, Assert.NotNull(columns[1].Collation)));
         Assert.Equal(["object"], Texts(sql, resultSets.ResultSets[1].Kind));
-        Assert.Equal(["dbo", "tt"], Texts(sql, resultSets.ResultSets[2].Name));
-        Assert.Equal(["for", "xml"], Texts(sql, resultSets.ResultSets[3].Kind));
+        Assert.Equal(["dbo", "tt"], Texts(sql, resultSets.ResultSets[Two].Name));
+        Assert.Equal(["for", "xml"], Texts(sql, resultSets.ResultSets[Three].Kind));
     }
 
     [Theory]
@@ -127,7 +127,7 @@ public sealed partial class TsqlProcTests
     {
         const string sql = "execute ('select ?, ?', 1, @b) as user = 'u' at remote_srv";
         var statement = SqlAssert.ParseTsql<TsqlExecuteStringStatement>(sql);
-        Assert.Equal(2, statement.Arguments.Count);
+        Assert.Equal(Two, statement.Arguments.Count);
         Assert.Equal("user", Text(sql, Assert.NotNull(statement.PrincipalKind)));
         Assert.Equal("remote_srv", Text(sql, Assert.NotNull(statement.Target)));
         const string dataSource = "exec ('select 1') at data_source ds";
