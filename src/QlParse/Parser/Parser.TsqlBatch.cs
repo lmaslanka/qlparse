@@ -98,7 +98,8 @@ internal sealed partial class Parser
         or SyntaxKind.UpdateKeyword
         or SyntaxKind.SetKeyword
         or SyntaxKind.FetchKeyword
-        or SyntaxKind.OpenParen;
+        or SyntaxKind.OpenParen
+        || IsTsqlEndConversation();
 
     internal void SkipTsqlTerminators()
     {
