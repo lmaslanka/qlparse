@@ -222,7 +222,9 @@ internal sealed partial class Parser
     internal CreateSequenceStatement ParseCreateSequence()
     {
         var createKeyword = Advance();
+        var persistence = IsPostgres ? TryParsePgPersistence() : null;
         var sequenceKeyword = ExpectIdent(Keyword.Sequence);
+        var ifNotExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
         SyntaxToken? asKeyword = null;
         DataType? dataType = null;
@@ -233,7 +235,7 @@ internal sealed partial class Parser
         }
 
         var options = new List<SequenceOption>();
-        while (IsSequenceOption())
+        while (IsSequenceOption() || (IsPostgres && IsPgSequenceOption()))
         {
             options.Add(ParseSequenceOption());
         }
@@ -253,7 +255,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, end),
             CreateKeyword = createKeyword,
+            PersistenceKeyword = persistence,
             SequenceKeyword = sequenceKeyword,
+            IfNotExists = ifNotExists,
             Name = name,
             AsKeyword = asKeyword,
             DataType = dataType,
@@ -265,6 +269,11 @@ internal sealed partial class Parser
     {
         var dropKeyword = Advance();
         var sequenceKeyword = ExpectIdent(Keyword.Sequence);
+        if (IsPostgres)
+        {
+            return ParsePgDropSequence(dropKeyword, sequenceKeyword);
+        }
+
         var name = ParseQualifiedName();
         var behavior = ParseDropBehavior();
         return new DropSequenceStatement
@@ -288,9 +297,12 @@ internal sealed partial class Parser
         }
 
         var indexKeyword = ExpectIdent(Keyword.Index);
-        var name = ParseQualifiedName();
+        var head = ParsePgIndexHead();
+        IReadOnlyList<SyntaxToken> name = head.OmitsName ? [] : ParseQualifiedName();
         var onKeyword = Expect(SyntaxKind.OnKeyword);
+        var only = TryParsePgOnly();
         var tableName = ParseQualifiedName();
+        var (usingKeyword, method) = TryParsePgIndexMethod();
         var openParen = Expect(SyntaxKind.OpenParen);
         var columns = new List<IndexColumn> { ParseIndexColumn() };
         while (_current.Kind == SyntaxKind.Comma)
@@ -300,9 +312,10 @@ internal sealed partial class Parser
         }
 
         var closeParen = Expect(SyntaxKind.CloseParen);
+        var options = TryParsePgIndexOptions();
         SyntaxToken? whereKeyword = null;
         Expression? where = null;
-        var end = closeParen.Span;
+        var end = options?.Span ?? closeParen.Span;
         if (_current.Kind == SyntaxKind.WhereKeyword)
         {
             whereKeyword = Advance();
@@ -317,12 +330,18 @@ internal sealed partial class Parser
             UniqueKeyword = unique,
             ClusteredKeyword = clustered,
             IndexKeyword = indexKeyword,
+            ConcurrentlyKeyword = head.Concurrently,
+            IfNotExists = head.IfNotExists,
             Name = name,
             OnKeyword = onKeyword,
+            OnlyKeyword = only,
             TableName = tableName,
+            UsingKeyword = usingKeyword,
+            Method = method,
             OpenParen = openParen,
             Columns = columns,
             CloseParen = closeParen,
+            Options = options,
             WhereKeyword = whereKeyword,
             Where = where,
         };
@@ -332,6 +351,7 @@ internal sealed partial class Parser
     {
         var alterKeyword = Advance();
         var indexKeyword = ExpectIdent(Keyword.Index);
+        var ifExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
         if (IdentifierEquals(Keyword.Rename))
         {
@@ -343,6 +363,7 @@ internal sealed partial class Parser
                 Span = SourceSpan.From(alterKeyword, newName[^1]),
                 AlterKeyword = alterKeyword,
                 IndexKeyword = indexKeyword,
+                IfExists = ifExists,
                 Name = name,
                 RenameKeyword = renameKeyword,
                 ToKeyword = toKeyword,
@@ -352,6 +373,11 @@ internal sealed partial class Parser
 
         if (_current.Kind != SyntaxKind.OnKeyword)
         {
+            if (IsPostgres)
+            {
+                return ParsePgAlterIndexAction(alterKeyword, indexKeyword, ifExists, name);
+            }
+
             throw new SqlParseException($"Expected RENAME or ON, found {_current.Kind}", _current.Position);
         }
 
@@ -379,6 +405,11 @@ internal sealed partial class Parser
     {
         var dropKeyword = Advance();
         var indexKeyword = ExpectIdent(Keyword.Index);
+        if (IsPostgres)
+        {
+            return ParsePgDropIndex(dropKeyword, indexKeyword);
+        }
+
         var name = ParseQualifiedName();
         SyntaxToken? onKeyword = null;
         IReadOnlyList<SyntaxToken>? tableName = null;
@@ -443,6 +474,7 @@ internal sealed partial class Parser
     private IndexColumn ParseIndexColumn()
     {
         var expression = ParseExpression();
+        var operatorClass = IsPostgres ? ParsePgOperatorClass() : default;
         SyntaxToken? direction = null;
         if (_current.Kind is SyntaxKind.AscKeyword or SyntaxKind.DescKeyword)
         {
@@ -462,11 +494,13 @@ internal sealed partial class Parser
             nullsOrder = Advance();
         }
 
-        var end = nullsOrder?.Span ?? direction?.Span ?? expression.Span;
+        var end = nullsOrder?.Span ?? direction?.Span ?? operatorClass.End ?? expression.Span;
         return new IndexColumn
         {
             Span = SourceSpan.From(expression.Span, end),
             Expression = expression,
+            OperatorClass = operatorClass.Name,
+            OperatorClassParameters = operatorClass.Parameters,
             Direction = direction,
             NullsKeyword = nullsKeyword,
             NullsOrder = nullsOrder,

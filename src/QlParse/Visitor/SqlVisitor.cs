@@ -46,6 +46,11 @@ public partial class SqlVisitor
             return;
         }
 
+        if (TryVisitPgDdlQuery(query))
+        {
+            return;
+        }
+
         throw new SwitchExpressionException(query);
     }
 

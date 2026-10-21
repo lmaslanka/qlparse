@@ -253,9 +253,6 @@ internal sealed partial class Parser
         };
     }
 
-    internal SyntaxToken? TryParseDropBehavior() =>
-        IdentifierEquals(Keyword.Cascade) || IdentifierEquals(Keyword.Restrict) ? Advance() : null;
-
     // ALTER DEFAULT PRIVILEGES [FOR {ROLE | USER} r, ...] [IN SCHEMA s, ...] {GRANT … | REVOKE …}
     internal AlterDefaultPrivilegesStatement ParseAlterDefaultPrivileges()
     {

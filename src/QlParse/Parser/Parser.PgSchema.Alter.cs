@@ -104,7 +104,7 @@ internal sealed partial class Parser
     {
         if (IdentifierEquals(Keyword.Rename))
         {
-            return ParsePgRenameAction();
+            return ParsePgObjectRenameAction();
         }
 
         if (IdentifierEquals(Keyword.PgOwner))
@@ -147,7 +147,7 @@ internal sealed partial class Parser
     }
 
     // RENAME TO n | RENAME VALUE 'a' TO 'b' | RENAME {ATTRIBUTE|COLUMN} a TO b [CASCADE|RESTRICT] | RENAME a TO b
-    private PgRenameAction ParsePgRenameAction()
+    private PgRenameAction ParsePgObjectRenameAction()
     {
         var renameKeyword = Advance();
         SyntaxToken? kind = null;

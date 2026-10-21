@@ -187,6 +187,8 @@ public partial class SqlVisitor
         {
             Visit(node.Query);
         }
+
+        VisitPgCreateTableParts(node);
     }
 
     public virtual void Visit(TableElement element)
@@ -262,6 +264,8 @@ public partial class SqlVisitor
         {
             Visit(node.Check);
         }
+
+        VisitPgTableConstraintParts(node);
     }
 
     public virtual void VisitDefaultClause(DefaultClause node) => Visit(node.Value);
@@ -290,7 +294,11 @@ public partial class SqlVisitor
         }
     }
 
-    public virtual void VisitAlterTableStatement(AlterTableStatement node) => Visit(node.Action);
+    public virtual void VisitAlterTableStatement(AlterTableStatement node)
+    {
+        Visit(node.Action);
+        VisitPgAlterTableParts(node);
+    }
 
     public virtual void VisitDropTableStatement(DropTableStatement node)
     {
@@ -323,7 +331,12 @@ public partial class SqlVisitor
                 VisitAlterViewColumnAction(node);
                 break;
             default:
-                throw new SwitchExpressionException(action);
+                if (!TryVisitPgDdlAlterViewAction(action))
+                {
+                    throw new SwitchExpressionException(action);
+                }
+
+                break;
         }
     }
 
@@ -532,7 +545,10 @@ public partial class SqlVisitor
 
     public virtual void VisitAlterIndexStatement(AlterIndexStatement node)
     {
-        return;
+        if (node.RelationAction is not null)
+        {
+            Visit(node.RelationAction);
+        }
     }
 
     public virtual void VisitDropIndexStatement(DropIndexStatement node)

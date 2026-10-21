@@ -6,7 +6,7 @@ internal sealed partial class Parser
     {
         var alterKeyword = Advance();
         var columnKeyword = IdentifierEquals(Keyword.Column) ? Advance() : (SyntaxToken?)null;
-        var name = Expect(SyntaxKind.Identifier);
+        var name = IsPostgres && _current.Kind == SyntaxKind.Number ? Advance() : Expect(SyntaxKind.Identifier);
 
         if (_current.Kind == SyntaxKind.SetKeyword)
         {
@@ -28,6 +28,11 @@ internal sealed partial class Parser
             return ParseAlterColumnRestart(alterKeyword, columnKeyword, name);
         }
 
+        if (IsPostgres && TryParsePgAlterColumnAction(alterKeyword, columnKeyword, name) is { } pgAction)
+        {
+            return pgAction;
+        }
+
         throw new SqlParseException($"Expected column alter action, found {_current.Kind}", _current.Position);
     }
 
@@ -37,19 +42,7 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Data))
         {
             var dataKeyword = Advance();
-            var typeKeyword = ExpectIdent(Keyword.Type);
-            var dataType = ParseDataType();
-            return new AlterColumnAction
-            {
-                Span = SourceSpan.From(alterKeyword, dataType.Span),
-                AlterKeyword = alterKeyword,
-                ColumnKeyword = columnKeyword,
-                Name = name,
-                SetKeyword = setKeyword,
-                DataKeyword = dataKeyword,
-                TypeKeyword = typeKeyword,
-                DataType = dataType,
-            };
+            return ParseAlterColumnType(new AlterColumnHead(alterKeyword, columnKeyword, name), setKeyword, dataKeyword);
         }
 
         if (IdentifierEquals(Keyword.Default))
@@ -101,7 +94,37 @@ internal sealed partial class Parser
             };
         }
 
+        if (IsPostgres)
+        {
+            return ParsePgAlterColumnSet(new AlterColumnHead(alterKeyword, columnKeyword, name), setKeyword);
+        }
+
         throw new SqlParseException($"Expected column alter action, found {_current.Kind}", _current.Position);
+    }
+
+    internal readonly record struct AlterColumnHead(SyntaxToken AlterKeyword, SyntaxToken? ColumnKeyword, SyntaxToken Name);
+
+    // `[SET DATA] TYPE data_type`, plus Postgres `[COLLATE c] [USING expression]`.
+    internal AlterColumnAction ParseAlterColumnType(AlterColumnHead head, SyntaxToken? setKeyword, SyntaxToken? dataKeyword)
+    {
+        var typeKeyword = ExpectIdent(Keyword.Type);
+        var dataType = ParseDataType();
+        var conversion = IsPostgres ? ParsePgTypeConversion() : default;
+        return new AlterColumnAction
+        {
+            Span = SourceSpan.From(head.AlterKeyword, conversion.End ?? dataType.Span),
+            AlterKeyword = head.AlterKeyword,
+            ColumnKeyword = head.ColumnKeyword,
+            Name = head.Name,
+            SetKeyword = setKeyword,
+            DataKeyword = dataKeyword,
+            TypeKeyword = typeKeyword,
+            DataType = dataType,
+            CollateKeyword = conversion.CollateKeyword,
+            Collation = conversion.Collation,
+            UsingKeyword = conversion.UsingKeyword,
+            Using = conversion.Using,
+        };
     }
 
     private AlterColumnAction ParseAlterColumnSetGenerated(SyntaxToken alterKeyword, SyntaxToken? columnKeyword, SyntaxToken name, SyntaxToken setKeyword)
@@ -175,15 +198,22 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Identity))
         {
             var identityToken = Advance();
+            var identityIfExists = TryParsePgIfExists();
             return new AlterColumnAction
             {
-                Span = SourceSpan.From(alterKeyword, identityToken.Span),
+                Span = SourceSpan.From(alterKeyword, identityIfExists?.Span ?? identityToken.Span),
                 AlterKeyword = alterKeyword,
                 ColumnKeyword = columnKeyword,
                 Name = name,
                 DropKeyword = dropKeyword,
                 IdentityKeyword = identityToken,
+                IfExists = identityIfExists,
             };
+        }
+
+        if (IsPostgres && IdentifierEquals(Keyword.DdlExpression))
+        {
+            return ParsePgAlterColumnDropExpression(new AlterColumnHead(alterKeyword, columnKeyword, name), dropKeyword);
         }
 
         throw new SqlParseException($"Expected DROP action, found {_current.Kind}", _current.Position);
@@ -192,6 +222,11 @@ internal sealed partial class Parser
     private AlterColumnAction ParseAlterColumnAdd(SyntaxToken alterKeyword, SyntaxToken? columnKeyword, SyntaxToken name)
     {
         var addKeyword = Advance();
+        if (IsPostgres && IdentifierEquals(Keyword.Generated))
+        {
+            return ParsePgAlterColumnAddIdentity(new AlterColumnHead(alterKeyword, columnKeyword, name), addKeyword);
+        }
+
         var scopeKeyword = ExpectIdent(Keyword.Scope);
         var scopeName = ParseQualifiedName();
         return new AlterColumnAction
@@ -237,6 +272,13 @@ internal sealed partial class Parser
         out SyntaxToken closeParen)
     {
         openParen = Expect(SyntaxKind.OpenParen);
+        if (IsPostgres && _current.Kind == SyntaxKind.CloseParen)
+        {
+            elements = [];
+            closeParen = Advance();
+            return;
+        }
+
         var items = new List<TableElement> { ParseTableElement() };
         while (_current.Kind == SyntaxKind.Comma)
         {
@@ -273,6 +315,11 @@ internal sealed partial class Parser
         if (IsWithOptions())
         {
             return ParseColumn(withOptions: true);
+        }
+
+        if (IsPostgres && IsPgExcludeStart())
+        {
+            return ParseTableConstraint();
         }
 
         return ParseColumn();
@@ -450,7 +497,8 @@ internal sealed partial class Parser
         while (IdentifierEquals(Keyword.Including) || IdentifierEquals(Keyword.Excluding))
         {
             var kindKeyword = Advance();
-            if (!IdentifierEquals(Keyword.Identity) && !IdentifierEquals(Keyword.Defaults) && !IdentifierEquals(Keyword.Generated))
+            if (!IdentifierEquals(Keyword.Identity) && !IdentifierEquals(Keyword.Defaults) && !IdentifierEquals(Keyword.Generated)
+                && !IsPgLikeOption())
             {
                 throw new SqlParseException($"Expected IDENTITY, DEFAULTS, or GENERATED, found {_current.Kind}", _current.Position);
             }

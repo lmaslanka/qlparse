@@ -166,27 +166,58 @@ internal sealed partial class Parser
         var createKeyword = Advance();
         SyntaxToken? scope = null;
         SyntaxToken? temporary = null;
+        SyntaxToken? pgPersistence = null;
         if (IdentifierEquals(Keyword.Global) || IdentifierEquals(Keyword.Local))
         {
             scope = Advance();
             temporary = ExpectIdent(Keyword.Temporary);
         }
+        else
+        {
+            if (IsPostgres)
+            {
+                pgPersistence = TryParsePgPersistence();
+            }
+        }
 
         var tableKeyword = ExpectIdent(Keyword.Table);
+        var ifNotExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
+        var pgTail = IsPostgres ? ParsePgTableTail() : default;
         var body = ParseTableBody();
+        if (IsPostgres && pgTail.End is null)
+        {
+            pgTail = ParsePgTableTail();
+        }
+
         ParseOnCommit(out var onKeyword, out var commitKeyword, out var commitAction, out var rowsKeyword);
         ParseSystemVersioning(out var systemWith, out var systemKeyword, out var versioningKeyword);
         var withKeyword = systemWith ?? body.WithKeyword;
-        var end = ParseCreateTableEnd(name, body, versioningKeyword, rowsKeyword);
+        var end = MaxEnd(ParseCreateTableEnd(name, body, versioningKeyword, rowsKeyword), pgTail.End);
         return new CreateTableStatement
         {
             Span = SourceSpan.From(createKeyword, end),
             CreateKeyword = createKeyword,
             Scope = scope,
-            TemporaryKeyword = temporary,
+            TemporaryKeyword = temporary ?? PgTemporaryOf(pgPersistence),
+            UnloggedKeyword = PgUnloggedOf(pgPersistence),
             TableKeyword = tableKeyword,
+            IfNotExists = ifNotExists,
             Name = name,
+            PartitionOf = body.PartitionOf,
+            InheritsKeyword = pgTail.InheritsKeyword,
+            InheritsOpen = pgTail.InheritsOpen,
+            Inherits = pgTail.Inherits,
+            InheritsClose = pgTail.InheritsClose,
+            PartitionBy = pgTail.PartitionBy,
+            UsingKeyword = pgTail.UsingKeyword,
+            AccessMethod = pgTail.AccessMethod,
+            StorageWithKeyword = pgTail.StorageWithKeyword,
+            StorageParameters = pgTail.StorageParameters,
+            WithoutKeyword = pgTail.WithoutKeyword,
+            OidsKeyword = pgTail.OidsKeyword,
+            TablespaceKeyword = pgTail.TablespaceKeyword,
+            Tablespace = pgTail.Tablespace,
             OfKeyword = body.OfKeyword,
             TypeName = body.TypeName,
             UnderKeyword = body.UnderKeyword,
@@ -202,10 +233,10 @@ internal sealed partial class Parser
             WithKeyword = withKeyword,
             NoKeyword = body.NoKeyword,
             DataKeyword = body.DataKeyword,
-            OnKeyword = onKeyword,
-            CommitKeyword = commitKeyword,
-            CommitAction = commitAction,
-            RowsKeyword = rowsKeyword,
+            OnKeyword = onKeyword ?? pgTail.OnKeyword,
+            CommitKeyword = commitKeyword ?? pgTail.CommitKeyword,
+            CommitAction = commitAction ?? pgTail.CommitAction,
+            RowsKeyword = rowsKeyword ?? pgTail.RowsKeyword,
             SystemKeyword = systemKeyword,
             VersioningKeyword = versioningKeyword,
         };
@@ -220,6 +251,7 @@ internal sealed partial class Parser
         ?? rowsKeyword?.Span
         ?? body.DataKeyword?.Span
         ?? body.Query?.Span
+        ?? body.PartitionOf?.Span
         ?? body.CloseParen?.Span
         ?? body.Supertable?[^1].Span
         ?? body.TypeName?[^1].Span
@@ -240,7 +272,8 @@ internal sealed partial class Parser
         Query? Query,
         SyntaxToken? WithKeyword,
         SyntaxToken? NoKeyword,
-        SyntaxToken? DataKeyword);
+        SyntaxToken? DataKeyword,
+        PartitionOfClause? PartitionOf = null);
 
     private TableBody ParseTableBody()
     {
@@ -285,6 +318,11 @@ internal sealed partial class Parser
             return ParseAsQueryTableBody();
         }
 
+        if (IsPostgres && IsPartitionOfStart())
+        {
+            return ParsePgPartitionOfBody();
+        }
+
         ParseTableElements(out var elementOpen, out var elementList, out var elementClose);
         return new TableBody(null, null, null, null, elementOpen, elementList, elementClose, null, null, null, null, null, null, null, null);
     }
@@ -303,6 +341,11 @@ internal sealed partial class Parser
 
         var asKeyword = Expect(SyntaxKind.AsKeyword);
         var query = ParseQuery();
+        if (IsPostgres && _current.Kind != SyntaxKind.WithKeyword)
+        {
+            return new TableBody(null, null, null, null, null, null, null, asColumnsOpen, asColumns, asColumnsClose, asKeyword, query, null, null, null);
+        }
+
         ParseWithData(out var withKeyword, out var noKeyword, out var dataKeyword);
         return new TableBody(null, null, null, null, null, null, null, asColumnsOpen, asColumns, asColumnsClose, asKeyword, query, withKeyword, noKeyword, dataKeyword);
     }
@@ -311,6 +354,11 @@ internal sealed partial class Parser
     {
         var alterKeyword = Advance();
         var tableKeyword = ExpectIdent(Keyword.Table);
+        if (IsPostgres)
+        {
+            return ParsePgAlterTable(alterKeyword, tableKeyword);
+        }
+
         var name = ParseQualifiedName();
         var action = ParseAlterTableAction();
         return new AlterTableStatement
@@ -327,6 +375,11 @@ internal sealed partial class Parser
     {
         var dropKeyword = Advance();
         var tableKeyword = ExpectIdent(Keyword.Table);
+        if (IsPostgres)
+        {
+            return ParsePgDropTable(dropKeyword, tableKeyword);
+        }
+
         var name = ParseQualifiedName();
         var behavior = ParseDropBehavior();
         return new DropTableStatement
@@ -353,8 +406,12 @@ internal sealed partial class Parser
 
         if (!IdentifierEquals(Keyword.Alter))
         {
-            return (IsPostgres ? TryParseRowLevelSecurityAction() : null)
-                ?? throw new SqlParseException($"Expected ADD, DROP, or ALTER, found {_current.Kind}", _current.Position);
+            if (IsPostgres && (TryParseRowLevelSecurityAction() ?? TryParsePgDdlAlterTableAction()) is { } pgAction)
+            {
+                return pgAction;
+            }
+
+            throw new SqlParseException($"Expected ADD, DROP, or ALTER, found {_current.Kind}", _current.Position);
         }
 
         return ParseAlterColumn();
@@ -387,7 +444,7 @@ internal sealed partial class Parser
             };
         }
 
-        if (IsTableConstraintStart())
+        if (IsTableConstraintStart() || (IsPostgres && IsPgExcludeStart()))
         {
             var constraint = ParseTableConstraint();
             return new AddConstraintAction
@@ -399,12 +456,14 @@ internal sealed partial class Parser
         }
 
         var columnKeyword = IdentifierEquals(Keyword.Column) ? Advance() : (SyntaxToken?)null;
+        var ifNotExists = TryParsePgIfExists();
         var column = ParseColumn();
         return new AddColumnAction
         {
             Span = SourceSpan.From(addKeyword, column.Span),
             AddKeyword = addKeyword,
             ColumnKeyword = columnKeyword,
+            IfNotExists = ifNotExists,
             Column = column,
         };
     }
@@ -445,26 +504,30 @@ internal sealed partial class Parser
         if (IdentifierEquals(Keyword.Constraint))
         {
             var constraintKeyword = Advance();
+            var constraintIfExists = TryParsePgIfExists();
             var constraintName = Expect(SyntaxKind.Identifier);
-            var behavior = ParseDropBehavior();
+            var behavior = ParseOptionalDropBehavior();
             return new DropConstraintAction
             {
-                Span = SourceSpan.From(dropKeyword, behavior),
+                Span = SourceSpan.From(dropKeyword, behavior ?? constraintName),
                 DropKeyword = dropKeyword,
                 ConstraintKeyword = constraintKeyword,
+                IfExists = constraintIfExists,
                 Name = constraintName,
                 Behavior = behavior,
             };
         }
 
         var columnKeyword = IdentifierEquals(Keyword.Column) ? Advance() : (SyntaxToken?)null;
+        var ifExists = TryParsePgIfExists();
         var name = Expect(SyntaxKind.Identifier);
-        var dropBehavior = ParseDropBehavior();
+        var dropBehavior = ParseOptionalDropBehavior();
         return new DropColumnAction
         {
-            Span = SourceSpan.From(dropKeyword, dropBehavior),
+            Span = SourceSpan.From(dropKeyword, dropBehavior ?? name),
             DropKeyword = dropKeyword,
             ColumnKeyword = columnKeyword,
+            IfExists = ifExists,
             Name = name,
             Behavior = dropBehavior,
         };

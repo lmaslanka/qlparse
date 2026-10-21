@@ -405,7 +405,12 @@ public partial class SqlVisitor
                 VisitRowLevelSecurityAction(node);
                 break;
             default:
-                throw new SwitchExpressionException(action);
+                if (!TryVisitPgDdlAlterTableAction(action))
+                {
+                    throw new SwitchExpressionException(action);
+                }
+
+                break;
         }
     }
 
@@ -456,6 +461,8 @@ public partial class SqlVisitor
         {
             VisitSequenceOption(node.IdentityOption);
         }
+
+        VisitPgAlterColumnParts(node);
     }
 
     public virtual void VisitMergeWhenClause(MergeWhenClause node)

@@ -5,6 +5,7 @@ internal sealed partial class Parser
     internal CreateViewStatement ParseCreateView()
     {
         var createKeyword = Advance();
+        var pgHead = ParsePgViewHead();
         var recursive = _current.Kind == SyntaxKind.RecursiveKeyword ? Advance() : (SyntaxToken?)null;
         var viewKeyword = ExpectIdent(Keyword.View);
         var name = ParseQualifiedName();
@@ -36,7 +37,7 @@ internal sealed partial class Parser
         }
         else
         {
-            if (IsAsColumnList())
+            if (IsAsColumnList() || IsPgViewColumnList())
             {
                 columnsOpen = Advance();
                 columns = ParseNameList();
@@ -44,6 +45,7 @@ internal sealed partial class Parser
             }
         }
 
+        var (optionsWith, options) = TryParsePgViewOptions();
         var asKeyword = Expect(SyntaxKind.AsKeyword);
         var query = ParseQuery();
         ParseCheckOption(out var withKeyword, out var levels, out var checkKeyword, out var optionKeyword);
@@ -52,6 +54,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(createKeyword, end),
             CreateKeyword = createKeyword,
+            OrKeyword = pgHead.OrKeyword,
+            ReplaceKeyword = pgHead.ReplaceKeyword,
+            TemporaryKeyword = pgHead.TemporaryKeyword,
             RecursiveKeyword = recursive,
             ViewKeyword = viewKeyword,
             Name = name,
@@ -63,6 +68,8 @@ internal sealed partial class Parser
             Columns = columns,
             ColumnsClose = columnsClose,
             Elements = elements,
+            OptionsWithKeyword = optionsWith,
+            Options = options,
             AsKeyword = asKeyword,
             Query = query,
             WithKeyword = withKeyword,
@@ -75,7 +82,9 @@ internal sealed partial class Parser
     internal AlterViewStatement ParseAlterView()
     {
         var alterKeyword = Advance();
+        var materialized = IsPostgres && IdentifierEquals(Keyword.DdlMaterialized) ? Advance() : (SyntaxToken?)null;
         var viewKeyword = ExpectIdent(Keyword.View);
+        var ifExists = TryParsePgIfExists();
         var name = ParseQualifiedName();
         AlterViewAction action;
         if (_current.Kind == SyntaxKind.AsKeyword)
@@ -98,7 +107,7 @@ internal sealed partial class Parser
             }
             else
             {
-                throw new SqlParseException($"Expected AS or ALTER, found {_current.Kind}", _current.Position);
+                action = IsPostgres ? ParsePgAlterViewAction() : throw new SqlParseException($"Expected AS or ALTER, found {_current.Kind}", _current.Position);
             }
         }
 
@@ -106,7 +115,9 @@ internal sealed partial class Parser
         {
             Span = SourceSpan.From(alterKeyword, action.Span),
             AlterKeyword = alterKeyword,
+            MaterializedKeyword = materialized,
             ViewKeyword = viewKeyword,
+            IfExists = ifExists,
             Name = name,
             Action = action,
         };
@@ -115,7 +126,13 @@ internal sealed partial class Parser
     internal DropViewStatement ParseDropView()
     {
         var dropKeyword = Advance();
+        var materialized = IsPostgres && IdentifierEquals(Keyword.DdlMaterialized) ? Advance() : (SyntaxToken?)null;
         var viewKeyword = ExpectIdent(Keyword.View);
+        if (IsPostgres)
+        {
+            return ParsePgDropView(dropKeyword, materialized, viewKeyword);
+        }
+
         var name = ParseQualifiedName();
         var behavior = ParseDropBehavior();
         return new DropViewStatement
