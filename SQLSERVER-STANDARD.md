@@ -333,36 +333,36 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [ ] `USE database`
 
 ## Administration and utility commands
-- [ ] `DBCC command [(args)] [WITH options]` (`CHECKDB`, `SHRINKFILE`, `FREEPROCCACHE`, `INPUTBUFFER`, …)
-- [ ] `BACKUP {DATABASE|LOG} name TO {DISK|URL} = '...' [WITH ...]`
-- [ ] `RESTORE {DATABASE|LOG|HEADERONLY|FILELISTONLY|VERIFYONLY} ... FROM ... [WITH MOVE ..., NORECOVERY, ...]`
-- [ ] `CHECKPOINT [duration]`
-- [ ] `KILL {session_id|UOW} [WITH STATUSONLY]`
-- [ ] `RECONFIGURE [WITH OVERRIDE]`
-- [ ] `SHUTDOWN [WITH NOWAIT]`
-- [ ] `ALTER SERVER CONFIGURATION SET ...`
-- [ ] Availability groups and endpoints (`CREATE|ALTER AVAILABILITY GROUP`, `CREATE ENDPOINT`)
-- [ ] Resource Governor (`CREATE RESOURCE POOL`, `CREATE WORKLOAD GROUP`, `ALTER RESOURCE GOVERNOR`)
-- [ ] Extended events (`CREATE EVENT SESSION ... ON SERVER ADD EVENT ... ADD TARGET ...`)
-- [ ] Legacy text/image statements (`READTEXT` `WRITETEXT` `UPDATETEXT`)
-- [ ] `SETUSER` (legacy)
+- [x] `DBCC command [(args)] [WITH options]` (`CHECKDB`, `SHRINKFILE`, `FREEPROCCACHE`, `INPUTBUFFER`, …)
+- [x] `BACKUP {DATABASE|LOG} name TO {DISK|URL} = '...' [WITH ...]`
+- [x] `RESTORE {DATABASE|LOG|HEADERONLY|FILELISTONLY|VERIFYONLY} ... FROM ... [WITH MOVE ..., NORECOVERY, ...]`
+- [x] `CHECKPOINT [duration]`
+- [x] `KILL {session_id|UOW} [WITH STATUSONLY]`
+- [x] `RECONFIGURE [WITH OVERRIDE]`
+- [x] `SHUTDOWN [WITH NOWAIT]`
+- [x] `ALTER SERVER CONFIGURATION SET ...`
+- [x] Availability groups and endpoints (`CREATE|ALTER AVAILABILITY GROUP`, `CREATE ENDPOINT`)
+- [x] Resource Governor (`CREATE RESOURCE POOL`, `CREATE WORKLOAD GROUP`, `ALTER RESOURCE GOVERNOR`)
+- [x] Extended events (`CREATE EVENT SESSION ... ON SERVER ADD EVENT ... ADD TARGET ...`)
+- [x] Legacy text/image statements (`READTEXT` `WRITETEXT` `UPDATETEXT`)
+- [x] `SETUSER` (legacy)
 
 ## Service Broker
-- [ ] `CREATE MESSAGE TYPE` / `CREATE CONTRACT` / `CREATE QUEUE` / `CREATE SERVICE` / `CREATE ROUTE`
-- [ ] `BEGIN DIALOG [CONVERSATION] @h FROM SERVICE s TO SERVICE 't' ON CONTRACT c [WITH ...]`
-- [ ] `SEND ON CONVERSATION @h [MESSAGE TYPE m] (body)`
-- [ ] `RECEIVE [TOP (n)] cols FROM queue [INTO @t] [WHERE ...]`
-- [ ] `END CONVERSATION @h [WITH ERROR = n DESCRIPTION = '...' | WITH CLEANUP]`
-- [ ] `GET CONVERSATION GROUP @g FROM queue`
-- [ ] `MOVE CONVERSATION`
+- [x] `CREATE MESSAGE TYPE` / `CREATE CONTRACT` / `CREATE QUEUE` / `CREATE SERVICE` / `CREATE ROUTE`
+- [x] `BEGIN DIALOG [CONVERSATION] @h FROM SERVICE s TO SERVICE 't' ON CONTRACT c [WITH ...]`
+- [x] `SEND ON CONVERSATION @h [MESSAGE TYPE m] (body)`
+- [x] `RECEIVE [TOP (n)] cols FROM queue [INTO @t] [WHERE ...]`
+- [x] `END CONVERSATION @h [WITH ERROR = n DESCRIPTION = '...' | WITH CLEANUP]`
+- [x] `GET CONVERSATION GROUP @g FROM queue`
+- [x] `MOVE CONVERSATION`
 
 ## Full text search
 - [x] `CONTAINS(col|(cols)|*, 'search condition' [, LANGUAGE l])`
 - [x] `FREETEXT(col|(cols)|*, 'text' [, LANGUAGE l])`
 - [ ] `CONTAINSTABLE(t, col, '...' [, top_n])` / `FREETEXTTABLE(...)` with `KEY` / `RANK` columns
-- [ ] `CREATE FULLTEXT CATALOG` / `ALTER FULLTEXT CATALOG`
-- [ ] `CREATE FULLTEXT INDEX ON t (col [TYPE COLUMN c] [LANGUAGE l]) KEY INDEX ix [ON catalog] [WITH ...]`
-- [ ] `CREATE FULLTEXT STOPLIST` / `CREATE SEARCH PROPERTY LIST`
+- [x] `CREATE FULLTEXT CATALOG` / `ALTER FULLTEXT CATALOG`
+- [x] `CREATE FULLTEXT INDEX ON t (col [TYPE COLUMN c] [LANGUAGE l]) KEY INDEX ix [ON catalog] [WITH ...]`
+- [x] `CREATE FULLTEXT STOPLIST` / `CREATE SEARCH PROPERTY LIST`
 - [ ] `SEMANTICKEYPHRASETABLE()` / `SEMANTICSIMILARITYTABLE()` / `SEMANTICSIMILARITYDETAILSTABLE()`
 
 ## System objects and pseudo-columns
