@@ -20,23 +20,23 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [ ] Custom/user-defined operator tokens (arbitrary operator-character sequences)
 
 ## Data types
-- [ ] `SERIAL` `SMALLSERIAL` `BIGSERIAL` (implicit sequence + default)
-- [ ] Array types (`int[]`, `text[]`, multi-dimensional `int[][]`)
-- [ ] `JSON` / `JSONB`
-- [ ] `HSTORE` (contrib extension)
-- [ ] Geometric types (`POINT` `LINE` `LSEG` `BOX` `PATH` `POLYGON` `CIRCLE`)
-- [ ] Network address types (`CIDR` `INET` `MACADDR` `MACADDR8`)
-- [ ] Range types (`INT4RANGE` `INT8RANGE` `NUMRANGE` `TSRANGE` `TSTZRANGE` `DATERANGE`)
-- [ ] Multirange types (`INT4MULTIRANGE` `TSMULTIRANGE` etc., PG14+)
-- [ ] `UUID`
-- [ ] `MONEY`
+- [x] `SERIAL` `SMALLSERIAL` `BIGSERIAL` (implicit sequence + default)
+- [x] Array types (`int[]`, `text[]`, multi-dimensional `int[][]`)
+- [x] `JSON` / `JSONB`
+- [x] `HSTORE` (contrib extension)
+- [x] Geometric types (`POINT` `LINE` `LSEG` `BOX` `PATH` `POLYGON` `CIRCLE`)
+- [x] Network address types (`CIDR` `INET` `MACADDR` `MACADDR8`)
+- [x] Range types (`INT4RANGE` `INT8RANGE` `NUMRANGE` `TSRANGE` `TSTZRANGE` `DATERANGE`)
+- [x] Multirange types (`INT4MULTIRANGE` `TSMULTIRANGE` etc., PG14+)
+- [x] `UUID`
+- [x] `MONEY`
 - [x] Composite/row types via `CREATE TYPE ... AS (...)`
 - [ ] Enumerated types via `CREATE TYPE ... AS ENUM (...)`
-- [ ] Full text search types (`TSVECTOR` `TSQUERY`)
-- [ ] Pseudo-types (`ANYELEMENT` `ANYARRAY` `ANYRANGE` `ANYCOMPATIBLE` `VOID` `RECORD` `CSTRING` `INTERNAL` `TRIGGER`)
-- [ ] Object identifier / reg-types (`OID` `REGCLASS` `REGPROC` `REGTYPE` `REGNAMESPACE` `REGROLE`)
-- [ ] `PG_LSN`
-- [ ] `TXID_SNAPSHOT` / `PG_SNAPSHOT`
+- [x] Full text search types (`TSVECTOR` `TSQUERY`)
+- [x] Pseudo-types (`ANYELEMENT` `ANYARRAY` `ANYRANGE` `ANYCOMPATIBLE` `VOID` `RECORD` `CSTRING` `INTERNAL` `TRIGGER`)
+- [x] Object identifier / reg-types (`OID` `REGCLASS` `REGPROC` `REGTYPE` `REGNAMESPACE` `REGROLE`)
+- [x] `PG_LSN`
+- [x] `TXID_SNAPSHOT` / `PG_SNAPSHOT`
 
 ## Operators
 - [ ] Array operators (`@>` `<@` `&&` `||` concatenation)
@@ -139,7 +139,7 @@ ISO core: SQL-STANDARD.md. This file tracks PostgreSQL-specific syntax beyond/di
 - [ ] `ALTER COLUMN ... SET STORAGE {PLAIN|EXTERNAL|EXTENDED|MAIN}`
 - [ ] `ALTER COLUMN ... SET DATA TYPE ... USING expression`
 - [ ] `ONLY` to exclude inheriting child tables in DML/DDL
-- [ ] `GENERATED ALWAYS AS (expr) STORED` computed columns
+- [x] `GENERATED ALWAYS AS (expr) STORED` computed columns
 
 ### Partitioning
 - [ ] `PARTITION BY RANGE (...)`
