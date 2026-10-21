@@ -29,6 +29,11 @@ internal sealed partial class Parser
     public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source, SqlOptions flags)
     {
         var parser = new Parser(tokens, source, flags);
+        if (parser.IsSqlServer)
+        {
+            return parser.ParseTsqlScript();
+        }
+
         var statements = new List<Query> { parser.ParseStatement() };
         var semicolons = new List<SyntaxToken>();
         while (parser._current.Kind == SyntaxKind.Semicolon)

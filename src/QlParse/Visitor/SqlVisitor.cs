@@ -59,7 +59,8 @@ public partial class SqlVisitor
 
     // SQL Server-only statement nodes, tried after the Postgres buckets.
     private bool TryVisitTsqlQuery(Query query) =>
-        TryVisitTsqlDmlQuery(query)
+        TryVisitTsqlLexicalQuery(query)
+        || TryVisitTsqlDmlQuery(query)
         || TryVisitTsqlDdlQuery(query)
         || TryVisitTsqlProcQuery(query)
         || TryVisitTsqlSecurityQuery(query)
@@ -477,7 +478,7 @@ public partial class SqlVisitor
             return;
         }
 
-        if (TryVisitTsqlExpression(expression))
+        if (TryVisitTsqlLexicalExpression(expression) || TryVisitTsqlExpression(expression))
         {
             return;
         }
