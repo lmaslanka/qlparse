@@ -49,7 +49,8 @@ public partial class SqlVisitor
         TryVisitQueryPgDml(query)
         || TryVisitPgUtilityQuery(query)
         || TryVisitPgSchemaQuery(query)
-        || TryVisitPgDdlQuery(query);
+        || TryVisitPgDdlQuery(query)
+        || TryVisitPgRoutineQuery(query);
 
     private bool TryVisitQuery1(Query query)
     {

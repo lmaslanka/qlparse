@@ -492,7 +492,14 @@ public partial class SqlVisitor
         VisitDataType(node.ReturnsType);
     }
 
-    public virtual void VisitRoutineParameter(RoutineParameter node) => VisitDataType(node.Type);
+    public virtual void VisitRoutineParameter(RoutineParameter node)
+    {
+        VisitDataType(node.Type);
+        if (node.Default is not null)
+        {
+            Visit(node.Default);
+        }
+    }
 
     public virtual void VisitDropTypeStatement(DropTypeStatement node)
     {

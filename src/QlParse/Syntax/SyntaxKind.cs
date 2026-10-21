@@ -164,6 +164,7 @@ public enum SyntaxKind
     PercentToken,
     EqualsGreaterToken,
     ColonEqualsToken,
+    DotDotToken,
     PositionalParameter,
     LineCommentTrivia,
     BlockCommentTrivia,
