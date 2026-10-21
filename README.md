@@ -124,7 +124,7 @@ Sql.Parse(sql);
 Sql.Parse(sql, SqlOptions.Postgres);
 ```
 
-`SqlOptions.SqlServer` is reserved for an upcoming T-SQL dialect in the same spirit — currently a no-op flag with no behavior wired up yet.
+`SqlOptions.SqlServer` is reserved for an upcoming T-SQL dialect in the same spirit — currently a no-op flag with no behavior wired up yet. The planned coverage is tracked in [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md).
 
 ## SQL standard coverage
 
@@ -132,6 +132,7 @@ Sql.Parse(sql, SqlOptions.Postgres);
 |---|---|
 | [SQL-STANDARD.md](SQL-STANDARD.md) | ISO/IEC 9075 (1992–2023) grammar coverage — what qlparse already accepts |
 | [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md) | PostgreSQL-specific syntax beyond the ISO standard covered by `SqlOptions.Postgres` |
+| [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) | SQL Server (T-SQL)-specific syntax beyond the ISO standard, planned for `SqlOptions.SqlServer` |
 
 ## Project structure
 
@@ -169,7 +170,7 @@ QlParse is a single-assembly pipeline: `Lexing/` turns source text into tokens, 
 ## Roadmap
 
 - [x] Implement the PostgreSQL dialect extensions tracked in [POSTGRES-STANDARD.md](POSTGRES-STANDARD.md)
-- [ ] Define and implement a SQL Server (T-SQL) dialect behind `SqlOptions.SqlServer`
+- [ ] Implement the SQL Server (T-SQL) dialect extensions tracked in [SQLSERVER-STANDARD.md](SQLSERVER-STANDARD.md) behind `SqlOptions.SqlServer`
 - [ ] Publish to NuGet.org
 
 ## License

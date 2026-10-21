@@ -22,7 +22,7 @@ internal sealed partial class Parser
             return labeled;
         }
 
-        return IsPostgres ? TryParsePgStatement() ?? ParseStatementByKind() : ParseStatementByKind();
+        return IsPostgres ? TryParsePgStatement() ?? ParseStatementByKind() : ParseNonPgStatement();
     }
 
     private Query ParseStatementByKind() => _current.Kind switch

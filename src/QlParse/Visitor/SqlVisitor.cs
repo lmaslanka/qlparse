@@ -41,6 +41,11 @@ public partial class SqlVisitor
             return;
         }
 
+        if (TryVisitTsqlQuery(query))
+        {
+            return;
+        }
+
         throw new SwitchExpressionException(query);
     }
 
@@ -51,6 +56,14 @@ public partial class SqlVisitor
         || TryVisitPgSchemaQuery(query)
         || TryVisitPgDdlQuery(query)
         || TryVisitPgRoutineQuery(query);
+
+    // SQL Server-only statement nodes, tried after the Postgres buckets.
+    private bool TryVisitTsqlQuery(Query query) =>
+        TryVisitTsqlDmlQuery(query)
+        || TryVisitTsqlDdlQuery(query)
+        || TryVisitTsqlProcQuery(query)
+        || TryVisitTsqlSecurityQuery(query)
+        || TryVisitTsqlAdminQuery(query);
 
     private bool TryVisitQuery1(Query query)
     {
@@ -460,6 +473,11 @@ public partial class SqlVisitor
         }
 
         if (TryVisitPgOperatorExpression(expression))
+        {
+            return;
+        }
+
+        if (TryVisitTsqlExpression(expression))
         {
             return;
         }

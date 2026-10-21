@@ -18,6 +18,8 @@ internal sealed partial class Parser
 
     private bool IsPostgres => (_flags & SqlOptions.Postgres) != 0;
 
+    private bool IsSqlServer => (_flags & SqlOptions.SqlServer) != 0;
+
     private void InitializeCursor()
     {
         _current = _tokens[0];
