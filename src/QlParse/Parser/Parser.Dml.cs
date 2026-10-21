@@ -50,7 +50,7 @@ internal sealed partial class Parser
 
         ParseOptionalColumnList(out var columnOpen, out var columns, out var columnClose);
         var overriding = ParseOverrideClause();
-        var query = ParseQuery();
+        var query = _current.Kind == SyntaxKind.Identifier && IsSqlServer ? ParseTsqlInsertSource() : ParseQuery();
         return new InsertSource(columnOpen, columns, columnClose, overriding, null, null, query, query.Span);
     }
 
@@ -221,7 +221,7 @@ internal sealed partial class Parser
 
     private List<SyntaxToken> ParseQualifiedName()
     {
-        var name = new List<SyntaxToken> { Expect(SyntaxKind.Identifier) };
+        var name = new List<SyntaxToken> { _current.Kind == SyntaxKind.Identifier ? Advance() : ExpectTsqlTableVariable() };
         while (_current.Kind == SyntaxKind.Dot)
         {
             Advance();
