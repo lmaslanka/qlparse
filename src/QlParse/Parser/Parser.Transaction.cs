@@ -63,11 +63,11 @@ internal sealed partial class Parser
     internal RollbackStatement ParseRollback()
     {
         var rollbackKeyword = Advance();
-        var work = IdentifierEquals(Keyword.Work) ? Advance() : (SyntaxToken?)null;
+        var work = IsWorkKeyword() ? Advance() : (SyntaxToken?)null;
         if (IdentifierEquals(Keyword.To))
         {
             var toKeyword = Advance();
-            var savepointKeyword = ExpectIdent(Keyword.Savepoint);
+            var savepointKeyword = ParseSavepointKeyword();
             var savepoint = ParseSavepointName();
             return new RollbackStatement
             {
@@ -121,7 +121,7 @@ internal sealed partial class Parser
     internal ReleaseSavepointStatement ParseReleaseSavepoint()
     {
         var releaseKeyword = Advance();
-        var savepointKeyword = ExpectIdent(Keyword.Savepoint);
+        var savepointKeyword = ParseSavepointKeyword();
         var name = ParseSavepointName();
         return new ReleaseSavepointStatement
         {
@@ -344,9 +344,13 @@ internal sealed partial class Parser
     private List<TransactionMode> ParseTransactionModes()
     {
         var modes = new List<TransactionMode> { ParseTransactionMode() };
-        while (_current.Kind == SyntaxKind.Comma)
+        while (IsTransactionModeSeparator())
         {
-            Advance();
+            if (_current.Kind == SyntaxKind.Comma)
+            {
+                Advance();
+            }
+
             modes.Add(ParseTransactionMode());
         }
 
@@ -367,7 +371,9 @@ internal sealed partial class Parser
 
         if (!IdentifierEquals(Keyword.Diagnostics))
         {
-            throw new SqlParseException($"Expected transaction mode, found {_current.Kind}", _current.Position);
+            return IsPostgres && IsPgDeferrableMode()
+                ? ParsePgDeferrableMode()
+                : throw new SqlParseException($"Expected transaction mode, found {_current.Kind}", _current.Position);
         }
 
         var diagnostics = Advance();
@@ -461,7 +467,7 @@ internal sealed partial class Parser
         out SyntaxToken? noKeyword,
         out SyntaxToken? chain)
     {
-        work = IdentifierEquals(Keyword.Work) ? Advance() : null;
+        work = IsWorkKeyword() ? Advance() : null;
         andKeyword = null;
         noKeyword = null;
         chain = null;
@@ -517,7 +523,20 @@ internal sealed partial class Parser
     private bool IsTransactionMode() =>
         IdentifierEquals(Keyword.Isolation)
         || _current.Kind == SyntaxKind.ReadKeyword
-        || IdentifierEquals(Keyword.Diagnostics);
+        || IdentifierEquals(Keyword.Diagnostics)
+        || (IsPostgres && IsPgDeferrableMode());
+
+    // Postgres separates transaction modes with commas or plain whitespace; ISO only with commas.
+    private bool IsTransactionModeSeparator() =>
+        _current.Kind == SyntaxKind.Comma || (IsPostgres && IsTransactionMode());
+
+    // Postgres also accepts COMMIT/ROLLBACK/END/ABORT TRANSACTION in place of WORK.
+    private bool IsWorkKeyword() =>
+        IdentifierEquals(Keyword.Work) || (IsPostgres && IdentifierEquals(Keyword.Transaction));
+
+    // The SAVEPOINT noise word after ROLLBACK TO / RELEASE is optional in Postgres.
+    private SyntaxToken? ParseSavepointKeyword() =>
+        IsPostgres && !IdentifierEquals(Keyword.Savepoint) ? null : ExpectIdent(Keyword.Savepoint);
 
     private bool IsSessionValue() =>
         _current.Kind is SyntaxKind.Identifier or SyntaxKind.String or SyntaxKind.QuestionMark or SyntaxKind.EmbeddedHost

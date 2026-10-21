@@ -8,4 +8,5 @@ public sealed class CreateRoleStatement : Query
     public SyntaxToken? WithKeyword { get; init; }
     public SyntaxToken? AdminKeyword { get; init; }
     public SyntaxToken? Grantor { get; init; }
+    public IReadOnlyList<KeywordOption> Options { get; init; } = [];
 }
