@@ -1,14 +1,92 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 
 namespace QlParse;
 
 // SQL Server (T-SQL) lexing, reached only under SqlOptions.SqlServer: bracket-delimited identifiers,
 // @variables and @@system functions, #temp names, binary and money literals, $pseudo-columns, the
 // GO batch separator, and the T-SQL-only operators (compound assignment, !< !>, & ~ %, legacy =*).
+// SQL Server has its own token loop: every character it lexes differently is read here first, the rest
+// falls through to the ISO tables, and the ISO/Postgres loop carries no T-SQL check at all.
 internal sealed partial class Lexer
 {
     private const char CloseBracket = ']';
     private const int BatchSeparatorLength = 2;
+    private const char LastAsciiChar = '\u007F';
+
+    internal void ReadTsqlTokens(List<SyntaxToken> tokens)
+    {
+        SyntaxToken token;
+        do
+        {
+            token = NextTsqlToken();
+            tokens.Add(token);
+        }
+        while (token.Kind != SyntaxKind.EndOfFile);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private SyntaxToken NextTsqlToken()
+    {
+        var triviaStart = _trivia.Count;
+        ReadTrivia();
+        var triviaCount = _trivia.Count - triviaStart;
+        if (_position >= _length)
+        {
+            return new SyntaxToken(SyntaxKind.EndOfFile, _position, 0, triviaStart, triviaCount);
+        }
+
+        var ch = _source[_position];
+        if (IsIdentifierStart(ch))
+        {
+            return IsEscapeStringStart(ch) ? ReadEscapeString(triviaStart, triviaCount) : ReadTsqlWord(ch, triviaStart, triviaCount);
+        }
+
+        if (char.IsAsciiDigit(ch))
+        {
+            return ch == '0' && Peek() is 'x' or 'X' ? ReadBinaryLiteral(triviaStart, triviaCount) : ReadNumber(triviaStart, triviaCount);
+        }
+
+        // `$` that is no money literal or pseudo-column goes through the ISO (or Postgres) dollar handling.
+        return TryReadTsqlPunctuation(ch, triviaStart, triviaCount)
+            ?? (ch == '$' ? TryReadSpecialToken(triviaStart, triviaCount) : null)
+            ?? ReadPunctuationToken(triviaStart, triviaCount);
+    }
+
+    // A word: T-SQL keeps only the N'...' prefix (x'..' and b'..' are a name followed by a string alias) and
+    // has no U& forms (`U&'x'` is a bitwise AND of a name and a string). E'...' stays with Postgres.
+    private SyntaxToken ReadTsqlWord(char ch, int triviaStart, int triviaCount) =>
+        ch is 'N' or 'n' && Peek() == StringQuote
+            ? ReadString(triviaStart, triviaCount, prefixed: true)
+            : ReadTsqlIdentifier(triviaStart, triviaCount);
+
+    // Reads a character T-SQL lexes differently from ISO, or returns null to leave it to the ISO tables. With
+    // both dialect flags set, Postgres keeps its own reading of the operator characters the two share.
+    private SyntaxToken? TryReadTsqlPunctuation(char ch, int triviaStart, int triviaCount) => ch switch
+    {
+        '[' => ReadBracketIdentifier(triviaStart, triviaCount),
+        AtSign => ReadTsqlVariable(triviaStart, triviaCount),
+        IdentifierQuote when IsQuotedIdentifierOff => ReadDoubleQuotedString(triviaStart, triviaCount),
+        > LastAsciiChar when IsMoneyStart(ch) => ReadMoneyLiteral(triviaStart, triviaCount),
+        _ when IsPostgres => null,
+        '$' => IsMoneyAmountStart() ? ReadMoneyLiteral(triviaStart, triviaCount) : TryReadPseudoColumn(triviaStart, triviaCount),
+        '=' => Peek() == '*'
+            ? ReadTwo(SyntaxKind.EqualsStarToken, triviaStart, triviaCount)
+            : ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount),
+        '|' => ReadTsqlBar(triviaStart, triviaCount),
+        '^' => ReadCompoundOr(SyntaxKind.CaretToken, triviaStart, triviaCount),
+        '*' => ReadCompoundOr(SyntaxKind.Star, triviaStart, triviaCount),
+        '+' => ReadCompoundOr(SyntaxKind.PlusToken, triviaStart, triviaCount),
+        '-' when Peek() == '=' => ReadTwo(SyntaxKind.CompoundAssignmentToken, triviaStart, triviaCount),
+        '/' => ReadCompoundOr(SyntaxKind.SlashToken, triviaStart, triviaCount),
+        ':' when IsIdentifierStart(Peek()) => ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount),
+        '!' => TryReadTsqlNotComparison(triviaStart, triviaCount),
+        '%' => ReadCompoundOr(SyntaxKind.PercentToken, triviaStart, triviaCount),
+        '&' => ReadCompoundOr(SyntaxKind.AmpersandToken, triviaStart, triviaCount),
+        '~' => ReadSingle(SyntaxKind.TildeToken, triviaStart, triviaCount),
+        '#' => ReadTempObjectName(triviaStart, triviaCount),
+        _ => null,
+    };
 
     // [name] with `]]` as an escaped close bracket. Like "name", the token keeps its delimiters.
     internal SyntaxToken ReadBracketIdentifier(int triviaStart, int triviaCount)
@@ -56,10 +134,12 @@ internal sealed partial class Lexer
         return new SyntaxToken(SyntaxKind.EmbeddedHost, start, _position - start, triviaStart, triviaCount);
     }
 
-    // The rest of a regular identifier, which in T-SQL may continue through @ and #. A line holding only
-    // `GO [count]` (and an optional comment) is the client-side batch separator, never an identifier.
-    internal SyntaxToken ReadTsqlIdentifierTail(int start, int triviaStart, int triviaCount)
+    // A regular identifier, which in T-SQL may continue through @ and #. A line holding only `GO [count]`
+    // (and an optional comment) is the client-side batch separator, never an identifier.
+    private SyntaxToken ReadTsqlIdentifier(int triviaStart, int triviaCount)
     {
+        var start = _position;
+        _position++;
         SkipTsqlIdentifierPart();
         var length = _position - start;
         if (length == BatchSeparatorLength && IsBatchSeparatorAt(start))
@@ -124,18 +204,11 @@ internal sealed partial class Lexer
         return scan;
     }
 
-    // 0x0A1B binary constants (`0x` alone is the empty binary value), checked once a number has read its
-    // leading digits, so other numbers pay one length test.
-    internal bool IsBinaryLiteralMarker(int start) =>
-        _position - start == 1
-        && _source[start] == '0'
-        && _position < _length
-        && _source[_position] is 'x' or 'X'
-        && IsSqlServer;
-
-    internal SyntaxToken ReadBinaryLiteral(int start, int triviaStart, int triviaCount)
+    // 0x0A1B binary constants (`0x` alone is the empty binary value).
+    private SyntaxToken ReadBinaryLiteral(int triviaStart, int triviaCount)
     {
-        _position++;
+        var start = _position;
+        _position += TwoCharTokenLength;
         while (_position < _length && char.IsAsciiHexDigit(_source[_position]))
         {
             _position++;
@@ -144,20 +217,7 @@ internal sealed partial class Lexer
         return new SyntaxToken(SyntaxKind.BinaryLiteral, start, _position - start, triviaStart, triviaCount);
     }
 
-    // `$` is a Postgres positional parameter or dollar-quoted string, or a T-SQL money literal or
-    // pseudo-column; otherwise (null here) the ISO DollarToken.
-    internal SyntaxToken? TryReadDialectDollar(int triviaStart, int triviaCount)
-    {
-        if (IsPostgres)
-        {
-            return char.IsAsciiDigit(Peek())
-                ? ReadPositionalParameter(triviaStart, triviaCount)
-                : TryReadDollarQuotedString(triviaStart, triviaCount);
-        }
-
-        return IsMoneyAmountStart() ? ReadMoneyLiteral(triviaStart, triviaCount) : TryReadPseudoColumn(triviaStart, triviaCount);
-    }
-
+    // `$` starts a money literal or a pseudo-column; otherwise (null) it is the ISO DollarToken.
     private bool IsMoneyAmountStart()
     {
         var next = Peek();
@@ -207,25 +267,9 @@ internal sealed partial class Lexer
         return new SyntaxToken(SyntaxKind.Identifier, start, end - start, triviaStart, triviaCount);
     }
 
-    internal SyntaxToken ReadDialectEquals(int triviaStart, int triviaCount)
+    // `|=` and `||=` are compound assignments; `|` and `||` keep their ISO meaning.
+    private SyntaxToken ReadTsqlBar(int triviaStart, int triviaCount)
     {
-        if (IsPostgres)
-        {
-            return ReadPgOperator(triviaStart, triviaCount);
-        }
-
-        return Peek() == '*'
-            ? ReadTwo(SyntaxKind.EqualsStarToken, triviaStart, triviaCount)
-            : ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount);
-    }
-
-    internal SyntaxToken ReadDialectBar(int triviaStart, int triviaCount)
-    {
-        if (IsPostgres)
-        {
-            return ReadPgOperator(triviaStart, triviaCount);
-        }
-
         if (Peek() == '=')
         {
             return ReadTwo(SyntaxKind.CompoundAssignmentToken, triviaStart, triviaCount);
@@ -241,33 +285,6 @@ internal sealed partial class Lexer
             : ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount);
     }
 
-    internal SyntaxToken ReadDialectCaret(int triviaStart, int triviaCount)
-    {
-        if (IsPostgres)
-        {
-            return ReadPgOperator(triviaStart, triviaCount);
-        }
-
-        return ReadCompoundOr(SyntaxKind.CaretToken, triviaStart, triviaCount);
-    }
-
-    internal SyntaxToken ReadDialectArithmetic(char ch, int triviaStart, int triviaCount)
-    {
-        if (IsPostgres)
-        {
-            return ReadPgOperator(triviaStart, triviaCount);
-        }
-
-        return ch switch
-        {
-            '*' => ReadCompoundOr(SyntaxKind.Star, triviaStart, triviaCount),
-            '+' => ReadCompoundOr(SyntaxKind.PlusToken, triviaStart, triviaCount),
-            '-' => Peek() == '=' ? ReadTwo(SyntaxKind.CompoundAssignmentToken, triviaStart, triviaCount) : ReadMinus(triviaStart, triviaCount),
-            '/' => ReadCompoundOr(SyntaxKind.SlashToken, triviaStart, triviaCount),
-            _ => ReadSingle(SyntaxKind.QuestionMark, triviaStart, triviaCount),
-        };
-    }
-
     // `op=` is a compound assignment (`*=` doubles as the legacy outer-join comparison); otherwise `op`.
     private SyntaxToken ReadCompoundOr(SyntaxKind single, int triviaStart, int triviaCount) =>
         Peek() == '='
@@ -275,44 +292,12 @@ internal sealed partial class Lexer
             : ReadSingle(single, triviaStart, triviaCount);
 
     // `!<` and `!>` (not less than, not greater than); `!=` is lexed by the ISO table.
-    internal SyntaxToken ReadTsqlNotComparison(int triviaStart, int triviaCount)
+    private SyntaxToken? TryReadTsqlNotComparison(int triviaStart, int triviaCount) => Peek() switch
     {
-        if (IsSqlServer)
-        {
-            var next = Peek();
-            if (next == '<')
-            {
-                return ReadTwo(SyntaxKind.NotLessToken, triviaStart, triviaCount);
-            }
-
-            if (next == '>')
-            {
-                return ReadTwo(SyntaxKind.NotGreaterToken, triviaStart, triviaCount);
-            }
-        }
-
-        throw new SqlParseException("Unexpected character '!'", _position);
-    }
-
-    // Characters ISO rejects outright; reached only after every ISO and Postgres table has declined the
-    // character, so the other dialects pay nothing for this table.
-    internal SyntaxToken? TryReadTsqlOnlyToken(char ch, int triviaStart, int triviaCount)
-    {
-        if (!IsSqlServer)
-        {
-            return null;
-        }
-
-        return ch switch
-        {
-            '%' => ReadCompoundOr(SyntaxKind.PercentToken, triviaStart, triviaCount),
-            '&' => ReadCompoundOr(SyntaxKind.AmpersandToken, triviaStart, triviaCount),
-            '~' => ReadSingle(SyntaxKind.TildeToken, triviaStart, triviaCount),
-            '#' => ReadTempObjectName(triviaStart, triviaCount),
-            _ when IsMoneyStart(ch) => ReadMoneyLiteral(triviaStart, triviaCount),
-            _ => null,
-        };
-    }
+        '<' => ReadTwo(SyntaxKind.NotLessToken, triviaStart, triviaCount),
+        '>' => ReadTwo(SyntaxKind.NotGreaterToken, triviaStart, triviaCount),
+        _ => null,
+    };
 
     private bool IsMoneyStart(char ch) =>
         CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.CurrencySymbol && IsMoneyAmountStart();
