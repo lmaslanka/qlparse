@@ -17,7 +17,7 @@ internal sealed partial class Parser
     private Expression ParseExpression(int minBindingPower = 0)
     {
         var left = ParsePrefix();
-        while (true)
+        while (!IsCommonOperandEnd())
         {
             var next = TryParsePostfix(left, minBindingPower) ?? TryParsePredicate(left, minBindingPower);
             if (next is not null)
@@ -58,6 +58,10 @@ internal sealed partial class Parser
 
         return left;
     }
+
+    // The most frequent ends of an operand: no postfix, predicate or operator starts with either token, so the
+    // loop above stops without trying them.
+    private bool IsCommonOperandEnd() => _current.Kind is SyntaxKind.Comma or SyntaxKind.CloseParen;
 
     private Expression? TryParsePostfix(Expression left, int minBindingPower) =>
         TryParsePostfixA(left, minBindingPower) ?? TryParsePostfixB(left, minBindingPower);

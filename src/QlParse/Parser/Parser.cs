@@ -2,13 +2,13 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
-    private readonly IReadOnlyList<SyntaxToken> _tokens;
+    private readonly List<SyntaxToken> _tokens;
     private readonly string _source;
     private int _index;
     private readonly SqlOptions _flags;
     private SyntaxToken _current;
 
-    internal Parser(IReadOnlyList<SyntaxToken> tokens, string source, SqlOptions flags)
+    internal Parser(List<SyntaxToken> tokens, string source, SqlOptions flags)
     {
         _tokens = tokens;
         _source = source;
@@ -28,7 +28,9 @@ internal sealed partial class Parser
 
     public static Query Parse(IReadOnlyList<SyntaxToken> tokens, string source, SqlOptions flags)
     {
-        var parser = new Parser(tokens, source, flags);
+        // The lexer always hands over a List; holding the concrete type keeps token access free of interface
+        // dispatch. Other lists (only possible through a hand-made SqlLexResult) are copied.
+        var parser = new Parser(tokens as List<SyntaxToken> ?? [.. tokens], source, flags);
         if (parser.IsSqlServer)
         {
             return parser.ParseTsqlScript();

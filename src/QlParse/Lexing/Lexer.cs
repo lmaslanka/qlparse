@@ -49,6 +49,12 @@ internal sealed partial class Lexer
     {
         var lexer = new Lexer(source, start, end, flags);
         var tokens = new List<SyntaxToken>(Math.Max(1, (end - start) / CharsPerTokenEstimate));
+        if (lexer.IsSqlServer)
+        {
+            lexer.ReadTsqlTokens(tokens);
+            return (tokens, lexer.Trivia);
+        }
+
         SyntaxToken token;
         do
         {
@@ -68,13 +74,22 @@ internal sealed partial class Lexer
         var tokens = new List<SyntaxToken>(Math.Max(1, source.Length / CharsPerTokenEstimate));
         try
         {
-            SyntaxToken token;
-            do
+            // SQL Server runs its own token loop (Lexer.TsqlLexical.cs), so this one, shared by ISO and
+            // Postgres, carries no T-SQL check per token.
+            if (lexer.IsSqlServer)
             {
-                token = lexer.NextToken();
-                tokens.Add(token);
+                lexer.ReadTsqlTokens(tokens);
             }
-            while (token.Kind != SyntaxKind.EndOfFile);
+            else
+            {
+                SyntaxToken token;
+                do
+                {
+                    token = lexer.NextToken();
+                    tokens.Add(token);
+                }
+                while (token.Kind != SyntaxKind.EndOfFile);
+            }
 
             return new SqlLexResult
             {
@@ -114,6 +129,36 @@ internal sealed partial class Lexer
         }
 
         var ch = _source[_position];
+        if (IsIdentifierStart(ch))
+        {
+            return Peek() is StringQuote or Ampersand
+                ? ReadQuotePrefixedWord(ch, triviaStart, triviaCount)
+                : ReadIdentifierOrKeyword(triviaStart, triviaCount);
+        }
+
+        if (ch == '$' && (_flags & SqlOptions.Postgres) != 0)
+        {
+            var dollarQuoted = char.IsAsciiDigit(Peek())
+                ? ReadPositionalParameter(triviaStart, triviaCount)
+                : TryReadDollarQuotedString(triviaStart, triviaCount);
+            if (dollarQuoted is not null)
+            {
+                return dollarQuoted;
+            }
+        }
+
+        if (char.IsAsciiDigit(ch))
+        {
+            return ReadNumber(triviaStart, triviaCount);
+        }
+
+        return null;
+    }
+
+    // A word directly followed by a quote or an ampersand, where the escape, national, binary and hex string
+    // prefixes and the Unicode (U&) forms start. Every other such word is an ordinary word.
+    private SyntaxToken ReadQuotePrefixedWord(char ch, int triviaStart, int triviaCount)
+    {
         if (IsEscapeStringStart(ch))
         {
             return ReadEscapeString(triviaStart, triviaCount);
@@ -129,31 +174,9 @@ internal sealed partial class Lexer
             return ReadUnicodeDelimitedIdentifier(triviaStart, triviaCount);
         }
 
-        if (IsUnicodeStringStart(ch))
-        {
-            return ReadUnicodeString(triviaStart, triviaCount);
-        }
-
-        if (ch == '$' && IsDialect)
-        {
-            var dollar = TryReadDialectDollar(triviaStart, triviaCount);
-            if (dollar is not null)
-            {
-                return dollar;
-            }
-        }
-
-        if (IsIdentifierStart(ch))
-        {
-            return ReadIdentifierOrKeyword(triviaStart, triviaCount);
-        }
-
-        if (char.IsAsciiDigit(ch))
-        {
-            return ReadNumber(triviaStart, triviaCount);
-        }
-
-        return null;
+        return IsUnicodeStringStart(ch)
+            ? ReadUnicodeString(triviaStart, triviaCount)
+            : ReadIdentifierOrKeyword(triviaStart, triviaCount);
     }
 
     private SyntaxToken ReadPunctuationToken(int triviaStart, int triviaCount)
@@ -165,19 +188,18 @@ internal sealed partial class Lexer
             ?? TryReadPunctuationD(ch, triviaStart, triviaCount)
             ?? TryReadPunctuationE(ch, triviaStart, triviaCount)
             ?? TryReadPgOnlyOperator(ch, triviaStart, triviaCount)
-            ?? TryReadTsqlOnlyToken(ch, triviaStart, triviaCount)
             ?? throw new SqlParseException($"Unexpected character '{ch}'", _position);
     }
 
     private SyntaxToken? TryReadPunctuationA(char ch, int triviaStart, int triviaCount) => ch switch
     {
         ',' => ReadSingle(SyntaxKind.Comma, triviaStart, triviaCount),
-        '=' when IsDialect => ReadDialectEquals(triviaStart, triviaCount),
+        '=' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '=' => ReadSingle(SyntaxKind.EqualsToken, triviaStart, triviaCount),
         '.' => ReadSingle(SyntaxKind.Dot, triviaStart, triviaCount),
         ';' => ReadSingle(SyntaxKind.Semicolon, triviaStart, triviaCount),
         ':' => ReadColon(triviaStart, triviaCount),
-        '|' when IsDialect => ReadDialectBar(triviaStart, triviaCount),
+        '|' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '|' => Peek() == '|'
             ? ReadTwo(SyntaxKind.ConcatToken, triviaStart, triviaCount)
             : ReadSingle(SyntaxKind.BarToken, triviaStart, triviaCount),
@@ -188,7 +210,7 @@ internal sealed partial class Lexer
     {
         '{' => ReadSingle(SyntaxKind.OpenBrace, triviaStart, triviaCount),
         '}' => ReadSingle(SyntaxKind.CloseBrace, triviaStart, triviaCount),
-        '^' when IsDialect => ReadDialectCaret(triviaStart, triviaCount),
+        '^' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '^' => ReadSingle(SyntaxKind.CaretToken, triviaStart, triviaCount),
         '$' => ReadSingle(SyntaxKind.DollarToken, triviaStart, triviaCount),
         '(' => ReadSingle(SyntaxKind.OpenParen, triviaStart, triviaCount),
@@ -198,7 +220,6 @@ internal sealed partial class Lexer
 
     private SyntaxToken? TryReadPunctuationC(char ch, int triviaStart, int triviaCount) => ch switch
     {
-        '[' when IsSqlServer => ReadBracketIdentifier(triviaStart, triviaCount),
         '[' => ReadSingle(SyntaxKind.OpenBracket, triviaStart, triviaCount),
         ']' => ReadSingle(SyntaxKind.CloseBracket, triviaStart, triviaCount),
         '>' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
@@ -210,13 +231,13 @@ internal sealed partial class Lexer
         '!' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '!' => Peek() == '='
             ? ReadTwo(SyntaxKind.NotEqualsToken, triviaStart, triviaCount)
-            : ReadTsqlNotComparison(triviaStart, triviaCount),
+            : throw new SqlParseException("Unexpected character '!'", _position),
         _ => null,
     };
 
     private SyntaxToken? TryReadPunctuationD(char ch, int triviaStart, int triviaCount) => ch switch
     {
-        '*' or '+' or '-' or '/' or '?' when IsDialect => ReadDialectArithmetic(ch, triviaStart, triviaCount),
+        '*' or '+' or '-' or '/' or '?' when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         '*' => ReadSingle(SyntaxKind.Star, triviaStart, triviaCount),
         '+' => ReadSingle(SyntaxKind.PlusToken, triviaStart, triviaCount),
         '-' => ReadMinus(triviaStart, triviaCount),
@@ -227,13 +248,11 @@ internal sealed partial class Lexer
 
     private SyntaxToken? TryReadPunctuationE(char ch, int triviaStart, int triviaCount) => ch switch
     {
-        AtSign when IsSqlServer => ReadTsqlVariable(triviaStart, triviaCount),
         AtSign when (_flags & SqlOptions.AtParameters) != 0 && IsIdentifierStart(Peek())
             => ReadEmbeddedHost(triviaStart, triviaCount),
         AtSign when IsPostgres => ReadPgOperator(triviaStart, triviaCount),
         AtSign => throw new SqlParseException($"Unexpected character '{AtSign}'", _position),
         StringQuote => ReadString(triviaStart, triviaCount, prefixed: false),
-        IdentifierQuote when IsQuotedIdentifierOff => ReadDoubleQuotedString(triviaStart, triviaCount),
         IdentifierQuote => ReadQuotedIdentifier(triviaStart, triviaCount),
         _ => null,
     };
@@ -320,17 +339,7 @@ internal sealed partial class Lexer
     private SyntaxToken ReadIdentifierOrKeyword(int triviaStart, int triviaCount)
     {
         var start = _position;
-        _position++;
-        while (_position < _length && IsIdentifierPart(_source[_position]))
-        {
-            _position++;
-        }
-
-        if (IsSqlServer)
-        {
-            return ReadTsqlIdentifierTail(start, triviaStart, triviaCount);
-        }
-
+        _position = SkipIdentifierPart(start + 1);
         var text = _source.AsSpan(start, _position - start);
         if (IsCharacterSetIntroducer(text))
         {
@@ -348,17 +357,25 @@ internal sealed partial class Lexer
         return new SyntaxToken(Keyword.Classify(text), start, text.Length, triviaStart, triviaCount);
     }
 
+    // Scans over a span of the lexed range, so the loop keeps its index in a register and needs no bounds check.
+    private int SkipIdentifierPart(int position)
+    {
+        var source = _source.AsSpan(0, _length);
+        var end = position;
+        while (end < source.Length && IsIdentifierPart(source[end]))
+        {
+            end++;
+        }
+
+        return end;
+    }
+
     private SyntaxToken ReadNumber(int triviaStart, int triviaCount)
     {
         var start = _position;
         while (_position < _length && char.IsAsciiDigit(_source[_position]))
         {
             _position++;
-        }
-
-        if (IsBinaryLiteralMarker(start))
-        {
-            return ReadBinaryLiteral(start, triviaStart, triviaCount);
         }
 
         if (_position < _length
@@ -416,7 +433,7 @@ internal sealed partial class Lexer
                 : ReadSingle(SyntaxKind.ColonToken, triviaStart, triviaCount);
         }
 
-        if (IsIdentifierStart(Peek()) && !IsSqlServer)
+        if (IsIdentifierStart(Peek()))
         {
             return ReadEmbeddedHost(triviaStart, triviaCount);
         }
@@ -607,16 +624,14 @@ internal sealed partial class Lexer
         return new SyntaxToken(SyntaxKind.EmbeddedHost, start, _position - start, triviaStart, triviaCount);
     }
 
-    // T-SQL keeps only the N'...' prefix: there x'..' and b'..' are a name followed by a string alias.
     private bool IsPrefixedStringStart(char ch) =>
-        (ch is 'N' or 'n' or 'B' or 'b' or 'X' or 'x') && Peek() == StringQuote && (ch is 'N' or 'n' || !IsSqlServer);
+        (ch is 'N' or 'n' or 'B' or 'b' or 'X' or 'x') && Peek() == StringQuote;
 
-    // T-SQL has no U& literals: `U&'x'` is a bitwise AND of a name and a string.
     private bool IsUnicodeDelimitedIdentifierStart(char ch) =>
-        (ch is 'U' or 'u') && Peek() == Ampersand && PeekTwo() == IdentifierQuote && !IsSqlServer;
+        (ch is 'U' or 'u') && Peek() == Ampersand && PeekTwo() == IdentifierQuote;
 
     private bool IsUnicodeStringStart(char ch) =>
-        (ch is 'U' or 'u') && Peek() == Ampersand && PeekTwo() == StringQuote && !IsSqlServer;
+        (ch is 'U' or 'u') && Peek() == Ampersand && PeekTwo() == StringQuote;
 
     private SyntaxToken ReadUnicodeDelimitedIdentifier(int triviaStart, int triviaCount)
     {
@@ -859,10 +874,6 @@ internal sealed partial class Lexer
     private bool IsPostgres => (_flags & SqlOptions.Postgres) != 0;
 
     private bool IsSqlServer => (_flags & SqlOptions.SqlServer) != 0;
-
-    // One test for "Postgres or SQL Server": characters both dialects lex differently from ISO keep a
-    // single dialect check in front of their ISO arm, so the ISO path pays exactly what it did before.
-    private bool IsDialect => (_flags & (SqlOptions.Postgres | SqlOptions.SqlServer)) != 0;
 
     private static bool IsPlusOrMinus(char ch) => ch is '+' or '-';
 

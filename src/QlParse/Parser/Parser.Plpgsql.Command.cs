@@ -142,7 +142,7 @@ internal sealed partial class Parser
     private PlpgsqlPerformStatement ParsePlpgsqlPerform()
     {
         var performKeyword = _current;
-        var tokens = (List<SyntaxToken>)_tokens;
+        var tokens = _tokens;
         var at = _index - 1;
         var select = performKeyword with { Kind = SyntaxKind.SelectKeyword };
         tokens[at] = select;

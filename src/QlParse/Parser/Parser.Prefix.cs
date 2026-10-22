@@ -2,8 +2,19 @@ namespace QlParse;
 
 internal sealed partial class Parser
 {
+    private const char LastAsciiChar = '\u007F';
+
+    // The bit that separates ASCII upper- and lowercase letters.
+    private const int CaseBit = 0x20;
+
+    // A name, the most frequent operand, skips the keyword tables, none of which takes an identifier.
     internal Expression ParsePrefix()
     {
+        if (_current.Kind == SyntaxKind.Identifier)
+        {
+            return ParseIdentifierPrefix();
+        }
+
         return TryParsePrefixHead()
             ?? TryParsePrefixFunctions()
             ?? ParsePrefixTail();
@@ -294,9 +305,17 @@ internal sealed partial class Parser
 
     private bool IdentifierEquals(string keyword) => TokenEquals(_current, keyword);
 
+    // The length and first-character tests rule out most words before the comparison call.
     private bool TokenEquals(SyntaxToken token, string keyword) =>
         token.Kind == SyntaxKind.Identifier
+        && token.Length == keyword.Length
+        && (keyword.Length == 0 || FirstCharMayMatch(_source[token.Position], keyword[0]))
         && token.TextOf(_source).Equals(keyword.AsSpan(), StringComparison.OrdinalIgnoreCase);
+
+    // Characters equal under OrdinalIgnoreCase are equal after `| 0x20` when the expected one is ASCII
+    // (OrdinalIgnoreCase never pairs a non-ASCII character with an ASCII one).
+    private static bool FirstCharMayMatch(char ch, char expected) =>
+        expected > LastAsciiChar || (ch | CaseBit) == (expected | CaseBit);
 
     private bool IsTrimSpecification() =>
         IdentifierEquals(Keyword.Leading)

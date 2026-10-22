@@ -454,17 +454,17 @@ public partial class SqlVisitor
 
     public virtual void Visit(Expression expression)
     {
+        if (TryVisitExpression3(expression))
+        {
+            return;
+        }
+
         if (TryVisitExpression1(expression))
         {
             return;
         }
 
         if (TryVisitExpression2(expression))
-        {
-            return;
-        }
-
-        if (TryVisitExpression3(expression))
         {
             return;
         }
@@ -573,8 +573,8 @@ public partial class SqlVisitor
             case AbsentOnNullExpression node:
                 VisitAbsentOnNullExpression(node);
                 return true;
-            case IdentifierExpression node:
-                VisitIdentifierExpression(node);
+            case UniqueExpression node:
+                VisitUniqueExpression(node);
                 return true;
             case HostParameterExpression node:
                 VisitHostParameterExpression(node);
@@ -582,8 +582,8 @@ public partial class SqlVisitor
             case EmbeddedHostExpression node:
                 VisitEmbeddedHostExpression(node);
                 return true;
-            case LiteralExpression node:
-                VisitLiteralExpression(node);
+            case QualifiedStarExpression node:
+                VisitQualifiedStarExpression(node);
                 return true;
             case NiladicFunctionExpression node:
                 VisitNiladicFunctionExpression(node);
@@ -626,15 +626,22 @@ public partial class SqlVisitor
         }
     }
 
+    // The most frequent expression nodes lead, and this bucket is tried first.
     private bool TryVisitExpression3(Expression expression)
     {
         switch (expression)
         {
-            case BinaryExpression node:
-                VisitBinaryExpression(node);
+            case IdentifierExpression node:
+                VisitIdentifierExpression(node);
                 return true;
             case MemberAccessExpression node:
                 VisitMemberAccessExpression(node);
+                return true;
+            case LiteralExpression node:
+                VisitLiteralExpression(node);
+                return true;
+            case BinaryExpression node:
+                VisitBinaryExpression(node);
                 return true;
             case BetweenExpression node:
                 VisitBetweenExpression(node);
@@ -675,9 +682,6 @@ public partial class SqlVisitor
             case ExistsExpression node:
                 VisitExistsExpression(node);
                 return true;
-            case UniqueExpression node:
-                VisitUniqueExpression(node);
-                return true;
             case QuantifiedSubqueryExpression node:
                 VisitQuantifiedSubqueryExpression(node);
                 return true;
@@ -686,9 +690,6 @@ public partial class SqlVisitor
                 return true;
             case StarExpression node:
                 VisitStarExpression(node);
-                return true;
-            case QualifiedStarExpression node:
-                VisitQualifiedStarExpression(node);
                 return true;
             default:
                 return false;

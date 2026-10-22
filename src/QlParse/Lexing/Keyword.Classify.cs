@@ -2,11 +2,15 @@ namespace QlParse;
 
 internal static partial class Keyword
 {
+    // The bit that separates ASCII upper- and lowercase letters.
+    private const int CaseBit = 0x20;
+
     public static SyntaxKind Classify(ReadOnlySpan<char> text)
     {
+        // Group B holds the short lengths most words have, most frequent first.
         var length = text.Length;
-        return TryClassifyGroupA(text, length)
-            ?? TryClassifyGroupB(text, length)
+        return TryClassifyGroupB(text, length)
+            ?? TryClassifyGroupA(text, length)
             ?? SyntaxKind.Identifier;
     }
 
@@ -52,9 +56,29 @@ internal static partial class Keyword
 
     private static SyntaxKind? TryClassifyGroupB(ReadOnlySpan<char> text, int length)
     {
-        if (length == Keyword.Distinct.Length)
+        if (length == Keyword.From.Length)
         {
-            return ClassifyLen8(text);
+            return ClassifyLen14(text);
+        }
+
+        if (length == Keyword.And.Length)
+        {
+            return ClassifyLen12(text);
+        }
+
+        if (length == Keyword.Select.Length)
+        {
+            return ClassifyLen11(text);
+        }
+
+        if (length == Keyword.Where.Length)
+        {
+            return ClassifyLen13(text);
+        }
+
+        if (length == Keyword.Or.Length)
+        {
+            return ClassifyLen15(text);
         }
 
         if (length == Keyword.Intersect.Length)
@@ -67,29 +91,9 @@ internal static partial class Keyword
             return ClassifyLen10(text);
         }
 
-        if (length == Keyword.Select.Length)
+        if (length == Keyword.Distinct.Length)
         {
-            return ClassifyLen11(text);
-        }
-
-        if (length == Keyword.And.Length)
-        {
-            return ClassifyLen12(text);
-        }
-
-        if (length == Keyword.Where.Length)
-        {
-            return ClassifyLen13(text);
-        }
-
-        if (length == Keyword.From.Length)
-        {
-            return ClassifyLen14(text);
-        }
-
-        if (length == Keyword.Or.Length)
-        {
-            return ClassifyLen15(text);
+            return ClassifyLen8(text);
         }
 
         return null;
@@ -823,6 +827,10 @@ internal static partial class Keyword
 }
 
 
+    // Classify never passes an empty word. Characters equal under OrdinalIgnoreCase are equal after `| 0x20`
+    // (it never pairs a non-ASCII character with an ASCII one), so testing the first character first only
+    // skips the comparison call for words that cannot match.
     private static bool EqualsKeyword(ReadOnlySpan<char> text, string keyword) =>
-        text.Equals(keyword.AsSpan(), StringComparison.OrdinalIgnoreCase);
+        (text[0] | CaseBit) == (keyword[0] | CaseBit)
+        && text.Equals(keyword.AsSpan(), StringComparison.OrdinalIgnoreCase);
 }
