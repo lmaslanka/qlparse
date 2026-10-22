@@ -413,6 +413,7 @@ public sealed class ParsePrefixTests
     [InlineData("upper(x)", SyntaxKind.UpperKeyword)]
     [InlineData("lower(x)", SyntaxKind.LowerKeyword)]
     [InlineData("char_length(x)", SyntaxKind.CharLengthKeyword)]
+    [InlineData("character_length(x)", SyntaxKind.CharacterLengthKeyword)]
     [InlineData("octet_length(x)", SyntaxKind.OctetLengthKeyword)]
     [InlineData("bit_length(x)", SyntaxKind.BitLengthKeyword)]
     [InlineData("normalize(x)", SyntaxKind.NormalizeKeyword)]
@@ -437,6 +438,7 @@ public sealed class ParsePrefixTests
         Assert.Equal(Count.Two, SqlAssert.Expr<SpecialFormExpression>("normalize(x, nfc)").Arguments.Count);
         Assert.Equal(Count.Three, SqlAssert.Expr<SpecialFormExpression>("width_bucket(x, 0, 1)").Arguments.Count);
         Assert.NotNull(SqlAssert.Expr<SpecialFormExpression>("char_length(x using characters)").UsingKeyword);
+        Assert.NotNull(SqlAssert.Expr<SpecialFormExpression>("character_length(x using octets)").UsingKeyword);
     }
 
     [Fact]

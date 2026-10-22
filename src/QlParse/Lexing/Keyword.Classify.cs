@@ -16,7 +16,7 @@ internal static partial class Keyword
 
     private static SyntaxKind? TryClassifyGroupA(ReadOnlySpan<char> text, int length)
     {
-        if (length == Keyword.CurrentTimestamp.Length)
+        if (length == Keyword.CurrentTimestamp.Length || length == Keyword.CharacterLength.Length)
         {
             return ClassifyLen1(text);
         }

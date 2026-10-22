@@ -129,6 +129,7 @@ public sealed class LexTests
         { "lower", SyntaxKind.LowerKeyword },
         { "overlay", SyntaxKind.OverlayKeyword },
         { "char_length", SyntaxKind.CharLengthKeyword },
+        { "character_length", SyntaxKind.CharacterLengthKeyword },
         { "octet_length", SyntaxKind.OctetLengthKeyword },
         { "bit_length", SyntaxKind.BitLengthKeyword },
         { "normalize", SyntaxKind.NormalizeKeyword },
