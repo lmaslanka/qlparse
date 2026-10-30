@@ -140,6 +140,10 @@ public sealed partial class TsqlGapsTests
     [InlineData("select * from t (nolock) where a = 1", "t", null)]
     [InlineData("select * from dbo.t x (nolock, readpast)", "x", null)]
     [InlineData("select * from t as x (holdlock) join u on 1 = 1", "x", null)]
+    [InlineData("select * from t x (nolock, index(i)) where a = 1", "x", null)]
+    [InlineData("select * from t as x (index(i1, i2), nolock)", "x", null)]
+    [InlineData("select * from t x (index = i)", "x", null)]
+    [InlineData("select * from t (index(i))", "t", null)]
     public void Legacy_table_hints_need_no_with(string sql, string name, string? expectedWith)
     {
         var select = SqlAssert.SelectTsql(sql);
@@ -151,12 +155,34 @@ public sealed partial class TsqlGapsTests
     }
 
     [Fact]
+    public void Aliased_legacy_hints_take_arguments_and_values()
+    {
+        const string sql = "select * from dbo.t as x (nolock, index(i1, i2), index = i3) join u on 1 = 1";
+        var hinted = Assert.IsType<TsqlHintedTable>(SqlAssert.SelectTsql(sql).From);
+        Assert.Equal("dbo.t as x", Text(sql, hinted.Table.Span));
+        Assert.Equal(Count.Three, hinted.Hints.Count);
+        Assert.Equal(Count.Two, hinted.Hints[1].Arguments.Count);
+        Assert.Equal("i3", Text(sql, hinted.Hints[^1].Value!.Span));
+        Assert.Equal("dbo.t as x (nolock, index(i1, i2), index = i3)", Text(sql, hinted.Span));
+    }
+
+    [Fact]
+    public void Aliased_legacy_hints_need_the_flag()
+    {
+        SqlAssert.ParseFails("select * from t x (nolock, index(i))");
+        SqlAssert.ParseFails("select * from t x (index = i)");
+        Assert.Equal(1, Assert.IsType<TableReference>(SqlAssert.Select("select * from t x (nolock)").From).Columns!.Count);
+    }
+
+    [Fact]
     public void A_call_or_column_list_is_not_a_legacy_hint()
     {
         Assert.IsType<TableFunction>(SqlAssert.SelectTsql("select * from dbo.f (x)").From);
         Assert.IsType<TableFunction>(SqlAssert.SelectTsql("select * from f (nolock + 1)").From);
         Assert.IsType<TableFunction>(Assert.IsType<SelectStatement>(Sql.Parse("select * from t (nolock)").Root).From);
-        Assert.Equal(2, Assert.IsType<TableReference>(SqlAssert.Select("select * from t as x (a, b)").From).Columns!.Count);
+        Assert.Equal(Count.Two, Assert.IsType<TableReference>(SqlAssert.Select("select * from t as x (a, b)").From).Columns!.Count);
+        Assert.Equal(Count.Two, Assert.IsType<TableReference>(SqlAssert.SelectTsql("select * from t as x (a, b)").From).Columns!.Count);
+        Assert.Equal(1, Assert.IsType<DerivedTable>(SqlAssert.SelectTsql("select * from (select 1 a) x (nolock)").From).Columns!.Count);
     }
 
     [Theory]

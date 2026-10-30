@@ -353,7 +353,7 @@ internal sealed partial class Parser
         SyntaxToken? columnOpen = null;
         IReadOnlyList<SyntaxToken>? columns = null;
         SyntaxToken? columnClose = null;
-        if (alias is not null)
+        if (HasTableColumnList(alias))
         {
             ParseOptionalColumnList(out var open, out var cols, out var close);
             columnOpen = open;
@@ -374,6 +374,11 @@ internal sealed partial class Parser
             SystemTime = systemTime,
         };
     }
+
+    // A column alias list after a table alias. SQL Server leaves a legacy hint list `(NOLOCK, ...)` to its FROM tail.
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private bool HasTableColumnList(SyntaxToken? alias) =>
+        alias is not null && _current.Kind == SyntaxKind.OpenParen && !IsTsqlAliasedTableHints();
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private TableSource ParseDialectRoutineTable(List<SyntaxToken> nameParts) =>

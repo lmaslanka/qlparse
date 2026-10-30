@@ -8,10 +8,9 @@ internal sealed partial class Parser
     // After a FROM item and its alias: legacy (hints), WITH (hints), FOR SYSTEM_TIME CONTAINED IN (...), PIVOT and UNPIVOT.
     internal TableSource ParseTsqlTableSourceTail(TableSource table)
     {
-        table = ConvertTsqlLegacyHintColumns(table);
         while (true)
         {
-            if (_current.Kind == SyntaxKind.WithKeyword && NextKind == SyntaxKind.OpenParen)
+            if (IsTsqlTableHintsStart())
             {
                 table = ParseTsqlHintedTable(table);
                 continue;
