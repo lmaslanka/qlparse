@@ -66,57 +66,31 @@ internal sealed partial class Parser
         };
     }
 
-    // `table (NOLOCK)`: the table hints SQL Server still takes without WITH, told apart from a table-valued
-    // function call by the first word.
+    // `table (NOLOCK)`, `table (INDEX(ix), ...)`: the table hints SQL Server still takes without WITH, told apart
+    // from a table-valued function call or a column alias list by the first hint.
     internal bool IsTsqlLegacyTableHints() =>
         NextKind == SyntaxKind.Identifier
         && _index + 1 < _tokens.Count
-        && _tokens[_index + 1].Kind is SyntaxKind.CloseParen or SyntaxKind.Comma
-        && Keyword.IsTsqlLegacyTableHint(_tokens[_index].TextOf(_source));
+        && IsTsqlLegacyHintStart(_tokens[_index].TextOf(_source), _tokens[_index + 1].Kind);
+
+    // `table [AS] alias (NOLOCK, ...)`: the shared table-reference parser leaves the list to ParseTsqlTableSourceTail
+    // instead of reading it as column aliases. Only reached when a `(` follows the alias.
+    internal bool IsTsqlAliasedTableHints() => IsSqlServer && IsTsqlLegacyTableHints();
+
+    // `WITH (` before table hints, or the `(` of a legacy hint list.
+    internal bool IsTsqlTableHintsStart() =>
+        _current.Kind == SyntaxKind.WithKeyword
+            ? NextKind == SyntaxKind.OpenParen
+            : _current.Kind == SyntaxKind.OpenParen && IsTsqlLegacyTableHints();
+
+    private static bool IsTsqlLegacyHintStart(ReadOnlySpan<char> word, SyntaxKind next) =>
+        next is SyntaxKind.CloseParen or SyntaxKind.Comma
+            ? Keyword.IsTsqlLegacyTableHint(word)
+            : next is SyntaxKind.OpenParen or SyntaxKind.EqualsToken
+                && word.Equals(Keyword.Index, StringComparison.OrdinalIgnoreCase);
 
     internal TsqlHintedTable ParseTsqlLegacyHintedReference(List<SyntaxToken> nameParts) =>
         ParseTsqlHintedTable(new TableReference { Span = SourceSpan.From(nameParts[0], nameParts[^1]), NameParts = nameParts });
-
-    // `table [AS] alias (NOLOCK, ...)`: the shared alias parser reads the hints as a column alias list, which a
-    // plain table cannot have in T-SQL, so a list of legacy hint words turns back into the hints it is.
-    internal TableSource ConvertTsqlLegacyHintColumns(TableSource table)
-    {
-        if (table is not TableReference { Columns: { } columns } reference || !AreTsqlLegacyHints(columns))
-        {
-            return table;
-        }
-
-        List<TsqlHint> hints = [.. columns.Select(column => new TsqlHint { Span = column.Span, Keywords = [column] })];
-        var unhinted = new TableReference
-        {
-            Span = SourceSpan.From(reference.NameParts[0].Span, reference.Alias!.Value.Span),
-            NameParts = reference.NameParts,
-            AsKeyword = reference.AsKeyword,
-            Alias = reference.Alias,
-            SystemTime = reference.SystemTime,
-        };
-        return new TsqlHintedTable
-        {
-            Span = reference.Span,
-            Table = unhinted,
-            OpenParen = reference.ColumnOpenParen!.Value,
-            Hints = hints,
-            CloseParen = reference.ColumnCloseParen!.Value,
-        };
-    }
-
-    private bool AreTsqlLegacyHints(IReadOnlyList<SyntaxToken> columns)
-    {
-        foreach (var column in columns)
-        {
-            if (!Keyword.IsTsqlLegacyTableHint(column.TextOf(_source)))
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
 
     // Expect(kind), or the same word as a T-SQL identifier. Only reached once the keyword kind is absent,
     // so the ISO path keeps its single comparison and its error message.

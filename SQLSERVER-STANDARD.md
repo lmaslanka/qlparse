@@ -153,7 +153,7 @@ ISO core: SQL-STANDARD.md. This file tracks SQL Server-specific syntax beyond/di
 - [x] `SELECT ... INTO new_table [ON filegroup] FROM ...`
 - [x] `alias = expr` select-list alias form and string-literal aliases (`expr AS 'alias'`)
 - [x] Table hints (`FROM t WITH (NOLOCK, READPAST, UPDLOCK, HOLDLOCK, INDEX(ix), FORCESEEK, ...)`)
-- [x] Legacy table hints without `WITH` (`FROM t (NOLOCK)`, `FROM t AS x (NOLOCK)`)
+- [x] Legacy table hints without `WITH` (`FROM t (NOLOCK)`, `FROM t AS x (NOLOCK)`, `FROM t x (NOLOCK, INDEX(ix))`)
 - [x] `OPTION (RECOMPILE, MAXDOP n, OPTIMIZE FOR (...), USE HINT ('...'), LABEL = '...', ...)` query hints
 - [x] Join hints (`INNER HASH JOIN`, `LEFT MERGE JOIN`, `LOOP`, `REMOTE`)
 - [x] `CROSS APPLY` / `OUTER APPLY`
